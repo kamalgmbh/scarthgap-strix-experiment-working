@@ -1,0 +1,45 @@
+From 44dc90dcc84767867bc7f4438b8747eebd7ff185 Mon Sep 17 00:00:00 2001
+From: Frank Praznik <frank.praznik@gmail.com>
+Date: Wed, 18 Jan 2023 13:03:04 -0500
+Subject: [PATCH 161/458] autotools: Add check for libdecor get min/max
+ functions
+
+---
+ configure.ac            | 8 ++++++++
+ include/SDL_config.h.in | 3 +++
+ 2 files changed, 11 insertions(+)
+
+diff --git a/configure.ac b/configure.ac
+index d815a168a..a4fe1ae66 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -1787,6 +1787,14 @@ dnl See if libdecor is available
+                     else
+                         EXTRA_LDFLAGS="$EXTRA_LDFLAGS $DECOR_LIBS"
+                     fi
++
++                    saved_cflags=$CFLAGS
++                    CFLAGS="$CFLAGS $DECOR_CFLAGS"
++                    AC_CHECK_DECLS([libdecor_frame_get_min_content_size, libdecor_frame_get_max_content_size], [libdecor_get_min_max=yes], [ ], [[#include <libdecor.h>]])
++                    if test x$libdecor_get_min_max = xyes; then
++                        AC_DEFINE(SDL_HAVE_LIBDECOR_GET_MIN_MAX, 1, [ ])
++                    fi
++                    CFLAGS="$saved_cflags"
+                 fi
+             fi
+         fi
+diff --git a/include/SDL_config.h.in b/include/SDL_config.h.in
+index 5dc98a337..d6460b783 100644
+--- a/include/SDL_config.h.in
++++ b/include/SDL_config.h.in
+@@ -491,4 +491,7 @@
+ /* Enable dynamic libsamplerate support */
+ #undef SDL_LIBSAMPLERATE_DYNAMIC
+ 
++/* Libdecor get min/max content size functions */
++#undef SDL_HAVE_LIBDECOR_GET_MIN_MAX
++
+ #endif /* SDL_config_h_ */
+-- 
+2.17.1
+

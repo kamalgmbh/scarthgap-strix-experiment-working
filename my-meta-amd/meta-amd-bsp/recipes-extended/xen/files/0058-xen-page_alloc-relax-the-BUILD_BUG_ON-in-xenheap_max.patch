@@ -1,0 +1,48 @@
+From 9d67161388d8f611467660300bdf9715b7f110b0 Mon Sep 17 00:00:00 2001
+From: Ayan Kumar Halder <ayan.kumar.halder@amd.com>
+Date: Mon, 5 Dec 2022 13:45:25 +0100
+Subject: [PATCH 058/221] xen/page_alloc: relax the BUILD_BUG_ON() in
+ xenheap_max_mfn()
+
+In the near future, we are considering to use a common xen/domain heap for
+Arm 32-bit V8-R. In this setup, both PADDR_BITS and BITS_PER_LONG will be
+32. Therefore, the condition PADDR_BITS >= BITS_PER_LONG will become true.
+
+Looking at the commit that introduce the BUILD_BUG_ON (88e3ed61642b
+"x86/NUMA: make init_node_heap() respect Xen heap limit") and the current
+use, it seems this check was mainly to ensure that the shift of xenheap_bits
+is not going to be undefined (>> N for a N-bit type is undefined).
+
+So far, all the shifts are using "xenheap_bits - PAGE_SHIFT". Therefore, the
+existing code should work for 32-bit architecture as long as the result of
+the substraction is below 32.
+
+Therefore relax the BUILD_BUG_ON() to check that (PADDR_BITS - PAGE_SHIFT)
+is not equal of above BITS_PER_LONG.
+
+Note that we would need further precaution if we ended up to use
+'xenheap_bits' alone in shifts.
+
+Signed-off-by: Ayan Kumar Halder <ayan.kumar.halder@amd.com>
+Signed-off-by: Julien Grall <julien@xen.org>
+Acked-by: Jan Beulich <jbeulich@suse.com>
+---
+ xen/common/page_alloc.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/xen/common/page_alloc.c b/xen/common/page_alloc.c
+index 62afb07bc6..c5b8c7444f 100644
+--- a/xen/common/page_alloc.c
++++ b/xen/common/page_alloc.c
+@@ -2245,7 +2245,7 @@ void __init xenheap_max_mfn(unsigned long mfn)
+ {
+     ASSERT(!first_node_initialised);
+     ASSERT(!xenheap_bits);
+-    BUILD_BUG_ON(PADDR_BITS >= BITS_PER_LONG);
++    BUILD_BUG_ON((PADDR_BITS - PAGE_SHIFT) >= BITS_PER_LONG);
+     xenheap_bits = min(flsl(mfn + 1) - 1 + PAGE_SHIFT, PADDR_BITS);
+     printk(XENLOG_INFO "Xen heap: %u bits\n", xenheap_bits);
+ }
+-- 
+2.17.1
+

@@ -1,0 +1,38 @@
+From 3d0f7f3ce02261167a68c4a9c73ec2f6c92b8043 Mon Sep 17 00:00:00 2001
+From: "Edgar E. Iglesias" <edgar.iglesias@amd.com>
+Date: Mon, 15 Apr 2024 22:52:06 +0200
+Subject: [PATCH 68/70] configs: i386: Add a Xen PVH minimal build config
+
+Signed-off-by: Edgar E. Iglesias <edgar.iglesias@amd.com>
+Change-Id: I0a6ee1311e15528182d0d7f195efb7829be533c0
+---
+ .../devices/i386-softmmu/xen-pvh-minimal.mak    | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)
+ create mode 100644 configs/devices/i386-softmmu/xen-pvh-minimal.mak
+
+diff --git a/configs/devices/i386-softmmu/xen-pvh-minimal.mak b/configs/devices/i386-softmmu/xen-pvh-minimal.mak
+new file mode 100644
+index 0000000000..3a0f625e6a
+--- /dev/null
++++ b/configs/devices/i386-softmmu/xen-pvh-minimal.mak
+@@ -0,0 +1,17 @@
++CONFIG_APIC=y
++
++CONFIG_XEN=y
++CONFIG_XEN_BUS=y
++CONFIG_PCI=y
++CONFIG_PCI_EXPRESS_GENERIC_BRIDGE=y
++CONFIG_VIRTIO=y
++CONFIG_VIRTIO_PCI=y
++CONFIG_VIRTIO_NET=y
++CONFIG_VIRTIO_BLK=y
++CONFIG_VIRTIO_SERIAL=y
++CONFIG_VIRTIO_GPU=y
++
++# FIXME: These shouldn't be needed.
++CONFIG_IOAPIC=y
++CONFIG_ACPI=y
++CONFIG_MC146818RTC=y
+-- 
+2.17.1
+

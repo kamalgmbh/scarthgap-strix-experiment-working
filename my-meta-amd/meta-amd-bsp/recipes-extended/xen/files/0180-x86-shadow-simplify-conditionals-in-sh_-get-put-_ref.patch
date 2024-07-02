@@ -1,0 +1,50 @@
+From e4fb1750487b296858dfd6f9ed3c306b25100388 Mon Sep 17 00:00:00 2001
+From: Jan Beulich <jbeulich@suse.com>
+Date: Mon, 9 Jan 2023 14:26:12 +0100
+Subject: [PATCH 180/221] x86/shadow: simplify conditionals in
+ sh_{get,put}_ref()
+
+In both cases the "entry_pa != 0" check is redundant; storing 0 when the
+field already is 0 is quite fine. Move the cheaper remaining part first
+in sh_get_ref(). In sh_put_ref() convert the has-up-pointer check into
+an assertion (requiring the zero check to be retained there).
+
+Signed-off-by: Jan Beulich <jbeulich@suse.com>
+Acked-by: Andrew Cooper <andrew.cooper3@citrix.com>
+---
+ xen/arch/x86/mm/shadow/private.h | 11 +++++------
+ 1 file changed, 5 insertions(+), 6 deletions(-)
+
+diff --git a/xen/arch/x86/mm/shadow/private.h b/xen/arch/x86/mm/shadow/private.h
+index 2c2c18985d..e5329e0d0c 100644
+--- a/xen/arch/x86/mm/shadow/private.h
++++ b/xen/arch/x86/mm/shadow/private.h
+@@ -583,9 +583,7 @@ static inline int sh_get_ref(struct domain *d, mfn_t smfn, paddr_t entry_pa)
+     sp->u.sh.count = nx;
+ 
+     /* We remember the first shadow entry that points to each shadow. */
+-    if ( entry_pa != 0
+-         && sh_type_has_up_pointer(d, sp->u.sh.type)
+-         && sp->up == 0 )
++    if ( !sp->up && sh_type_has_up_pointer(d, sp->u.sh.type) )
+         sp->up = entry_pa;
+ 
+     return 1;
+@@ -604,10 +602,11 @@ static inline void sh_put_ref(struct domain *d, mfn_t smfn, paddr_t entry_pa)
+     ASSERT(!(sp->count_info & PGC_count_mask));
+ 
+     /* If this is the entry in the up-pointer, remove it */
+-    if ( entry_pa != 0
+-         && sh_type_has_up_pointer(d, sp->u.sh.type)
+-         && sp->up == entry_pa )
++    if ( sp->up == entry_pa )
++    {
++        ASSERT(!entry_pa || sh_type_has_up_pointer(d, sp->u.sh.type));
+         sp->up = 0;
++    }
+ 
+     x = sp->u.sh.count;
+     nx = x - 1;
+-- 
+2.17.1
+

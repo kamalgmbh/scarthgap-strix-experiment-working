@@ -1,0 +1,61 @@
+From e4ad6ef97df3776e67efee181496a0574a512a51 Mon Sep 17 00:00:00 2001
+From: Jason Andryuk <jason.andryuk@amd.com>
+Date: Wed, 27 Mar 2024 11:21:13 -0400
+Subject: [PATCH 105/106] libelf: Store maximum PHDR p_align
+
+While parsing the PHDRs, store the maximum p_align value.  This may be
+consulted for moving a PVH image's load address.
+
+Signed-off-by: Jason Andryuk <jason.andryuk@amd.com>
+---
+ xen/common/libelf/libelf-loader.c | 5 +++++
+ xen/include/xen/libelf.h          | 1 +
+ 2 files changed, 6 insertions(+)
+
+diff --git a/xen/common/libelf/libelf-loader.c b/xen/common/libelf/libelf-loader.c
+index 629cc0d3e6..e571ea670e 100644
+--- a/xen/common/libelf/libelf-loader.c
++++ b/xen/common/libelf/libelf-loader.c
+@@ -468,6 +468,7 @@ void elf_parse_binary(struct elf_binary *elf)
+ {
+     ELF_HANDLE_DECL(elf_phdr) phdr;
+     uint64_t low = -1, high = 0, paddr, memsz;
++    uint64_t max_align = 0, palign;
+     unsigned i, count;
+ 
+     count = elf_phdr_count(elf);
+@@ -481,15 +482,19 @@ void elf_parse_binary(struct elf_binary *elf)
+             continue;
+         paddr = elf_uval(elf, phdr, p_paddr);
+         memsz = elf_uval(elf, phdr, p_memsz);
++        palign = elf_uval(elf, phdr, p_align);
+         elf_msg(elf, "ELF: phdr: paddr=%#" PRIx64 " memsz=%#" PRIx64 "\n",
+                 paddr, memsz);
+         if ( low > paddr )
+             low = paddr;
+         if ( high < paddr + memsz )
+             high = paddr + memsz;
++        if ( max_align < palign )
++            max_align = palign;
+     }
+     elf->pstart = low;
+     elf->pend = high;
++    elf->palign = max_align;
+     elf_msg(elf, "ELF: memory: %#" PRIx64 " -> %#" PRIx64 "\n",
+             elf->pstart, elf->pend);
+ }
+diff --git a/xen/include/xen/libelf.h b/xen/include/xen/libelf.h
+index 1c77e3df31..2d971f958e 100644
+--- a/xen/include/xen/libelf.h
++++ b/xen/include/xen/libelf.h
+@@ -196,6 +196,7 @@ struct elf_binary {
+     size_t dest_size;
+     uint64_t pstart;
+     uint64_t pend;
++    uint64_t palign;
+     uint64_t reloc_offset;
+ 
+     uint64_t bsd_symtab_pstart;
+-- 
+2.25.1
+

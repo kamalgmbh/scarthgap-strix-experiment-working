@@ -1,0 +1,98 @@
+From f4599544af0f0d95f1263a08ebe3e8878c5d1332 Mon Sep 17 00:00:00 2001
+From: Huang Rui <ray.huang@amd.com>
+Date: Fri, 28 Jul 2023 18:42:48 +0800
+Subject: [PATCH 37/70] xen: Skip map_hva_to_gpfns in xen_unmap_memory_section
+
+If the memory address type is mmio, it's unable to get hpfns with
+map_hva_to_gpfns calls. Kernel will report the vma not found. So store
+the hpfns while it does xen_map_memory_section as a workaround. It
+should find the root cause later.
+
+Co-Developed-by: Pierre-Eric Pelloux-Prayer <pierre-eric.pelloux-prayer@amd.com>
+Signed-off-by: Huang Rui <ray.huang@amd.com>
+---
+ include/exec/memory.h       |  1 +
+ include/hw/xen/xen_native.h | 21 +++++++++++++++++----
+ 2 files changed, 18 insertions(+), 4 deletions(-)
+
+diff --git a/include/exec/memory.h b/include/exec/memory.h
+index 7e0ad0e348..dfa35c905b 100644
+--- a/include/exec/memory.h
++++ b/include/exec/memory.h
+@@ -764,6 +764,7 @@ struct MemoryRegion {
+     bool rom_device;
+     bool flush_coalesced_mmio;
+     bool is_hostmem;
++    void *hpfns;
+     bool is_mmio;
+     uint8_t dirty_log_mask;
+     bool is_iommu;
+diff --git a/include/hw/xen/xen_native.h b/include/hw/xen/xen_native.h
+index 3240bcf301..3e1da9baa0 100644
+--- a/include/hw/xen/xen_native.h
++++ b/include/hw/xen/xen_native.h
+@@ -490,7 +490,8 @@ static inline void xen_map_memory_section(domid_t dom,
+         void *hva = section->mr->ram_block->host + section->offset_within_region;
+ 
+ 	section->mr->is_mmio = false;
+-        hpfns = g_malloc(nr_pfns * sizeof(*hpfns));
++        section->mr->hpfns = g_malloc(nr_pfns * sizeof(*hpfns));
++	hpfns = section->mr->hpfns;
+         gpfns = g_malloc(nr_pfns * sizeof(*gpfns));
+         errs = g_malloc(nr_pfns * sizeof(*errs));
+         if (!hpfns || !gpfns || !errs)
+@@ -545,7 +546,6 @@ static inline void xen_map_memory_section(domid_t dom,
+                 __func__, dom, section->mr->ram_block->fd, hva, gpfns[0],
+ 		hpfns[0], size, section->mr->is_mmio, rc);
+ 
+-        g_free(hpfns);
+         g_free(gpfns);
+         g_free(errs);
+ 
+@@ -597,7 +597,7 @@ static inline void xen_unmap_memory_section(domid_t dom,
+             void *hva = section->mr->ram_block->host + section->offset_within_region;
+             domid_t hdom = 0;
+ 
+-            hpfns = g_malloc(nr_pfns * sizeof(*hpfns));
++	    hpfns = section->mr->hpfns;
+             gpfns = g_malloc(nr_pfns * sizeof(*gpfns));
+             errs = g_malloc(nr_pfns * sizeof(*errs));
+             if (!hpfns || !gpfns || !errs)
+@@ -606,6 +606,17 @@ static inline void xen_unmap_memory_section(domid_t dom,
+             for (i = 0; i < nr_pfns; i++)
+                 gpfns[i] = start_gpfn + i;
+ 
++#if 0
++	    /*
++	     * FIXME:
++	     *
++	     * If the memory address type is mmio, it's unable to get hpfns with
++	     * map_hva_to_gpfns ioctl call. So store the hpfns while it does
++	     * xen_map_memory_section.
++	     *
++	     * privcmd_ioctl_map_hva_to_gpfns: vma for hva=0x7fac6f700000 not
++	     * found
++	     */
+             rc = map_hva_to_gpfns(xen_fmem, hdom, dom, nr_pfns,
+                                   hva, gpfns, hpfns, 0);
+ 
+@@ -613,13 +624,15 @@ static inline void xen_unmap_memory_section(domid_t dom,
+                 fprintf(stderr, "%s: map_hva_to_gpfns rc=%d\n", __func__, rc);
+                 goto out;
+             }
++#endif
+ 
+             /* Fallback. */
+             rc = xc_domain_memory_mapping(xen_xc, dom, gpfns[0], hpfns[0], nr_pfns, 0);
+             if (!rc)
+                 rc = xc_domain_iomem_permission(xen_xc, dom, hpfns[0], nr_pfns, 0);
+ 
+-            g_free(hpfns);
++            g_free(section->mr->hpfns);
++	    section->mr->hpfns = NULL;
+             g_free(gpfns);
+             g_free(errs);
+     out:
+-- 
+2.17.1
+

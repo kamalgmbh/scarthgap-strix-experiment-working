@@ -1,0 +1,150 @@
+From f6144dfe03fc5e76e0e22242b67891fd97053787 Mon Sep 17 00:00:00 2001
+From: Ciro Mondueri <ciro@mondueri.com>
+Date: Wed, 23 Nov 2022 16:41:14 -0300
+Subject: [PATCH 010/458] adds GDK suspend/resume basic handling (#6596)
+
+---
+ include/SDL_main.h                |  6 ++++
+ src/core/gdk/SDL_gdk.cpp          | 46 +++++++++++++++++++++++++++++++
+ src/dynapi/SDL2.exports           |  1 +
+ src/dynapi/SDL_dynapi_overrides.h |  1 +
+ src/dynapi/SDL_dynapi_procs.h     |  1 +
+ 5 files changed, 55 insertions(+)
+
+diff --git a/include/SDL_main.h b/include/SDL_main.h
+index 113d11de0..31eade117 100644
+--- a/include/SDL_main.h
++++ b/include/SDL_main.h
+@@ -263,6 +263,12 @@ extern DECLSPEC int SDLCALL SDL_UIKitRunApp(int argc, char *argv[], SDL_main_fun
+  */
+ extern DECLSPEC int SDLCALL SDL_GDKRunApp(SDL_main_func mainFunction, void *reserved);
+ 
++/**
++ * Callback from the application to let the suspend continue.
++ *
++ */
++extern DECLSPEC void SDLCALL SDL_GDKSuspendComplete(void);
++
+ #endif /* __GDK__ */
+ 
+ #ifdef __cplusplus
+diff --git a/src/core/gdk/SDL_gdk.cpp b/src/core/gdk/SDL_gdk.cpp
+index 5d94c9bda..a9ccc1ca9 100644
+--- a/src/core/gdk/SDL_gdk.cpp
++++ b/src/core/gdk/SDL_gdk.cpp
+@@ -20,16 +20,24 @@
+ */
+ #include "../../SDL_internal.h"
+ 
++extern "C" {
+ #include "SDL_system.h"
+ #include "../windows/SDL_windows.h"
+ #include "SDL_messagebox.h"
+ #include "SDL_main.h"
++#include "SDL_events.h"
++#include "../../events/SDL_events_c.h"
++}
+ #include <XGameRuntime.h>
+ #include <xsapi-c/services_c.h>
+ #include <shellapi.h> /* CommandLineToArgvW() */
++#include <appnotify.h>
+ 
+ static XTaskQueueHandle GDK_GlobalTaskQueue;
+ 
++PAPPSTATE_REGISTRATION hPLM = {};
++HANDLE plmSuspendComplete = nullptr;
++
+ extern "C" DECLSPEC int
+ SDL_GDKGetTaskQueue(XTaskQueueHandle * outTaskQueue)
+ {
+@@ -144,9 +152,40 @@ SDL_GDKRunApp(SDL_main_func mainFunction, void *reserved)
+ 
+         SDL_SetMainReady();
+ 
++        /* Register suspend/resume handling */
++        plmSuspendComplete = CreateEventEx(nullptr, nullptr, 0, EVENT_MODIFY_STATE | SYNCHRONIZE);
++        if (!plmSuspendComplete ) {
++            SDL_SetError("[GDK] Unable to create plmSuspendComplete event");
++            return -1;
++        }
++        auto rascn = [](BOOLEAN quiesced, PVOID context)
++        {
++            SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "[GDK] in RegisterAppStateChangeNotification handler");
++            if (quiesced) {
++                ResetEvent(plmSuspendComplete);
++                SDL_SendAppEvent(SDL_APP_DIDENTERBACKGROUND);
++
++                // To defer suspension, we must wait to exit this callback.
++                // IMPORTANT: The app must call SDL_GDKSuspendComplete() to release this lock.
++                (void)WaitForSingleObject(plmSuspendComplete, INFINITE);
++
++                SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "[GDK] in RegisterAppStateChangeNotification handler: plmSuspendComplete event signaled.");
++            } else {
++                SDL_SendAppEvent(SDL_APP_WILLENTERFOREGROUND);
++            }
++        };
++        if (RegisterAppStateChangeNotification(rascn, NULL, &hPLM)) {
++            SDL_SetError("[GDK] Unable to call RegisterAppStateChangeNotification");
++            return -1;
++        }
++
+         /* Run the application main() code */
+         result = mainFunction(argc, argv);
+ 
++        /* Unregister suspend/resume handling */
++        UnregisterAppStateChangeNotification(hPLM);
++        CloseHandle(plmSuspendComplete);
++
+         /* !!! FIXME: This follows the docs exactly, but for some reason still leaks handles on exit? */
+         /* Terminate the task queue and dispatch any pending tasks */
+         XTaskQueueTerminate(taskQueue, false, nullptr, nullptr);
+@@ -173,3 +212,10 @@ SDL_GDKRunApp(SDL_main_func mainFunction, void *reserved)
+ 
+     return result;
+ }
++
++extern "C" DECLSPEC void
++SDL_GDKSuspendComplete() {
++    if (plmSuspendComplete) {
++        SetEvent(plmSuspendComplete);
++    }
++}
+diff --git a/src/dynapi/SDL2.exports b/src/dynapi/SDL2.exports
+index 5085bffd9..68f936b78 100644
+--- a/src/dynapi/SDL2.exports
++++ b/src/dynapi/SDL2.exports
+@@ -851,6 +851,7 @@
+ ++'_SDL_utf8strnlen'.'SDL2.dll'.'SDL_utf8strnlen'
+ # ++'_SDL_GDKGetTaskQueue'.'SDL2.dll'.'SDL_GDKGetTaskQueue'
+ # ++'_SDL_GDKRunApp'.'SDL2.dll'.'SDL_GDKRunApp'
++# ++'_SDL_GDKSuspendComplete'.'SDL2.dll'.'SDL_GDKSuspendComplete'
+ ++'_SDL_GetOriginalMemoryFunctions'.'SDL2.dll'.'SDL_GetOriginalMemoryFunctions'
+ ++'_SDL_ResetKeyboard'.'SDL2.dll'.'SDL_ResetKeyboard'
+ ++'_SDL_GetDefaultAudioInfo'.'SDL2.dll'.'SDL_GetDefaultAudioInfo'
+diff --git a/src/dynapi/SDL_dynapi_overrides.h b/src/dynapi/SDL_dynapi_overrides.h
+index 586465276..5627b7295 100644
+--- a/src/dynapi/SDL_dynapi_overrides.h
++++ b/src/dynapi/SDL_dynapi_overrides.h
+@@ -877,6 +877,7 @@
+ #define SDL_utf8strnlen SDL_utf8strnlen_REAL
+ #define SDL_GDKGetTaskQueue SDL_GDKGetTaskQueue_REAL
+ #define SDL_GDKRunApp SDL_GDKRunApp_REAL
++#define SDL_GDKSuspendComplete SDL_GDKSuspendComplete_REAL
+ #define SDL_GetOriginalMemoryFunctions SDL_GetOriginalMemoryFunctions_REAL
+ #define SDL_ResetKeyboard SDL_ResetKeyboard_REAL
+ #define SDL_GetDefaultAudioInfo SDL_GetDefaultAudioInfo_REAL
+diff --git a/src/dynapi/SDL_dynapi_procs.h b/src/dynapi/SDL_dynapi_procs.h
+index 7b3e02da1..f11090d17 100644
+--- a/src/dynapi/SDL_dynapi_procs.h
++++ b/src/dynapi/SDL_dynapi_procs.h
+@@ -959,6 +959,7 @@ SDL_DYNAPI_PROC(size_t,SDL_utf8strnlen,(const char *a, size_t b),(a,b),return)
+ #if defined(__GDK__)
+ SDL_DYNAPI_PROC(int,SDL_GDKGetTaskQueue,(XTaskQueueHandle *a),(a),return)
+ SDL_DYNAPI_PROC(int,SDL_GDKRunApp,(SDL_main_func a, void *b),(a,b),return)
++SDL_DYNAPI_PROC(void,SDL_GDKSuspendComplete,(void),(),return)
+ #endif
+ SDL_DYNAPI_PROC(void,SDL_GetOriginalMemoryFunctions,(SDL_malloc_func *a, SDL_calloc_func *b, SDL_realloc_func *c, SDL_free_func *d),(a,b,c,d),)
+ SDL_DYNAPI_PROC(void,SDL_ResetKeyboard,(void),(),)
+-- 
+2.17.1
+

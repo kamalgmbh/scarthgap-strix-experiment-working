@@ -1,0 +1,172 @@
+From c0fb092425000153358337c49512dd077a3e3f31 Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Tue, 28 Feb 2023 08:36:31 -0800
+Subject: [PATCH 254/458] Fixed locking up the Logitech F310 with the
+ PlayStation controller detection
+
+(cherry picked from commit da134a30396e12786c14fe8d1190ab05c67d9dba)
+---
+ src/joystick/hidapi/SDL_hidapi_ps3.c       |  2 +-
+ src/joystick/hidapi/SDL_hidapi_ps4.c       |  2 +-
+ src/joystick/hidapi/SDL_hidapi_ps5.c       |  2 +-
+ src/joystick/hidapi/SDL_hidapijoystick.c   | 50 ++++++++++++++++++++++
+ src/joystick/hidapi/SDL_hidapijoystick_c.h |  2 +
+ src/joystick/usb_ids.h                     | 22 +---------
+ 6 files changed, 56 insertions(+), 24 deletions(-)
+
+diff --git a/src/joystick/hidapi/SDL_hidapi_ps3.c b/src/joystick/hidapi/SDL_hidapi_ps3.c
+index 1732cba0f..19158388c 100644
+--- a/src/joystick/hidapi/SDL_hidapi_ps3.c
++++ b/src/joystick/hidapi/SDL_hidapi_ps3.c
+@@ -584,7 +584,7 @@ static SDL_bool HIDAPI_DriverPS3ThirdParty_IsSupportedDevice(SDL_HIDAPI_Device *
+     Uint8 data[USB_PACKET_LENGTH];
+     int size;
+ 
+-    if (SONY_THIRDPARTY_VENDOR(vendor_id)) {
++    if (HIDAPI_SupportsPlaystationDetection(vendor_id, product_id)) {
+         if (device && device->dev) {
+             size = ReadFeatureReport(device->dev, 0x03, data, sizeof data);
+             if (size == 8 && data[2] == 0x26) {
+diff --git a/src/joystick/hidapi/SDL_hidapi_ps4.c b/src/joystick/hidapi/SDL_hidapi_ps4.c
+index 858758e5e..2f84d3974 100644
+--- a/src/joystick/hidapi/SDL_hidapi_ps4.c
++++ b/src/joystick/hidapi/SDL_hidapi_ps4.c
+@@ -187,7 +187,7 @@ static SDL_bool HIDAPI_DriverPS4_IsSupportedDevice(SDL_HIDAPI_Device *device, co
+         return SDL_TRUE;
+     }
+ 
+-    if (SONY_THIRDPARTY_VENDOR(vendor_id)) {
++    if (HIDAPI_SupportsPlaystationDetection(vendor_id, product_id)) {
+         if (device && device->dev) {
+             size = ReadFeatureReport(device->dev, k_ePS4FeatureReportIdCapabilities, data, sizeof data);
+             if (size == 48 && data[2] == 0x27) {
+diff --git a/src/joystick/hidapi/SDL_hidapi_ps5.c b/src/joystick/hidapi/SDL_hidapi_ps5.c
+index 051ccee1e..d3db53971 100644
+--- a/src/joystick/hidapi/SDL_hidapi_ps5.c
++++ b/src/joystick/hidapi/SDL_hidapi_ps5.c
+@@ -282,7 +282,7 @@ static SDL_bool HIDAPI_DriverPS5_IsSupportedDevice(SDL_HIDAPI_Device *device, co
+         return SDL_TRUE;
+     }
+ 
+-    if (SONY_THIRDPARTY_VENDOR(vendor_id)) {
++    if (HIDAPI_SupportsPlaystationDetection(vendor_id, product_id)) {
+         if (device && device->dev) {
+             size = ReadFeatureReport(device->dev, k_EPS5FeatureReportIdCapabilities, data, sizeof data);
+             if (size == 48 && data[2] == 0x28) {
+diff --git a/src/joystick/hidapi/SDL_hidapijoystick.c b/src/joystick/hidapi/SDL_hidapijoystick.c
+index ecb217580..a72f44699 100644
+--- a/src/joystick/hidapi/SDL_hidapijoystick.c
++++ b/src/joystick/hidapi/SDL_hidapijoystick.c
+@@ -138,6 +138,56 @@ void HIDAPI_DumpPacket(const char *prefix, const Uint8 *data, int size)
+     SDL_free(buffer);
+ }
+ 
++SDL_bool HIDAPI_SupportsPlaystationDetection(Uint16 vendor, Uint16 product)
++{
++    switch (vendor) {
++    case USB_VENDOR_DRAGONRISE:
++        return SDL_TRUE;
++    case USB_VENDOR_HORI:
++        return SDL_TRUE;
++    case USB_VENDOR_LOGITECH:
++        /* Most Logitech devices are fine with this, but the F310 will lock up */
++        if (product == USB_PRODUCT_LOGITECH_F310) {
++            return SDL_FALSE;
++        }
++        return SDL_TRUE;
++    case USB_VENDOR_MADCATZ:
++        return SDL_TRUE;
++    case USB_VENDOR_NACON:
++        return SDL_TRUE;
++    case USB_VENDOR_PDP:
++        return SDL_TRUE;
++    case USB_VENDOR_POWERA:
++        return SDL_TRUE;
++    case USB_VENDOR_POWERA_ALT:
++        return SDL_TRUE;
++    case USB_VENDOR_QANBA:
++        return SDL_TRUE;
++    case USB_VENDOR_RAZER:
++        /* Most Razer devices are not game controllers, and some of them lock up
++         * or reset when we send them the Sony third-party query feature report,
++         * so don't include that vendor here. Instead add devices as appropriate
++         * to controller_type.c
++         *
++         * Reference: https://github.com/libsdl-org/SDL/issues/6733
++         *            https://github.com/libsdl-org/SDL/issues/6799
++         */
++        return SDL_FALSE;
++    case USB_VENDOR_SHANWAN:
++        return SDL_TRUE;
++    case USB_VENDOR_SHANWAN_ALT:
++        return SDL_TRUE;
++    case USB_VENDOR_THRUSTMASTER:
++        return SDL_TRUE;
++    case USB_VENDOR_ZEROPLUS:
++        return SDL_TRUE;
++    case 0x7545 /* SZ-MYPOWER */:
++        return SDL_TRUE;
++    default:
++        return SDL_FALSE;
++    }
++}
++
+ float HIDAPI_RemapVal(float val, float val_min, float val_max, float output_min, float output_max)
+ {
+     return output_min + (output_max - output_min) * (val - val_min) / (val_max - val_min);
+diff --git a/src/joystick/hidapi/SDL_hidapijoystick_c.h b/src/joystick/hidapi/SDL_hidapijoystick_c.h
+index 6424c8790..a993b2b07 100644
+--- a/src/joystick/hidapi/SDL_hidapijoystick_c.h
++++ b/src/joystick/hidapi/SDL_hidapijoystick_c.h
+@@ -160,6 +160,8 @@ extern void HIDAPI_JoystickDisconnected(SDL_HIDAPI_Device *device, SDL_JoystickI
+ 
+ extern void HIDAPI_DumpPacket(const char *prefix, const Uint8 *data, int size);
+ 
++extern SDL_bool HIDAPI_SupportsPlaystationDetection(Uint16 vendor, Uint16 product);
++
+ extern float HIDAPI_RemapVal(float val, float val_min, float val_max, float output_min, float output_max);
+ 
+ #endif /* SDL_JOYSTICK_HIDAPI_H */
+diff --git a/src/joystick/usb_ids.h b/src/joystick/usb_ids.h
+index b3f90b334..fa705a062 100644
+--- a/src/joystick/usb_ids.h
++++ b/src/joystick/usb_ids.h
+@@ -51,27 +51,6 @@
+ #define USB_VENDOR_VALVE        0x28de
+ #define USB_VENDOR_ZEROPLUS     0x0c12
+ 
+-// Most Razer devices are not game controllers, and some of them lock up or reset
+-// when we send them the Sony third-party query feature report, so don't include that
+-// vendor here. Instead add devices as appropriate to controller_type.c
+-// Reference: https://github.com/libsdl-org/SDL/issues/6733
+-//            https://github.com/libsdl-org/SDL/issues/6799
+-#define SONY_THIRDPARTY_VENDOR(X)    \
+-    (X == USB_VENDOR_DRAGONRISE ||   \
+-     X == USB_VENDOR_HORI ||         \
+-     X == USB_VENDOR_LOGITECH ||     \
+-     X == USB_VENDOR_MADCATZ ||      \
+-     X == USB_VENDOR_NACON ||        \
+-     X == USB_VENDOR_PDP ||          \
+-     X == USB_VENDOR_POWERA ||       \
+-     X == USB_VENDOR_POWERA_ALT ||   \
+-     X == USB_VENDOR_QANBA ||        \
+-     X == USB_VENDOR_SHANWAN ||      \
+-     X == USB_VENDOR_SHANWAN_ALT ||  \
+-     X == USB_VENDOR_THRUSTMASTER || \
+-     X == USB_VENDOR_ZEROPLUS ||     \
+-     X == 0x7545 /* SZ-MYPOWER */)
+-
+ #define USB_PRODUCT_8BITDO_XBOX_CONTROLLER                0x2002
+ #define USB_PRODUCT_AMAZON_LUNA_CONTROLLER                0x0419
+ #define USB_PRODUCT_BACKBONE_ONE_IOS                      0x0103
+@@ -82,6 +61,7 @@
+ #define USB_PRODUCT_HORI_HORIPAD_PRO_SERIES_X             0x014f
+ #define USB_PRODUCT_HORI_FIGHTING_STICK_ALPHA_PS4         0x011c
+ #define USB_PRODUCT_HORI_FIGHTING_STICK_ALPHA_PS5         0x0184
++#define USB_PRODUCT_LOGITECH_F310                         0xc216
+ #define USB_PRODUCT_LOGITECH_CHILLSTREAM                  0xcad1
+ #define USB_PRODUCT_NINTENDO_GAMECUBE_ADAPTER             0x0337
+ #define USB_PRODUCT_NINTENDO_N64_CONTROLLER               0x2019
+-- 
+2.17.1
+

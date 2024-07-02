@@ -1,0 +1,45 @@
+From ae3a34a38864bad6309f08ba410029535d989a75 Mon Sep 17 00:00:00 2001
+From: Anonymous Maarten <anonymous.maarten@gmail.com>
+Date: Thu, 23 Mar 2023 00:06:22 +0100
+Subject: [PATCH 314/458] byteswap: Don't use intrinsic byteswap functions with
+ Intel C compiler
+
+It reroutes intrinsic _byteswap_u(short|long|int64) call to libc function.
+---
+ include/SDL_endian.h | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/include/SDL_endian.h b/include/SDL_endian.h
+index 582c3a8b8..71bc06729 100644
+--- a/include/SDL_endian.h
++++ b/include/SDL_endian.h
+@@ -140,7 +140,7 @@ extern "C" {
+ 
+ #if HAS_BUILTIN_BSWAP16
+ #define SDL_Swap16(x) __builtin_bswap16(x)
+-#elif defined(_MSC_VER) && (_MSC_VER >= 1400)
++#elif (defined(_MSC_VER) && (_MSC_VER >= 1400)) && !defined(__ICL)
+ #pragma intrinsic(_byteswap_ushort)
+ #define SDL_Swap16(x) _byteswap_ushort(x)
+ #elif defined(__i386__) && !HAS_BROKEN_BSWAP
+@@ -189,7 +189,7 @@ SDL_Swap16(Uint16 x)
+ 
+ #if HAS_BUILTIN_BSWAP32
+ #define SDL_Swap32(x) __builtin_bswap32(x)
+-#elif defined(_MSC_VER) && (_MSC_VER >= 1400)
++#elif (defined(_MSC_VER) && (_MSC_VER >= 1400)) && !defined(__ICL)
+ #pragma intrinsic(_byteswap_ulong)
+ #define SDL_Swap32(x) _byteswap_ulong(x)
+ #elif defined(__i386__) && !HAS_BROKEN_BSWAP
+@@ -241,7 +241,7 @@ SDL_Swap32(Uint32 x)
+ 
+ #if HAS_BUILTIN_BSWAP64
+ #define SDL_Swap64(x) __builtin_bswap64(x)
+-#elif defined(_MSC_VER) && (_MSC_VER >= 1400)
++#elif (defined(_MSC_VER) && (_MSC_VER >= 1400)) && !defined(__ICL)
+ #pragma intrinsic(_byteswap_uint64)
+ #define SDL_Swap64(x) _byteswap_uint64(x)
+ #elif defined(__i386__) && !HAS_BROKEN_BSWAP
+-- 
+2.17.1
+

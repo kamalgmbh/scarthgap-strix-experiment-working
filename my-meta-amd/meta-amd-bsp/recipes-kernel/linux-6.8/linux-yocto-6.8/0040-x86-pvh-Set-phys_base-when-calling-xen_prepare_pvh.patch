@@ -1,0 +1,40 @@
+From a06f394c7eae769c7a1906d10cda1c2b69bbc683 Mon Sep 17 00:00:00 2001
+From: Jason Andryuk <jason.andryuk@amd.com>
+Date: Wed, 10 Apr 2024 13:48:54 -0400
+Subject: [PATCH 40/49] x86/pvh: Set phys_base when calling xen_prepare_pvh()
+
+phys_base needs to be set for __pa() to work in xen_pvh_init() when
+finding the hypercall page.  Set it before calling into
+xen_prepare_pvh(), which calls xen_pvh_init().  Clear it afterward to
+avoid __startup_64() adding to it and creating an incorrect value.
+
+Signed-off-by: Jason Andryuk <jason.andryuk@amd.com>
+---
+ arch/x86/platform/pvh/head.S | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
+
+diff --git a/arch/x86/platform/pvh/head.S b/arch/x86/platform/pvh/head.S
+index ba4d0eab4436..4c4eaa0d0583 100644
+--- a/arch/x86/platform/pvh/head.S
++++ b/arch/x86/platform/pvh/head.S
+@@ -125,7 +125,17 @@ SYM_CODE_START_LOCAL(pvh_start_xen)
+ 	xor %edx, %edx
+ 	wrmsr
+ 
++	/* Calculate load offset from LOAD_PHYSICAL_ADDR and store in
++	 * phys_base.  __pa() needs phys_base set to calculate the
++	 * hypercall page in xen_pvh_init(). */
++	movq %rbp, %rbx
++	subq $LOAD_PHYSICAL_ADDR, %rbx
++	movq %rbx, phys_base(%rip)
+ 	call xen_prepare_pvh
++	/* Clear phys_base.  __startup_64 will *add* to its value,
++	 * so reset to 0. */
++	xor  %rbx, %rbx
++	movq %rbx, phys_base(%rip)
+ 
+ 	/* startup_64 expects boot_params in %rsi. */
+ 	lea pvh_bootparams(%rip), %rsi
+-- 
+2.17.1
+

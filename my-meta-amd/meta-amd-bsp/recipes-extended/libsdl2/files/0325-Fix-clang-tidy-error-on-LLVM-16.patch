@@ -1,0 +1,31 @@
+From 008117468919727be8585a7b955a3ff4ccadd072 Mon Sep 17 00:00:00 2001
+From: Pierre Wendling <pierre.wendling.4@gmail.com>
+Date: Thu, 23 Mar 2023 14:04:24 -0400
+Subject: [PATCH 325/458] Fix clang-tidy error on LLVM 16.
+
+Starting LLVM 16, clang-diagnostic-implicit-function-declaration is
+treated as an error.
+(cherry picked from commit ea093378a29b786edbaa265045638f66d7f83d8b)
+---
+ include/SDL_stdinc.h | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/include/SDL_stdinc.h b/include/SDL_stdinc.h
+index 20997831a..0b134959b 100644
+--- a/include/SDL_stdinc.h
++++ b/include/SDL_stdinc.h
+@@ -724,6 +724,11 @@ size_t strlcpy(char* dst, const char* src, size_t size);
+ size_t strlcat(char* dst, const char* src, size_t size);
+ #endif
+ 
++/* Starting LLVM 16, the analyser errors out if these functions do not have
++   their prototype defined (clang-diagnostic-implicit-function-declaration) */
++#include <stdlib.h>
++#include <string.h>
++
+ #define SDL_malloc malloc
+ #define SDL_calloc calloc
+ #define SDL_realloc realloc
+-- 
+2.17.1
+

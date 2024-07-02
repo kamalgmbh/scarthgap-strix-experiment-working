@@ -1,0 +1,35 @@
+From f741adc86c8f5e7fc5c1863cf0d5e08b899d6209 Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Fri, 17 Feb 2023 11:29:27 -0800
+Subject: [PATCH 222/458] Added other names for the DragonRise Inc. Wired Wheel
+ (thanks @felimwhiteley!)
+
+(cherry picked from commit eede2066fbcc342e96592fbbbfe94b2420feb524)
+---
+ src/joystick/SDL_joystick.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/joystick/SDL_joystick.c b/src/joystick/SDL_joystick.c
+index 535f59fa9..0cddc6c45 100644
+--- a/src/joystick/SDL_joystick.c
++++ b/src/joystick/SDL_joystick.c
+@@ -2441,7 +2441,7 @@ SDL_bool SDL_IsJoystickVirtual(SDL_JoystickGUID guid)
+ static SDL_bool SDL_IsJoystickProductWheel(Uint32 vidpid)
+ {
+     static Uint32 wheel_joysticks[] = {
+-        MAKE_VIDPID(0x0079, 0x1864), /* PXN V900 (PS3) */
++        MAKE_VIDPID(0x0079, 0x1864), /* DragonRise Inc. Wired Wheel (active mode) (also known as PXN V900 (PS3), Superdrive SV-750, or a Genesis Seaborg 400) */
+         MAKE_VIDPID(0x046d, 0xc294), /* Logitech generic wheel */
+         MAKE_VIDPID(0x046d, 0xc295), /* Logitech Momo Force */
+         MAKE_VIDPID(0x046d, 0xc298), /* Logitech Driving Force Pro */
+@@ -2467,6 +2467,7 @@ static SDL_bool SDL_IsJoystickProductWheel(Uint32 vidpid)
+         MAKE_VIDPID(0x044f, 0xb65e), /* Thrustmaster T500RS */
+         MAKE_VIDPID(0x044f, 0xb664), /* Thrustmaster TX (initial mode) */
+         MAKE_VIDPID(0x044f, 0xb669), /* Thrustmaster TX (active mode) */
++        MAKE_VIDPID(0x11ff, 0x0511), /* DragonRise Inc. Wired Wheel (initial mode) (also known as PXN V900 (PS3), Superdrive SV-750, or a Genesis Seaborg 400) */
+     };
+     int i;
+ 
+-- 
+2.17.1
+

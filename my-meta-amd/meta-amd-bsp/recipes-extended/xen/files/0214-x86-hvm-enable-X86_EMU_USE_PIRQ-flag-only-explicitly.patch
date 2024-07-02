@@ -1,0 +1,60 @@
+From 43c4b22893eb011bbc7ac47ddf26cfa81b71f6e7 Mon Sep 17 00:00:00 2001
+From: Xenia Ragiadakou <xenia.ragiadakou@amd.com>
+Date: Wed, 27 Sep 2023 20:24:07 +0300
+Subject: [PATCH 214/221] x86/hvm: enable X86_EMU_USE_PIRQ flag only explicitly
+ via a boot parameter
+
+As of now, save/restore of MSIs that are emulated using event channels
+is not working, because PHYSDEVOP_map_pirq is not implemented for MSIs,
+and thus, QEMU cannot remap the MSI to the event channel once unmapped.
+
+Having in mind APIC virtualization support in modern hardware and the
+overly complex handling path of pirq-emulated MSIs, instead of hacking
+QEMU to not unmap pirq-emulated MSIs or implementing PHYSDEVOP_map_pirq
+for MSIs, do not enable by default pirq emulation of interrupts.
+
+This patch adds a new Xen boot parameter named "hvm_emu_use_pirq", that
+defaults to false, and can be used to enable pirq emulation support in
+hvm guests when desired.
+
+Signed-off-by: Xenia Ragiadakou <xenia.ragiadakou@amd.com>
+Change-Id: Ia44d0d0de61f8c770b701e170636bb8b64176c67
+Signed-off-by: Ramesh Babu Nalluri <rameshbabu.nalluri@amd.com>
+---
+ xen/arch/x86/domain.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/xen/arch/x86/domain.c b/xen/arch/x86/domain.c
+index d7a8237f01..5f22b8f351 100644
+--- a/xen/arch/x86/domain.c
++++ b/xen/arch/x86/domain.c
+@@ -63,6 +63,7 @@
+ #include <asm/amd.h>
+ #include <xen/numa.h>
+ #include <xen/iommu.h>
++#include <xen/param.h>
+ #ifdef CONFIG_COMPAT
+ #include <compat/vcpu.h>
+ #endif
+@@ -71,6 +72,9 @@
+ #include <asm/pv/mm.h>
+ #include <asm/spec_ctrl.h>
+ 
++static bool __read_mostly opt_hvm_emu_use_pirq_enabled = false;
++boolean_param("hvm_emu_use_pirq", opt_hvm_emu_use_pirq_enabled);
++
+ DEFINE_PER_CPU(struct vcpu *, curr_vcpu);
+ 
+ static void cf_check default_idle(void);
+@@ -789,6 +793,8 @@ int arch_domain_create(struct domain *d,
+         return -EOPNOTSUPP;
+     }
+     d->arch.emulation_flags = emflags;
++    if ( !opt_hvm_emu_use_pirq_enabled )
++        d->arch.emulation_flags &= ~XEN_X86_EMU_USE_PIRQ;
+ 
+ #ifdef CONFIG_PV32
+     HYPERVISOR_COMPAT_VIRT_START(d) =
+-- 
+2.17.1
+

@@ -1,0 +1,30 @@
+From 69b2baec5c434d6940bb2a5ba3f9e3e0db72e365 Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Tue, 14 Feb 2023 18:02:12 -0800
+Subject: [PATCH 217/458] Map the Android MENU button back to the SDL MENU key
+
+Thanks to @AntTheAlchemist for the investigation!
+
+Fixes https://github.com/libsdl-org/SDL/issues/7318
+
+(cherry picked from commit beb6a2afdc74a00f07ec230297c2675920a7bf79)
+---
+ src/joystick/android/SDL_sysjoystick.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/src/joystick/android/SDL_sysjoystick.c b/src/joystick/android/SDL_sysjoystick.c
+index 8457d1e3d..612cc04f1 100644
+--- a/src/joystick/android/SDL_sysjoystick.c
++++ b/src/joystick/android/SDL_sysjoystick.c
+@@ -185,6 +185,8 @@ static SDL_Scancode button_to_scancode(int button)
+         return SDL_SCANCODE_ESCAPE;
+     case SDL_CONTROLLER_BUTTON_BACK:
+         return SDL_SCANCODE_ESCAPE;
++    case SDL_CONTROLLER_BUTTON_START:
++        return SDL_SCANCODE_MENU;
+     case SDL_CONTROLLER_BUTTON_DPAD_UP:
+         return SDL_SCANCODE_UP;
+     case SDL_CONTROLLER_BUTTON_DPAD_DOWN:
+-- 
+2.17.1
+

@@ -1,0 +1,142 @@
+From 4ee36a94741787f45c628fac41dbd242f50e2364 Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Wed, 7 Dec 2022 14:25:53 -0800
+Subject: [PATCH 077/458] Added support for the DualSense Edge paddles
+
+(cherry picked from commit 9339085593dc20b1f003f26b3c40615cf04504b0)
+---
+ src/joystick/SDL_gamecontroller.c    |  4 ++++
+ src/joystick/SDL_joystick.c          | 11 ++++++++++
+ src/joystick/SDL_joystick_c.h        |  1 +
+ src/joystick/hidapi/SDL_hidapi_ps5.c | 30 +++++++++++++++++++++++++---
+ src/joystick/usb_ids.h               |  1 +
+ 5 files changed, 44 insertions(+), 3 deletions(-)
+
+diff --git a/src/joystick/SDL_gamecontroller.c b/src/joystick/SDL_gamecontroller.c
+index d5dddd6f6..4e0aa174f 100644
+--- a/src/joystick/SDL_gamecontroller.c
++++ b/src/joystick/SDL_gamecontroller.c
+@@ -638,6 +638,10 @@ static ControllerMapping_t *SDL_CreateMappingForHIDAPIController(SDL_JoystickGUI
+             case SDL_CONTROLLER_TYPE_PS5:
+                 /* PS5 controllers have a microphone button and an additional touchpad button */
+                 SDL_strlcat(mapping_string, "touchpad:b15,misc1:b16,", sizeof(mapping_string));
++                /* DualSense Edge controllers have paddles */
++                if (SDL_IsJoystickDualSenseEdge(vendor, product)) {
++                    SDL_strlcat(mapping_string, "paddle1:b20,paddle2:b19,paddle3:b18,paddle4:b17,", sizeof(mapping_string));
++                }
+                 break;
+             case SDL_CONTROLLER_TYPE_NINTENDO_SWITCH_PRO:
+                 /* Nintendo Switch Pro controllers have a screenshot button */
+diff --git a/src/joystick/SDL_joystick.c b/src/joystick/SDL_joystick.c
+index 398988572..5c6866db4 100644
+--- a/src/joystick/SDL_joystick.c
++++ b/src/joystick/SDL_joystick.c
+@@ -2258,6 +2258,17 @@ SDL_IsJoystickPS5(Uint16 vendor_id, Uint16 product_id)
+     return eType == k_eControllerType_PS5Controller;
+ }
+ 
++SDL_bool
++SDL_IsJoystickDualSenseEdge(Uint16 vendor_id, Uint16 product_id)
++{
++    if (vendor_id == USB_VENDOR_SONY) {
++        if (product_id == USB_PRODUCT_SONY_DS5_EDGE) {
++            return SDL_TRUE;
++        }
++    }
++    return SDL_FALSE;
++}
++
+ SDL_bool
+ SDL_IsJoystickNintendoSwitchPro(Uint16 vendor_id, Uint16 product_id)
+ {
+diff --git a/src/joystick/SDL_joystick_c.h b/src/joystick/SDL_joystick_c.h
+index 0f2093caf..71d354236 100644
+--- a/src/joystick/SDL_joystick_c.h
++++ b/src/joystick/SDL_joystick_c.h
+@@ -107,6 +107,7 @@ extern SDL_bool SDL_IsJoystickPS4(Uint16 vendor_id, Uint16 product_id);
+ 
+ /* Function to return whether a joystick is a PS5 controller */
+ extern SDL_bool SDL_IsJoystickPS5(Uint16 vendor_id, Uint16 product_id);
++extern SDL_bool SDL_IsJoystickDualSenseEdge(Uint16 vendor_id, Uint16 product_id);
+ 
+ /* Function to return whether a joystick is a Nintendo Switch Pro controller */
+ extern SDL_bool SDL_IsJoystickNintendoSwitchPro(Uint16 vendor_id, Uint16 product_id);
+diff --git a/src/joystick/hidapi/SDL_hidapi_ps5.c b/src/joystick/hidapi/SDL_hidapi_ps5.c
+index 1ab71a2e6..8daf621be 100644
+--- a/src/joystick/hidapi/SDL_hidapi_ps5.c
++++ b/src/joystick/hidapi/SDL_hidapi_ps5.c
+@@ -49,6 +49,15 @@
+                             (((Uint32)(C)) << 16) | \
+                             (((Uint32)(D)) << 24))
+ 
++enum
++{
++    SDL_CONTROLLER_BUTTON_PS5_TOUCHPAD = SDL_CONTROLLER_BUTTON_MISC1 + 1,
++    SDL_CONTROLLER_BUTTON_PS5_LEFT_FUNCTION,
++    SDL_CONTROLLER_BUTTON_PS5_RIGHT_FUNCTION,
++    SDL_CONTROLLER_BUTTON_PS5_LEFT_PADDLE,
++    SDL_CONTROLLER_BUTTON_PS5_RIGHT_PADDLE
++};
++
+ typedef enum
+ {
+     k_EPS5ReportIdState = 0x01,
+@@ -824,7 +833,13 @@ static SDL_bool HIDAPI_DriverPS5_OpenJoystick(SDL_HIDAPI_Device *device, SDL_Joy
+     ctx->player_lights = SDL_GetHintBoolean(SDL_HINT_JOYSTICK_HIDAPI_PS5_PLAYER_LED, SDL_TRUE);
+ 
+     /* Initialize the joystick capabilities */
+-    joystick->nbuttons = ctx->touchpad_supported ? 17 : 15;
++    if (SDL_IsJoystickDualSenseEdge(device->vendor_id, device->product_id)) {
++        joystick->nbuttons = 21;
++    } else if (ctx->touchpad_supported) {
++        joystick->nbuttons = 17;
++    } else {
++        joystick->nbuttons = 15;
++    }
+     joystick->naxes = SDL_CONTROLLER_AXIS_MAX;
+     joystick->epowerlevel = device->is_bluetooth ? SDL_JOYSTICK_POWER_UNKNOWN : SDL_JOYSTICK_POWER_WIRED;
+     joystick->firmware_version = ctx->firmware_version;
+@@ -1057,8 +1072,13 @@ static void HIDAPI_DriverPS5_HandleSimpleStatePacket(SDL_Joystick *joystick, SDL
+     if (ctx->last_state.simple.rgucButtonsHatAndCounter[2] != packet->rgucButtonsHatAndCounter[2]) {
+         Uint8 data = (packet->rgucButtonsHatAndCounter[2] & 0x03);
+ 
++<<<<<<< HEAD
+         SDL_PrivateJoystickButton(joystick, SDL_CONTROLLER_BUTTON_GUIDE, (data & 0x01) ? SDL_PRESSED : SDL_RELEASED);
+         SDL_PrivateJoystickButton(joystick, 15, (data & 0x02) ? SDL_PRESSED : SDL_RELEASED);
++=======
++        SDL_PrivateJoystickButton(timestamp, joystick, SDL_CONTROLLER_BUTTON_GUIDE, (data & 0x01) ? SDL_PRESSED : SDL_RELEASED);
++        SDL_PrivateJoystickButton(timestamp, joystick, SDL_CONTROLLER_BUTTON_MISC1, (data & 0x02) ? SDL_PRESSED : SDL_RELEASED);
++>>>>>>> 933908559 (Added support for the DualSense Edge paddles)
+     }
+ 
+     axis = ((int)packet->ucTriggerLeft * 257) - 32768;
+@@ -1151,8 +1171,12 @@ static void HIDAPI_DriverPS5_HandleStatePacketCommon(SDL_Joystick *joystick, SDL
+         Uint8 data = packet->rgucButtonsAndHat[2];
+ 
+         SDL_PrivateJoystickButton(joystick, SDL_CONTROLLER_BUTTON_GUIDE, (data & 0x01) ? SDL_PRESSED : SDL_RELEASED);
+-        SDL_PrivateJoystickButton(joystick, 15, (data & 0x02) ? SDL_PRESSED : SDL_RELEASED);
+-        SDL_PrivateJoystickButton(joystick, 16, (data & 0x04) ? SDL_PRESSED : SDL_RELEASED);
++        SDL_PrivateJoystickButton(joystick, SDL_CONTROLLER_BUTTON_MISC1, (data & 0x02) ? SDL_PRESSED : SDL_RELEASED);
++        SDL_PrivateJoystickButton(joystick, SDL_CONTROLLER_BUTTON_PS5_TOUCHPAD, (data & 0x04) ? SDL_PRESSED : SDL_RELEASED);
++        SDL_PrivateJoystickButton(joystick, SDL_CONTROLLER_BUTTON_PS5_LEFT_FUNCTION, (data & 0x10) ? SDL_PRESSED : SDL_RELEASED);
++        SDL_PrivateJoystickButton(joystick, SDL_CONTROLLER_BUTTON_PS5_RIGHT_FUNCTION, (data & 0x20) ? SDL_PRESSED : SDL_RELEASED);
++        SDL_PrivateJoystickButton(joystick, SDL_CONTROLLER_BUTTON_PS5_LEFT_PADDLE, (data & 0x40) ? SDL_PRESSED : SDL_RELEASED);
++        SDL_PrivateJoystickButton(joystick, SDL_CONTROLLER_BUTTON_PS5_RIGHT_PADDLE, (data & 0x80) ? SDL_PRESSED : SDL_RELEASED);
+     }
+ 
+     axis = ((int)packet->ucTriggerLeft * 257) - 32768;
+diff --git a/src/joystick/usb_ids.h b/src/joystick/usb_ids.h
+index 4261a380e..4cf9d80a9 100644
+--- a/src/joystick/usb_ids.h
++++ b/src/joystick/usb_ids.h
+@@ -101,6 +101,7 @@
+ #define USB_PRODUCT_SONY_DS4_DONGLE                       0x0ba0
+ #define USB_PRODUCT_SONY_DS4_SLIM                         0x09cc
+ #define USB_PRODUCT_SONY_DS5                              0x0ce6
++#define USB_PRODUCT_SONY_DS5_EDGE                         0x0df2
+ #define USB_PRODUCT_VICTRIX_FS_PRO_V2                     0x0207
+ #define USB_PRODUCT_XBOX360_XUSB_CONTROLLER               0x02a1 /* XUSB driver software PID */
+ #define USB_PRODUCT_XBOX360_WIRED_CONTROLLER              0x028e
+-- 
+2.17.1
+

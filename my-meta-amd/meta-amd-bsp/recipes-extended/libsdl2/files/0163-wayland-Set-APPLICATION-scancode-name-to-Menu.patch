@@ -1,0 +1,35 @@
+From 7b8f0ba8b796a13a1610cdd323cc8b1f540f5f6a Mon Sep 17 00:00:00 2001
+From: Guldoman <giulio.lettieri@gmail.com>
+Date: Thu, 19 Jan 2023 21:12:51 +0100
+Subject: [PATCH 163/458] wayland: Set `APPLICATION` scancode name to `Menu`
+
+This mimics the behavior of the other platforms.
+
+(cherry picked from commit 6c06f5ce93c55fe0f5779d5aeb68bec1bd935455)
+---
+ src/video/wayland/SDL_waylandkeyboard.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/src/video/wayland/SDL_waylandkeyboard.c b/src/video/wayland/SDL_waylandkeyboard.c
+index 94a1b7f2a..d8cf07579 100644
+--- a/src/video/wayland/SDL_waylandkeyboard.c
++++ b/src/video/wayland/SDL_waylandkeyboard.c
+@@ -25,6 +25,7 @@
+ #include "../SDL_sysvideo.h"
+ #include "SDL_waylandvideo.h"
+ #include "SDL_waylandevents_c.h"
++#include "../../events/SDL_keyboard_c.h"
+ #include "text-input-unstable-v3-client-protocol.h"
+ 
+ int Wayland_InitKeyboard(_THIS)
+@@ -35,6 +36,7 @@ int Wayland_InitKeyboard(_THIS)
+         SDL_IME_Init();
+     }
+ #endif
++    SDL_SetScancodeName(SDL_SCANCODE_APPLICATION, "Menu");
+ 
+     return 0;
+ }
+-- 
+2.17.1
+

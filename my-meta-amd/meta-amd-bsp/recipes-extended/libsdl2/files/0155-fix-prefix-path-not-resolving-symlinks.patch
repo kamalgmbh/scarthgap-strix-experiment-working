@@ -1,0 +1,24 @@
+From b47b6e02fd7f427bbd65726c226759d8a1b18b63 Mon Sep 17 00:00:00 2001
+From: Jon Daniel <jondaniel879@gmail.com>
+Date: Sat, 14 Jan 2023 23:49:06 +0100
+Subject: [PATCH 155/458] fix prefix path not resolving symlinks
+
+---
+ sdl2-config.cmake.in | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/sdl2-config.cmake.in b/sdl2-config.cmake.in
+index 5d6cf4335..ca73a97c2 100644
+--- a/sdl2-config.cmake.in
++++ b/sdl2-config.cmake.in
+@@ -14,6 +14,7 @@ macro(set_and_check _var _file)
+     endif()
+ endmacro()
+ 
++get_filename_component(CMAKE_CURRENT_LIST_DIR ${CMAKE_CURRENT_LIST_DIR} REALPATH)
+ get_filename_component(prefix "${CMAKE_CURRENT_LIST_DIR}/@cmake_prefix_relpath@" ABSOLUTE)
+ 
+ set(exec_prefix "@exec_prefix@")
+-- 
+2.17.1
+

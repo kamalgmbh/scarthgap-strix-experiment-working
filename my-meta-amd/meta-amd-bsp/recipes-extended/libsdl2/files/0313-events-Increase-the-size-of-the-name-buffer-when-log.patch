@@ -1,0 +1,29 @@
+From c0824cd49adb185d1aa992242911467dc0bf46b1 Mon Sep 17 00:00:00 2001
+From: Frank Praznik <frank.praznik@gmail.com>
+Date: Sun, 26 Mar 2023 12:53:50 -0400
+Subject: [PATCH 313/458] events: Increase the size of the name buffer when
+ logging events
+
+Event names have grown in length and are occasionally truncated when being logged (e.g. SDL_EVENT_WINDOW_PIXEL_SIZE_CHA). Increase the event name buffer size to handle the longer names.
+
+(cherry picked from commit 203a2a76fc0af2094de84d75dbf959c7db73fe72)
+---
+ src/events/SDL_events.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/events/SDL_events.c b/src/events/SDL_events.c
+index 4bfb9451d..5d23fe5eb 100644
+--- a/src/events/SDL_events.c
++++ b/src/events/SDL_events.c
+@@ -161,7 +161,7 @@ static void SDLCALL SDL_EventLoggingChanged(void *userdata, const char *name, co
+ 
+ static void SDL_LogEvent(const SDL_Event *event)
+ {
+-    char name[32];
++    char name[64];
+     char details[128];
+ 
+     /* sensor/mouse/finger motion are spammy, ignore these if they aren't demanded. */
+-- 
+2.17.1
+

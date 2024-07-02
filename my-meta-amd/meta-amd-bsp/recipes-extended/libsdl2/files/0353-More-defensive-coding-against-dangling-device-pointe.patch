@@ -1,0 +1,64 @@
+From 7ec9a4385a0829ef2f7b101ec93f68065ddd2571 Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Thu, 6 Apr 2023 11:33:27 -0700
+Subject: [PATCH 353/458] More defensive coding against dangling device
+ pointers
+
+(cherry picked from commit acadb6f873acaa0de094ad10a88f877d540ce0ec)
+---
+ src/joystick/hidapi/SDL_hidapijoystick.c   | 5 ++++-
+ src/joystick/hidapi/SDL_hidapijoystick_c.h | 1 +
+ 2 files changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/joystick/hidapi/SDL_hidapijoystick.c b/src/joystick/hidapi/SDL_hidapijoystick.c
+index d66028d96..1b286b848 100644
+--- a/src/joystick/hidapi/SDL_hidapijoystick.c
++++ b/src/joystick/hidapi/SDL_hidapijoystick.c
+@@ -92,6 +92,7 @@ static SDL_SpinLock SDL_HIDAPI_spinlock;
+ static SDL_bool SDL_HIDAPI_hints_changed = SDL_FALSE;
+ static Uint32 SDL_HIDAPI_change_count = 0;
+ static SDL_HIDAPI_Device *SDL_HIDAPI_devices SDL_GUARDED_BY(SDL_joystick_lock);
++static char SDL_HIDAPI_device_magic;
+ static int SDL_HIDAPI_numjoysticks = 0;
+ static SDL_bool SDL_HIDAPI_combine_joycons = SDL_TRUE;
+ static SDL_bool initialized = SDL_FALSE;
+@@ -851,6 +852,7 @@ static SDL_HIDAPI_Device *HIDAPI_AddDevice(const struct SDL_hid_device_info *inf
+     if (device == NULL) {
+         return NULL;
+     }
++    device->magic = &SDL_HIDAPI_device_magic;
+     device->path = SDL_strdup(info->path);
+     if (!device->path) {
+         SDL_free(device);
+@@ -962,6 +964,7 @@ static void HIDAPI_DelDevice(SDL_HIDAPI_Device *device)
+                 device->children[i]->parent = NULL;
+             }
+ 
++            device->magic = NULL;
+             SDL_DestroyMutex(device->dev_lock);
+             SDL_free(device->serial);
+             SDL_free(device->name);
+@@ -1438,7 +1441,7 @@ static SDL_bool HIDAPI_GetJoystickDevice(SDL_Joystick *joystick, SDL_HIDAPI_Devi
+ 
+     if (joystick && joystick->hwdata) {
+         *device = joystick->hwdata->device;
+-        if (*device && (*device)->driver) {
++        if (*device && (*device)->magic == &SDL_HIDAPI_device_magic && (*device)->driver != NULL) {
+             return SDL_TRUE;
+         }
+     }
+diff --git a/src/joystick/hidapi/SDL_hidapijoystick_c.h b/src/joystick/hidapi/SDL_hidapijoystick_c.h
+index a993b2b07..2f48aa760 100644
+--- a/src/joystick/hidapi/SDL_hidapijoystick_c.h
++++ b/src/joystick/hidapi/SDL_hidapijoystick_c.h
+@@ -56,6 +56,7 @@ struct _SDL_HIDAPI_DeviceDriver;
+ 
+ typedef struct _SDL_HIDAPI_Device
+ {
++    const void *magic;
+     char *name;
+     char *path;
+     Uint16 vendor_id;
+-- 
+2.17.1
+

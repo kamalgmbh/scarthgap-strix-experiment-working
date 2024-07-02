@@ -1,0 +1,25 @@
+From 460b7b247f0046bda8b49242435924d03ea9f608 Mon Sep 17 00:00:00 2001
+From: Anonymous Maarten <anonymous.maarten@gmail.com>
+Date: Sun, 8 Jan 2023 19:12:11 +0100
+Subject: [PATCH 141/458] cmake: do all compile tests with -D_GNU_SOURCE=1
+
+---
+ CMakeLists.txt | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index e539ffb6d..5c494c5e5 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -289,6 +289,8 @@ if(WINDOWS)
+   set(CMAKE_SHARED_LIBRARY_PREFIX "")
+ endif()
+ 
++set(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -D_GNU_SOURCE=1")
++
+ # Emscripten toolchain has a nonempty default value for this, and the checks
+ # in this file need to change that, so remember the original value, and
+ # restore back to that afterwards. For check_function_exists() to work in
+-- 
+2.17.1
+

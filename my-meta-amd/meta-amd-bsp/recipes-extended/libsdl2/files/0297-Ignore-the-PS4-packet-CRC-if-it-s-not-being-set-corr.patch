@@ -1,0 +1,50 @@
+From 57ae9f466db41e32c67c5a9a03c28f7803ac02c9 Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Mon, 13 Mar 2023 19:56:42 -0700
+Subject: [PATCH 297/458] Ignore the PS4 packet CRC if it's not being set
+ correctly
+
+This fixes handling the 8BitDo SN30 Pro with the 2.00 firmware in PS4 mode
+
+Fixes https://github.com/libsdl-org/SDL/issues/7270
+
+(cherry picked from commit 3951cae4a56fddcb42ce4141a6518c97fa9125cd)
+---
+ src/joystick/hidapi/SDL_hidapi_ps4.c | 14 +++++++++++++-
+ 1 file changed, 13 insertions(+), 1 deletion(-)
+
+diff --git a/src/joystick/hidapi/SDL_hidapi_ps4.c b/src/joystick/hidapi/SDL_hidapi_ps4.c
+index 6b74dfe01..5a73b3c04 100644
+--- a/src/joystick/hidapi/SDL_hidapi_ps4.c
++++ b/src/joystick/hidapi/SDL_hidapi_ps4.c
+@@ -151,6 +151,7 @@ typedef struct
+     Uint8 led_blue;
+     Uint16 last_timestamp;
+     Uint64 timestamp;
++    Uint16 valid_crc_packets; /* wrapping counter */
+     PS4StatePacket_t last_state;
+ } SDL_DriverPS4_Context;
+ 
+@@ -1035,7 +1036,18 @@ static SDL_bool HIDAPI_DriverPS4_IsPacketValid(SDL_DriverPS4_Context *ctx, Uint8
+     case k_EPS4ReportIdBluetoothState8:
+     case k_EPS4ReportIdBluetoothState9:
+         /* Bluetooth state packets have two additional bytes at the beginning, the first notes if HID data is present */
+-        if (size >= 78 && (data[1] & 0x80) && VerifyCRC(data, 78)) {
++        if (size >= 78 && (data[1] & 0x80)) {
++            if (VerifyCRC(data, 78)) {
++                ++ctx->valid_crc_packets;
++            } else {
++                if (ctx->valid_crc_packets > 0) {
++                    --ctx->valid_crc_packets;
++                }
++                if (ctx->valid_crc_packets >= 3) {
++                    /* We're generally getting valid CRC, but failed one */
++                    return SDL_FALSE;
++                }
++            }
+             return SDL_TRUE;
+         }
+         break;
+-- 
+2.17.1
+

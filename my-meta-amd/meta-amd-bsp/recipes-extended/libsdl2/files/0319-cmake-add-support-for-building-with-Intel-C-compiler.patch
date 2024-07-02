@@ -1,0 +1,68 @@
+From e5ebbdafd482f2060bf925953a4a3d6be5a27970 Mon Sep 17 00:00:00 2001
+From: Anonymous Maarten <anonymous.maarten@gmail.com>
+Date: Thu, 23 Mar 2023 05:22:32 +0100
+Subject: [PATCH 319/458] cmake: add support for building with Intel C compiler
+
+---
+ CMakeLists.txt | 13 ++++++++-----
+ 1 file changed, 8 insertions(+), 5 deletions(-)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 184c7b8e5..d30b7f68f 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -207,7 +207,7 @@ else()
+ endif()
+ 
+ # Compiler info
+-if(CMAKE_C_COMPILER_ID MATCHES "Clang")
++if(CMAKE_C_COMPILER_ID MATCHES "Clang|IntelLLVM")
+   set(USE_CLANG TRUE)
+   set(OPT_DEF_ASM TRUE)
+   # Visual Studio 2019 v16.2 added support for Clang/LLVM.
+@@ -221,11 +221,14 @@ elseif(CMAKE_COMPILER_IS_GNUCC)
+ elseif(MSVC_VERSION GREATER 1400) # VisualStudio 8.0+
+   set(OPT_DEF_ASM TRUE)
+   #set(CMAKE_C_FLAGS "/ZI /WX- /
++elseif(CMAKE_C_COMPILER_ID MATCHES "^Intel$")
++  set(OPT_DEF_ASM TRUE)
++  set(USE_INTELCC TRUE)
+ else()
+   set(OPT_DEF_ASM FALSE)
+ endif()
+ 
+-if(USE_GCC OR USE_CLANG)
++if(USE_GCC OR USE_CLANG OR USE_INTELCC)
+   set(OPT_DEF_GCC_ATOMICS ON)
+ endif()
+ 
+@@ -551,7 +554,7 @@ if(NOT SDL_FOREGROUNDING_SIGNAL STREQUAL "OFF")
+ endif()
+ 
+ # Compiler option evaluation
+-if(USE_GCC OR USE_CLANG)
++if(USE_GCC OR USE_CLANG OR USE_INTELCC)
+   # Check for -Wall first, so later things can override pieces of it.
+   # Note: clang-cl treats -Wall as -Weverything (which is very loud),
+   #       /W3 as -Wall, and /W4 as -Wall -Wextra.  So: /W3 is enough.
+@@ -689,7 +692,7 @@ if(CMAKE_C_COMPILER_ID STREQUAL "MSVC")
+ endif()
+ 
+ if(SDL_ASSEMBLY)
+-  if(USE_GCC OR USE_CLANG)
++  if(USE_GCC OR USE_CLANG OR USE_INTELCC)
+     # TODO: Those all seem to be quite GCC specific - needs to be
+     # reworked for better compiler support
+     set(HAVE_ASSEMBLY TRUE)
+@@ -2939,7 +2942,7 @@ if(SDL_WERROR)
+       set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /WX")
+       set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /WX")
+     endif()
+-  elseif(USE_GCC OR USE_CLANG)
++  elseif(USE_GCC OR USE_CLANG OR USE_INTELCC)
+     cmake_push_check_state(RESET)
+     check_c_compiler_flag(-Werror HAVE_WERROR)
+     if(HAVE_WERROR)
+-- 
+2.17.1
+

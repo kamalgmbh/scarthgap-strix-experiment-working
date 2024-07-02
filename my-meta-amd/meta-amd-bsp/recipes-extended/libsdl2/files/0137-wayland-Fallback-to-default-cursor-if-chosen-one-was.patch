@@ -1,0 +1,33 @@
+From ad0d1e2ad51ba59c391676e3e7e81d8c04766375 Mon Sep 17 00:00:00 2001
+From: Guldoman <giulio.lettieri@gmail.com>
+Date: Wed, 4 Jan 2023 18:47:16 +0100
+Subject: [PATCH 137/458] wayland: Fallback to default cursor if chosen one
+ wasn't found
+
+(cherry picked from commit 5a4283134542d4bdb3d968a836387a750ce80517)
+---
+ src/video/wayland/SDL_waylandmouse.c | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/src/video/wayland/SDL_waylandmouse.c b/src/video/wayland/SDL_waylandmouse.c
+index 07dabd390..fafa067f9 100644
+--- a/src/video/wayland/SDL_waylandmouse.c
++++ b/src/video/wayland/SDL_waylandmouse.c
+@@ -273,6 +273,14 @@ static SDL_bool wayland_get_system_cursor(SDL_VideoData *vdata, Wayland_CursorDa
+         return SDL_FALSE;
+     }
+ 
++    /* Fallback to the default cursor if the chosen one wasn't found */
++    if (!cursor) {
++        cursor = WAYLAND_wl_cursor_theme_get_cursor(theme, "left_ptr");
++        if (!cursor) {
++            return SDL_FALSE;
++        }
++    }
++
+     /* ... Set the cursor data, finally. */
+     cdata->buffer = WAYLAND_wl_cursor_image_get_buffer(cursor->images[0]);
+     cdata->hot_x = cursor->images[0]->hotspot_x;
+-- 
+2.17.1
+

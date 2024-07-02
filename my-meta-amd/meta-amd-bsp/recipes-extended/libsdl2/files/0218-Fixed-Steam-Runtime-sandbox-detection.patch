@@ -1,0 +1,28 @@
+From e7376b7b74026d7da041d2c848e99c9f7f4d74c0 Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Wed, 15 Feb 2023 13:53:57 -0800
+Subject: [PATCH 218/458] Fixed Steam Runtime sandbox detection
+
+Fixes hotplug issues on Steam Deck for Proton and native games
+
+(cherry picked from commit bcd97b36d23d08226e98a995eafd3d6aa35401b4)
+---
+ src/core/linux/SDL_sandbox.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/core/linux/SDL_sandbox.c b/src/core/linux/SDL_sandbox.c
+index 89808d5df..153903172 100644
+--- a/src/core/linux/SDL_sandbox.c
++++ b/src/core/linux/SDL_sandbox.c
+@@ -37,7 +37,7 @@ SDL_Sandbox SDL_DetectSandbox(void)
+         return SDL_SANDBOX_SNAP;
+     }
+ 
+-    if (access("/run/host/container-runtime", F_OK) == 0) {
++    if (access("/run/host/container-manager", F_OK) == 0) {
+         return SDL_SANDBOX_UNKNOWN_CONTAINER;
+     }
+ 
+-- 
+2.17.1
+

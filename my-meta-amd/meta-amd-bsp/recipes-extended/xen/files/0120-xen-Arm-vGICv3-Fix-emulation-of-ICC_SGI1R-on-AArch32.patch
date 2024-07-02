@@ -1,0 +1,33 @@
+From 469100f014384b133211562a7d3be5f523d1fab8 Mon Sep 17 00:00:00 2001
+From: Ayan Kumar Halder <ayan.kumar.halder@amd.com>
+Date: Mon, 5 Dec 2022 13:26:32 +0000
+Subject: [PATCH 120/221] xen/Arm: vGICv3: Fix emulation of ICC_SGI1R on
+ AArch32
+
+Refer Arm IHI 0069H ID020922, 12.5.23, ICC_SGI1R is a 64 bit register on
+AArch32 systems. Thus, the function needs to change to reflect this.
+The reason being 'register_t' is defined as 'u32' on AArch32.
+
+Signed-off-by: Ayan Kumar Halder <ayan.kumar.halder@amd.com>
+Reviewed-by: Michal Orzel <michal.orzel@amd.com>
+Acked-by: Julien Grall <jgrall@amazon.com>
+---
+ xen/arch/arm/vgic-v3.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/xen/arch/arm/vgic-v3.c b/xen/arch/arm/vgic-v3.c
+index 55ae4a7c5c..9c1fdcc3f8 100644
+--- a/xen/arch/arm/vgic-v3.c
++++ b/xen/arch/arm/vgic-v3.c
+@@ -1474,7 +1474,7 @@ write_reserved:
+     return 1;
+ }
+ 
+-static bool vgic_v3_to_sgi(struct vcpu *v, register_t sgir)
++static bool vgic_v3_to_sgi(struct vcpu *v, uint64_t sgir)
+ {
+     int virq;
+     int irqmode;
+-- 
+2.17.1
+

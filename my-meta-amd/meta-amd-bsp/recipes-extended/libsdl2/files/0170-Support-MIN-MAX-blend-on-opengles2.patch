@@ -1,0 +1,71 @@
+From 038ccd764a69b356a88731a0bdd10a8549e39955 Mon Sep 17 00:00:00 2001
+From: ds-sloth <72112344+ds-sloth@users.noreply.github.com>
+Date: Sun, 22 Jan 2023 17:16:13 -0500
+Subject: [PATCH 170/458] Support MIN/MAX blend on opengles2
+
+---
+ src/render/opengles2/SDL_render_gles2.c | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)
+
+diff --git a/src/render/opengles2/SDL_render_gles2.c b/src/render/opengles2/SDL_render_gles2.c
+index 4a70abb63..f7b8fdd3a 100644
+--- a/src/render/opengles2/SDL_render_gles2.c
++++ b/src/render/opengles2/SDL_render_gles2.c
+@@ -149,6 +149,8 @@ typedef struct GLES2_RenderData
+ 
+     SDL_bool debug_enabled;
+ 
++    SDL_bool GL_EXT_blend_minmax_supported;
++
+ #define SDL_PROC(ret, func, params) ret(APIENTRY *func) params;
+ #include "SDL_gles2funcs.h"
+ #undef SDL_PROC
+@@ -355,6 +357,10 @@ static GLenum GetBlendEquation(SDL_BlendOperation operation)
+         return GL_FUNC_SUBTRACT;
+     case SDL_BLENDOPERATION_REV_SUBTRACT:
+         return GL_FUNC_REVERSE_SUBTRACT;
++    case SDL_BLENDOPERATION_MINIMUM:
++        return GL_MIN_EXT;
++    case SDL_BLENDOPERATION_MAXIMUM:
++        return GL_MAX_EXT;
+     default:
+         return GL_INVALID_ENUM;
+     }
+@@ -362,6 +368,8 @@ static GLenum GetBlendEquation(SDL_BlendOperation operation)
+ 
+ static SDL_bool GLES2_SupportsBlendMode(SDL_Renderer *renderer, SDL_BlendMode blendMode)
+ {
++    GLES2_RenderData *data = (GLES2_RenderData *)renderer->driverdata;
++
+     SDL_BlendFactor srcColorFactor = SDL_GetBlendModeSrcColorFactor(blendMode);
+     SDL_BlendFactor srcAlphaFactor = SDL_GetBlendModeSrcAlphaFactor(blendMode);
+     SDL_BlendOperation colorOperation = SDL_GetBlendModeColorOperation(blendMode);
+@@ -377,6 +385,14 @@ static SDL_bool GLES2_SupportsBlendMode(SDL_Renderer *renderer, SDL_BlendMode bl
+         GetBlendEquation(alphaOperation) == GL_INVALID_ENUM) {
+         return SDL_FALSE;
+     }
++
++    if (colorOperation == SDL_BLENDOPERATION_MINIMUM && !data->GL_EXT_blend_minmax_supported) {
++        return SDL_FALSE;
++    }
++    if (colorOperation == SDL_BLENDOPERATION_MAXIMUM && !data->GL_EXT_blend_minmax_supported) {
++        return SDL_FALSE;
++    }
++
+     return SDL_TRUE;
+ }
+ 
+@@ -2206,6 +2222,10 @@ static SDL_Renderer *GLES2_CreateRenderer(SDL_Window *window, Uint32 flags)
+     renderer->rect_index_order[4] = 3;
+     renderer->rect_index_order[5] = 2;
+ 
++    if (SDL_GL_ExtensionSupported("GL_EXT_blend_minmax")) {
++        data->GL_EXT_blend_minmax_supported = SDL_TRUE;
++    }
++
+     /* Set up parameters for rendering */
+     data->glActiveTexture(GL_TEXTURE0);
+     data->glPixelStorei(GL_PACK_ALIGNMENT, 1);
+-- 
+2.17.1
+

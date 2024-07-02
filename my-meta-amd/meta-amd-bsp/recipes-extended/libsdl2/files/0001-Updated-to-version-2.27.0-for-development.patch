@@ -1,0 +1,207 @@
+From ea8f8b6dc3f89932f3ee6642f1cbeaf0e83c5cb1 Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Mon, 21 Nov 2022 16:36:10 -0800
+Subject: [PATCH 001/458] Updated to version 2.27.0 for development
+
+---
+ CMakeLists.txt                                   |  2 +-
+ Makefile.os2                                     |  2 +-
+ Makefile.w32                                     |  2 +-
+ Xcode/SDL/Info-Framework.plist                   |  4 ++--
+ Xcode/SDL/SDL.xcodeproj/project.pbxproj          | 16 ++++++++--------
+ .../main/java/org/libsdl/app/SDLActivity.java    |  2 +-
+ configure                                        |  2 +-
+ configure.ac                                     |  2 +-
+ include/SDL_version.h                            |  2 +-
+ src/main/windows/version.rc                      |  8 ++++----
+ 10 files changed, 21 insertions(+), 21 deletions(-)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 021b66cd5..0bd63c050 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -85,7 +85,7 @@ endif()
+ 
+ # See docs/release_checklist.md
+ set(SDL_MAJOR_VERSION 2)
+-set(SDL_MINOR_VERSION 26)
++set(SDL_MINOR_VERSION 27)
+ set(SDL_MICRO_VERSION 0)
+ set(SDL_VERSION "${SDL_MAJOR_VERSION}.${SDL_MINOR_VERSION}.${SDL_MICRO_VERSION}")
+ 
+diff --git a/Makefile.os2 b/Makefile.os2
+index 2e38ed0d4..77f100eed 100644
+--- a/Makefile.os2
++++ b/Makefile.os2
+@@ -14,7 +14,7 @@
+ 
+ LIBNAME = SDL2
+ MAJOR_VERSION = 2
+-MINOR_VERSION = 26
++MINOR_VERSION = 27
+ MICRO_VERSION = 0
+ VERSION = $(MAJOR_VERSION).$(MINOR_VERSION).$(MICRO_VERSION)
+ DESCRIPTION = Simple DirectMedia Layer 2
+diff --git a/Makefile.w32 b/Makefile.w32
+index 82609036b..6b4c4ea05 100644
+--- a/Makefile.w32
++++ b/Makefile.w32
+@@ -5,7 +5,7 @@
+ 
+ LIBNAME = SDL2
+ MAJOR_VERSION = 2
+-MINOR_VERSION = 26
++MINOR_VERSION = 27
+ MICRO_VERSION = 0
+ VERSION = $(MAJOR_VERSION).$(MINOR_VERSION).$(MICRO_VERSION)
+ 
+diff --git a/Xcode/SDL/Info-Framework.plist b/Xcode/SDL/Info-Framework.plist
+index 09bae6c16..ff5191827 100644
+--- a/Xcode/SDL/Info-Framework.plist
++++ b/Xcode/SDL/Info-Framework.plist
+@@ -19,10 +19,10 @@
+ 	<key>CFBundlePackageType</key>
+ 	<string>FMWK</string>
+ 	<key>CFBundleShortVersionString</key>
+-	<string>2.26.0</string>
++	<string>2.27.0</string>
+ 	<key>CFBundleSignature</key>
+ 	<string>SDLX</string>
+ 	<key>CFBundleVersion</key>
+-	<string>2.26.0</string>
++	<string>2.27.0</string>
+ </dict>
+ </plist>
+diff --git a/Xcode/SDL/SDL.xcodeproj/project.pbxproj b/Xcode/SDL/SDL.xcodeproj/project.pbxproj
+index b59a594fb..4a744e24d 100644
+--- a/Xcode/SDL/SDL.xcodeproj/project.pbxproj
++++ b/Xcode/SDL/SDL.xcodeproj/project.pbxproj
+@@ -9528,8 +9528,8 @@
+ 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+ 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+ 				DEPLOYMENT_POSTPROCESSING = YES;
+-				DYLIB_COMPATIBILITY_VERSION = 2601.0.0;
+-				DYLIB_CURRENT_VERSION = 2601.0.0;
++				DYLIB_COMPATIBILITY_VERSION = 2701.0.0;
++				DYLIB_CURRENT_VERSION = 2701.0.0;
+ 				DYLIB_INSTALL_NAME_BASE = "@rpath";
+ 				ENABLE_STRICT_OBJC_MSGSEND = YES;
+ 				GCC_ALTIVEC_EXTENSIONS = YES;
+@@ -9613,8 +9613,8 @@
+ 				CLANG_WARN_UNREACHABLE_CODE = YES;
+ 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+ 				DEBUG_INFORMATION_FORMAT = dwarf;
+-				DYLIB_COMPATIBILITY_VERSION = 2601.0.0;
+-				DYLIB_CURRENT_VERSION = 2601.0.0;
++				DYLIB_COMPATIBILITY_VERSION = 2701.0.0;
++				DYLIB_CURRENT_VERSION = 2701.0.0;
+ 				DYLIB_INSTALL_NAME_BASE = "@rpath";
+ 				ENABLE_STRICT_OBJC_MSGSEND = YES;
+ 				ENABLE_TESTABILITY = YES;
+@@ -9862,8 +9862,8 @@
+ 				CURRENT_PROJECT_VERSION = 1;
+ 				DEFINES_MODULE = YES;
+ 				DEVELOPMENT_TEAM = "";
+-				DYLIB_COMPATIBILITY_VERSION = 2601.0.0;
+-				DYLIB_CURRENT_VERSION = 2601.0.0;
++				DYLIB_COMPATIBILITY_VERSION = 2701.0.0;
++				DYLIB_CURRENT_VERSION = 2701.0.0;
+ 				DYLIB_INSTALL_NAME_BASE = "@rpath";
+ 				GCC_C_LANGUAGE_STANDARD = gnu11;
+ 				GCC_DYNAMIC_NO_PIC = NO;
+@@ -9914,8 +9914,8 @@
+ 				CURRENT_PROJECT_VERSION = 1;
+ 				DEFINES_MODULE = YES;
+ 				DEVELOPMENT_TEAM = "";
+-				DYLIB_COMPATIBILITY_VERSION = 2601.0.0;
+-				DYLIB_CURRENT_VERSION = 2601.0.0;
++				DYLIB_COMPATIBILITY_VERSION = 2701.0.0;
++				DYLIB_CURRENT_VERSION = 2701.0.0;
+ 				DYLIB_INSTALL_NAME_BASE = "@rpath";
+ 				ENABLE_NS_ASSERTIONS = NO;
+ 				GCC_C_LANGUAGE_STANDARD = gnu11;
+diff --git a/android-project/app/src/main/java/org/libsdl/app/SDLActivity.java b/android-project/app/src/main/java/org/libsdl/app/SDLActivity.java
+index 90e3ac60b..e2748f26f 100644
+--- a/android-project/app/src/main/java/org/libsdl/app/SDLActivity.java
++++ b/android-project/app/src/main/java/org/libsdl/app/SDLActivity.java
+@@ -60,7 +60,7 @@ import java.util.Locale;
+ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityChangeListener {
+     private static final String TAG = "SDL";
+     private static final int SDL_MAJOR_VERSION = 2;
+-    private static final int SDL_MINOR_VERSION = 26;
++    private static final int SDL_MINOR_VERSION = 27;
+     private static final int SDL_MICRO_VERSION = 0;
+ /*
+     // Display InputType.SOURCE/CLASS of events and devices
+diff --git a/configure b/configure
+index 87c576def..35333e8b8 100755
+--- a/configure
++++ b/configure
+@@ -3453,7 +3453,7 @@ orig_CFLAGS="$CFLAGS"
+ 
+ # See docs/release_checklist.md
+ SDL_MAJOR_VERSION=2
+-SDL_MINOR_VERSION=26
++SDL_MINOR_VERSION=27
+ SDL_MICRO_VERSION=0
+ SDL_VERSION=$SDL_MAJOR_VERSION.$SDL_MINOR_VERSION.$SDL_MICRO_VERSION
+ 
+diff --git a/configure.ac b/configure.ac
+index cc30f9a16..1cb1060f4 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -12,7 +12,7 @@ orig_CFLAGS="$CFLAGS"
+ dnl Set various version strings - taken gratefully from the GTk sources
+ # See docs/release_checklist.md
+ SDL_MAJOR_VERSION=2
+-SDL_MINOR_VERSION=26
++SDL_MINOR_VERSION=27
+ SDL_MICRO_VERSION=0
+ SDL_VERSION=$SDL_MAJOR_VERSION.$SDL_MINOR_VERSION.$SDL_MICRO_VERSION
+ 
+diff --git a/include/SDL_version.h b/include/SDL_version.h
+index e85fceb34..4763b8f53 100644
+--- a/include/SDL_version.h
++++ b/include/SDL_version.h
+@@ -58,7 +58,7 @@ typedef struct SDL_version
+ /* Printable format: "%d.%d.%d", MAJOR, MINOR, PATCHLEVEL
+ */
+ #define SDL_MAJOR_VERSION   2
+-#define SDL_MINOR_VERSION   26
++#define SDL_MINOR_VERSION   27
+ #define SDL_PATCHLEVEL      0
+ 
+ /**
+diff --git a/src/main/windows/version.rc b/src/main/windows/version.rc
+index fb2c26890..cd0360c03 100644
+--- a/src/main/windows/version.rc
++++ b/src/main/windows/version.rc
+@@ -9,8 +9,8 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+ //
+ 
+ VS_VERSION_INFO VERSIONINFO
+- FILEVERSION 2,26,0,0
+- PRODUCTVERSION 2,26,0,0
++ FILEVERSION 2,27,0,0
++ PRODUCTVERSION 2,27,0,0
+  FILEFLAGSMASK 0x3fL
+  FILEFLAGS 0x0L
+  FILEOS 0x40004L
+@@ -23,12 +23,12 @@ BEGIN
+         BEGIN
+             VALUE "CompanyName", "\0"
+             VALUE "FileDescription", "SDL\0"
+-            VALUE "FileVersion", "2, 26, 0, 0\0"
++            VALUE "FileVersion", "2, 27, 0, 0\0"
+             VALUE "InternalName", "SDL\0"
+             VALUE "LegalCopyright", "Copyright (C) 2022 Sam Lantinga\0"
+             VALUE "OriginalFilename", "SDL2.dll\0"
+             VALUE "ProductName", "Simple DirectMedia Layer\0"
+-            VALUE "ProductVersion", "2, 26, 0, 0\0"
++            VALUE "ProductVersion", "2, 27, 0, 0\0"
+         END
+     END
+     BLOCK "VarFileInfo"
+-- 
+2.17.1
+

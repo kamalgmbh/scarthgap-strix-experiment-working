@@ -1,0 +1,31 @@
+From 8bfbda1eabf2a157783ec9c1a9767c5c4f8ae432 Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Mon, 27 Mar 2023 14:27:22 -0700
+Subject: [PATCH 328/458] Fixed the accelerometer sensitivity for the Armor-X
+ Pro controller
+
+(cherry picked from commit 8029a767eef4147c07cde965bd5a2d2e11e237ee)
+---
+ src/joystick/hidapi/SDL_hidapi_ps4.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/src/joystick/hidapi/SDL_hidapi_ps4.c b/src/joystick/hidapi/SDL_hidapi_ps4.c
+index 24452a203..37d78007f 100644
+--- a/src/joystick/hidapi/SDL_hidapi_ps4.c
++++ b/src/joystick/hidapi/SDL_hidapi_ps4.c
+@@ -408,6 +408,12 @@ static SDL_bool HIDAPI_DriverPS4_InitDevice(SDL_HIDAPI_Device *device)
+         ctx->effects_supported = SDL_FALSE;
+     }
+ 
++    if (device->vendor_id == USB_VENDOR_SONY &&
++        device->product_id == USB_PRODUCT_SONY_DS4_STRIKEPAD) {
++        /* The Armor-X Pro seems to only deliver half the acceleration it should */
++        ctx->accel_numerator *= 2;
++    }
++
+     device->joystick_type = joystick_type;
+     device->type = SDL_CONTROLLER_TYPE_PS4;
+     if (ctx->official_controller) {
+-- 
+2.17.1
+

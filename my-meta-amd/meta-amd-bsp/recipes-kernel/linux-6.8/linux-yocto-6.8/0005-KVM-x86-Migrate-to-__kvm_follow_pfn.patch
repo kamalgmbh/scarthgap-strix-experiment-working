@@ -1,0 +1,164 @@
+From 6221a33560b7abf8266e0c67bc1fe90c004493c5 Mon Sep 17 00:00:00 2001
+From: David Stevens <stevensd@chromium.org>
+Date: Wed, 21 Feb 2024 16:25:25 +0900
+Subject: [PATCH 05/49] KVM: x86: Migrate to __kvm_follow_pfn
+
+Migrate functions which need access to is_refcounted_page to
+__kvm_follow_pfn. The functions which need this are __kvm_faultin_pfn
+and reexecute_instruction. The former requires replacing the async
+in/out parameter with FOLL_NOWAIT parameter and the KVM_PFN_ERR_NEEDS_IO
+return value. Handling non-refcounted pages is complicated, so it will
+be done in a followup. The latter is a straightforward refactor.
+
+APIC related callers do not need to migrate because KVM controls the
+memslot, so it will always be regular memory. Prefetch related callers
+do not need to be migrated because atomic gfn_to_pfn calls can never
+make it to hva_to_pfn_remapped.
+
+Signed-off-by: David Stevens <stevensd@chromium.org>
+Reviewed-by: Maxim Levitsky <mlevitsk@redhat.com>
+---
+ arch/x86/kvm/mmu/mmu.c | 43 ++++++++++++++++++++++++++++++++----------
+ arch/x86/kvm/x86.c     | 11 +++++++++--
+ virt/kvm/kvm_main.c    | 11 ++++-------
+ 3 files changed, 46 insertions(+), 19 deletions(-)
+
+diff --git a/arch/x86/kvm/mmu/mmu.c b/arch/x86/kvm/mmu/mmu.c
+index 0544700ca50b..52b63329752e 100644
+--- a/arch/x86/kvm/mmu/mmu.c
++++ b/arch/x86/kvm/mmu/mmu.c
+@@ -4331,7 +4331,14 @@ static int kvm_faultin_pfn_private(struct kvm_vcpu *vcpu,
+ static int __kvm_faultin_pfn(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault)
+ {
+ 	struct kvm_memory_slot *slot = fault->slot;
+-	bool async;
++	struct kvm_follow_pfn kfp = {
++		.slot = slot,
++		.gfn = fault->gfn,
++		.flags = FOLL_GET | (fault->write ? FOLL_WRITE : 0),
++		.try_map_writable = true,
++		.guarded_by_mmu_notifier = true,
++		.allow_non_refcounted_struct_page = false,
++	};
+ 
+ 	/*
+ 	 * Retry the page fault if the gfn hit a memslot that is being deleted
+@@ -4368,12 +4375,20 @@ static int __kvm_faultin_pfn(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault
+ 	if (fault->is_private)
+ 		return kvm_faultin_pfn_private(vcpu, fault);
+ 
+-	async = false;
+-	fault->pfn = __gfn_to_pfn_memslot(slot, fault->gfn, false, false, &async,
+-					  fault->write, &fault->map_writable,
+-					  &fault->hva);
+-	if (!async)
+-		return RET_PF_CONTINUE; /* *pfn has correct page already */
++	kfp.flags |= FOLL_NOWAIT;
++	fault->pfn = kvm_follow_pfn(&kfp);
++
++	if (!is_error_noslot_pfn(fault->pfn))
++		goto success;
++
++	/*
++	 * If kvm_follow_pfn() failed because I/O is needed to fault in the
++	 * page, then either set up an asynchronous #PF to do the I/O, or if
++	 * doing an async #PF isn't possible, retry kvm_follow_pfn() with
++	 * I/O allowed. All other failures are fatal, i.e. retrying won't help.
++	 */
++	if (fault->pfn != KVM_PFN_ERR_NEEDS_IO)
++		return RET_PF_CONTINUE;
+ 
+ 	if (!fault->prefetch && kvm_can_do_async_pf(vcpu)) {
+ 		trace_kvm_try_async_get_page(fault->addr, fault->gfn);
+@@ -4391,9 +4406,17 @@ static int __kvm_faultin_pfn(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault
+ 	 * to wait for IO.  Note, gup always bails if it is unable to quickly
+ 	 * get a page and a fatal signal, i.e. SIGKILL, is pending.
+ 	 */
+-	fault->pfn = __gfn_to_pfn_memslot(slot, fault->gfn, false, true, NULL,
+-					  fault->write, &fault->map_writable,
+-					  &fault->hva);
++	kfp.flags |= FOLL_INTERRUPTIBLE;
++	kfp.flags &= ~FOLL_NOWAIT;
++	fault->pfn = kvm_follow_pfn(&kfp);
++
++	if (!is_error_noslot_pfn(fault->pfn))
++		goto success;
++
++	return RET_PF_CONTINUE;
++success:
++	fault->hva = kfp.hva;
++	fault->map_writable = kfp.writable;
+ 	return RET_PF_CONTINUE;
+ }
+ 
+diff --git a/arch/x86/kvm/x86.c b/arch/x86/kvm/x86.c
+index e02cc710f56d..c8aee1bf1ffe 100644
+--- a/arch/x86/kvm/x86.c
++++ b/arch/x86/kvm/x86.c
+@@ -8760,6 +8760,7 @@ static bool reexecute_instruction(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa,
+ {
+ 	gpa_t gpa = cr2_or_gpa;
+ 	kvm_pfn_t pfn;
++	struct kvm_follow_pfn kfp;
+ 
+ 	if (!(emulation_type & EMULTYPE_ALLOW_RETRY_PF))
+ 		return false;
+@@ -8789,7 +8790,13 @@ static bool reexecute_instruction(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa,
+ 	 * retry instruction -> write #PF -> emulation fail -> retry
+ 	 * instruction -> ...
+ 	 */
+-	pfn = gfn_to_pfn(vcpu->kvm, gpa_to_gfn(gpa));
++	kfp = (struct kvm_follow_pfn) {
++		.slot = gfn_to_memslot(vcpu->kvm, gpa_to_gfn(gpa)),
++		.gfn = gpa_to_gfn(gpa),
++		.flags = FOLL_GET | FOLL_WRITE,
++		.allow_non_refcounted_struct_page = true,
++	};
++	pfn = kvm_follow_pfn(&kfp);
+ 
+ 	/*
+ 	 * If the instruction failed on the error pfn, it can not be fixed,
+@@ -8798,7 +8805,7 @@ static bool reexecute_instruction(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa,
+ 	if (is_error_noslot_pfn(pfn))
+ 		return false;
+ 
+-	kvm_release_pfn_clean(pfn);
++	kvm_release_page_clean(kfp.refcounted_page);
+ 
+ 	/* The instructions are well-emulated on direct mmu. */
+ 	if (vcpu->arch.mmu->root_role.direct) {
+diff --git a/virt/kvm/kvm_main.c b/virt/kvm/kvm_main.c
+index 862d38c4c8a3..789ec7a0bac5 100644
+--- a/virt/kvm/kvm_main.c
++++ b/virt/kvm/kvm_main.c
+@@ -3290,6 +3290,9 @@ void kvm_release_page_clean(struct page *page)
+ {
+ 	WARN_ON(is_error_page(page));
+ 
++	if (!page)
++		return;
++
+ 	kvm_set_page_accessed(page);
+ 	put_page(page);
+ }
+@@ -3297,16 +3300,10 @@ EXPORT_SYMBOL_GPL(kvm_release_page_clean);
+ 
+ void kvm_release_pfn_clean(kvm_pfn_t pfn)
+ {
+-	struct page *page;
+-
+ 	if (is_error_noslot_pfn(pfn))
+ 		return;
+ 
+-	page = kvm_pfn_to_refcounted_page(pfn);
+-	if (!page)
+-		return;
+-
+-	kvm_release_page_clean(page);
++	kvm_release_page_clean(kvm_pfn_to_refcounted_page(pfn));
+ }
+ EXPORT_SYMBOL_GPL(kvm_release_pfn_clean);
+ 
+-- 
+2.17.1
+

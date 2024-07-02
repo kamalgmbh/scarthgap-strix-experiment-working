@@ -1,0 +1,26 @@
+From 120bc77e91da50a72d6dec4050c2f87deb84b1ca Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Wed, 19 Apr 2023 13:10:39 -0700
+Subject: [PATCH 355/458] Report PS3 accelerometer values in m/s2 instead of Gs
+
+(cherry picked from commit 0467301baf57389d96fafbe169fb07f4c10169bc)
+---
+ src/joystick/hidapi/SDL_hidapi_ps3.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/joystick/hidapi/SDL_hidapi_ps3.c b/src/joystick/hidapi/SDL_hidapi_ps3.c
+index 5add7e393..d5e00babc 100644
+--- a/src/joystick/hidapi/SDL_hidapi_ps3.c
++++ b/src/joystick/hidapi/SDL_hidapi_ps3.c
+@@ -311,7 +311,7 @@ static float HIDAPI_DriverPS3_ScaleAccel(Sint16 value)
+ {
+     /* Accelerometer values are in big endian order */
+     value = SDL_SwapBE16(value);
+-    return (float)(value - 511) / 113.0f;
++    return ((float)(value - 511) / 113.0f) * SDL_STANDARD_GRAVITY;
+ }
+ 
+ static void HIDAPI_DriverPS3_HandleMiniStatePacket(SDL_Joystick *joystick, SDL_DriverPS3_Context *ctx, Uint8 *data, int size)
+-- 
+2.17.1
+

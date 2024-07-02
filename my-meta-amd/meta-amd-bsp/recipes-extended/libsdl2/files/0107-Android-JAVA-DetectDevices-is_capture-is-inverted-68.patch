@@ -1,0 +1,57 @@
+From 36c87d9f278966e53d9021be56f2084207443bf1 Mon Sep 17 00:00:00 2001
+From: Sylvain Becker <sylvain.becker@gmail.com>
+Date: Sun, 18 Dec 2022 16:55:59 +0100
+Subject: [PATCH 107/458] Android JAVA DetectDevices: 'is_capture' is inverted
+ (#6845)
+
+* Android JAVA DetectDevices: 'is_capture' is inversed
+* Android Audio: adding audio device. also inverted capture, from jni side
+---
+ .../app/src/main/java/org/libsdl/app/SDLAudioManager.java     | 4 ++--
+ src/core/android/SDL_android.c                                | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/android-project/app/src/main/java/org/libsdl/app/SDLAudioManager.java b/android-project/app/src/main/java/org/libsdl/app/SDLAudioManager.java
+index 94aa49a53..b6c7b2c3f 100644
+--- a/android-project/app/src/main/java/org/libsdl/app/SDLAudioManager.java
++++ b/android-project/app/src/main/java/org/libsdl/app/SDLAudioManager.java
+@@ -23,12 +23,12 @@ public class SDLAudioManager {
+     private static final AudioDeviceCallback mAudioDeviceCallback = new AudioDeviceCallback() {
+         @Override
+         public void onAudioDevicesAdded(AudioDeviceInfo[] addedDevices) {
+-            Arrays.stream(addedDevices).forEach(deviceInfo -> addAudioDevice(deviceInfo.isSink(), deviceInfo.getId()));
++            Arrays.stream(addedDevices).forEach(deviceInfo -> addAudioDevice(deviceInfo.isSource(), deviceInfo.getId()));
+         }
+ 
+         @Override
+         public void onAudioDevicesRemoved(AudioDeviceInfo[] removedDevices) {
+-            Arrays.stream(removedDevices).forEach(deviceInfo -> removeAudioDevice(deviceInfo.isSink(), deviceInfo.getId()));
++            Arrays.stream(removedDevices).forEach(deviceInfo -> removeAudioDevice(deviceInfo.isSource(), deviceInfo.getId()));
+         }
+     };
+ 
+diff --git a/src/core/android/SDL_android.c b/src/core/android/SDL_android.c
+index 413c81600..5e0b7affd 100644
+--- a/src/core/android/SDL_android.c
++++ b/src/core/android/SDL_android.c
+@@ -1506,7 +1506,7 @@ void Android_DetectDevices(void)
+         char device_name[64];
+         SDL_snprintf(device_name, sizeof (device_name), "%d", device_id);
+         SDL_Log("Adding input device with name %s", device_name);
+-        SDL_AddAudioDevice(SDL_FALSE, SDL_strdup(device_name), NULL, (void *) ((size_t) device_id + 1));
++        SDL_AddAudioDevice(SDL_TRUE, SDL_strdup(device_name), NULL, (void *) ((size_t) device_id + 1));
+     }
+ 
+     SDL_zeroa(outputs);
+@@ -1518,7 +1518,7 @@ void Android_DetectDevices(void)
+         char device_name[64];
+         SDL_snprintf(device_name, sizeof (device_name), "%d", device_id);
+         SDL_Log("Adding output device with name %s", device_name);
+-        SDL_AddAudioDevice(SDL_TRUE, SDL_strdup(device_name), NULL, (void *) ((size_t) device_id + 1));
++        SDL_AddAudioDevice(SDL_FALSE, SDL_strdup(device_name), NULL, (void *) ((size_t) device_id + 1));
+     }
+ }
+ 
+-- 
+2.17.1
+

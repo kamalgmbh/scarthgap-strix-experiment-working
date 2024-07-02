@@ -1,0 +1,34 @@
+From 4a0b9522b6206a36411ea12024695c159aceb34f Mon Sep 17 00:00:00 2001
+From: "Ryan C. Gordon" <icculus@icculus.org>
+Date: Wed, 17 May 2023 20:06:58 -0400
+Subject: [PATCH 372/458] audio: Load .WAV files with format->blockalign==0.
+
+In theory this is illegal, but legit wavefiles in the field do it, and
+it's easy to bump it to 1 for general purposes.
+
+Formats with more specific alignment requirements already check for them
+separately.
+
+Fixes #7714.
+
+(cherry picked from commit 2e646c7141b3009628abda2a964ba5f9d1702e1a)
+---
+ src/audio/SDL_wave.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/audio/SDL_wave.c b/src/audio/SDL_wave.c
+index bafbd88df..6959c56fc 100644
+--- a/src/audio/SDL_wave.c
++++ b/src/audio/SDL_wave.c
+@@ -1711,7 +1711,7 @@ static int WaveCheckFormat(WaveFile *file, size_t datalength)
+ 
+         /* All supported formats must have a proper block size. */
+         if (format->blockalign == 0) {
+-            return SDL_SetError("Invalid block alignment");
++            format->blockalign = 1;  /* force it to 1 if it was unset. */
+         }
+ 
+         /* If the fact chunk is valid and the appropriate hint is set, the
+-- 
+2.17.1
+

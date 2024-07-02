@@ -1,0 +1,193 @@
+From a3840be356bed1d79ca5f87b5dbd2a576f35601b Mon Sep 17 00:00:00 2001
+From: Sophia Gong <lili.gong@amd.com>
+Date: Wed, 14 Jun 2023 08:35:41 +0800
+Subject: [PATCH 448/458] wayland display: add api to send secure display roi
+ to compositor.
+
+Signed-off-by: Sophia Gong <lili.gong@amd.com>
+Change-Id: Id5003a5f677b86596cca9ffe9868f309e273289d
+---
+ include/SDL_video.h                     |  5 +++++
+ src/dynapi/SDL2.exports                 |  1 +
+ src/dynapi/SDL_dynapi_overrides.h       |  1 +
+ src/dynapi/SDL_dynapi_procs.h           |  3 +++
+ src/video/SDL_sysvideo.h                |  2 ++
+ src/video/SDL_video.c                   | 19 +++++++++++++++++++
+ src/video/wayland/SDL_waylandopengles.c | 23 +++++++++++++++++++++++
+ src/video/wayland/SDL_waylandopengles.h |  1 +
+ src/video/wayland/SDL_waylandvideo.c    |  2 ++
+ 9 files changed, 57 insertions(+)
+
+diff --git a/include/SDL_video.h b/include/SDL_video.h
+index eb9a7b068..151cee2e3 100644
+--- a/include/SDL_video.h
++++ b/include/SDL_video.h
+@@ -2174,6 +2174,11 @@ extern DECLSPEC int SDLCALL SDL_GL_GetSwapInterval(void);
+  */
+ extern DECLSPEC void SDLCALL SDL_GL_SwapWindow(SDL_Window * window);
+ 
++extern DECLSPEC void SDLCALL SDL_GL_SetROI(SDL_Window * window,
++                                           SDL_bool enable,
++                                           Uint32 startx, Uint32 starty,
++                                           Uint32 endx, Uint32 endy);
++
+ /**
+  * Delete an OpenGL context.
+  *
+diff --git a/src/dynapi/SDL2.exports b/src/dynapi/SDL2.exports
+index e09ff4772..215fbe57c 100644
+--- a/src/dynapi/SDL2.exports
++++ b/src/dynapi/SDL2.exports
+@@ -537,6 +537,7 @@
+ ++'_SDL_GL_SetSwapInterval'.'SDL2.dll'.'SDL_GL_SetSwapInterval'
+ ++'_SDL_GL_GetSwapInterval'.'SDL2.dll'.'SDL_GL_GetSwapInterval'
+ ++'_SDL_GL_SwapWindow'.'SDL2.dll'.'SDL_GL_SwapWindow'
++++'_SDL_GL_SetROI'.'SDL2.dll'.'SDL_GL_SetROI'
+ ++'_SDL_GL_DeleteContext'.'SDL2.dll'.'SDL_GL_DeleteContext'
+ ++'_SDL_vsscanf'.'SDL2.dll'.'SDL_vsscanf'
+ ++'_SDL_GameControllerAddMappingsFromRW'.'SDL2.dll'.'SDL_GameControllerAddMappingsFromRW'
+diff --git a/src/dynapi/SDL_dynapi_overrides.h b/src/dynapi/SDL_dynapi_overrides.h
+index cdfae4dc4..8556e3f56 100644
+--- a/src/dynapi/SDL_dynapi_overrides.h
++++ b/src/dynapi/SDL_dynapi_overrides.h
+@@ -563,6 +563,7 @@
+ #define SDL_GL_SetSwapInterval SDL_GL_SetSwapInterval_REAL
+ #define SDL_GL_GetSwapInterval SDL_GL_GetSwapInterval_REAL
+ #define SDL_GL_SwapWindow SDL_GL_SwapWindow_REAL
++#define SDL_GL_SetROI SDL_GL_SetROI_REAL
+ #define SDL_GL_DeleteContext SDL_GL_DeleteContext_REAL
+ #define SDL_vsscanf SDL_vsscanf_REAL
+ #define SDL_GameControllerAddMappingsFromRW SDL_GameControllerAddMappingsFromRW_REAL
+diff --git a/src/dynapi/SDL_dynapi_procs.h b/src/dynapi/SDL_dynapi_procs.h
+index 97bbc55ce..2f915178c 100644
+--- a/src/dynapi/SDL_dynapi_procs.h
++++ b/src/dynapi/SDL_dynapi_procs.h
+@@ -596,6 +596,9 @@ SDL_DYNAPI_PROC(void,SDL_GL_GetDrawableSize,(SDL_Window *a, int *b, int *c),(a,b
+ SDL_DYNAPI_PROC(int,SDL_GL_SetSwapInterval,(int a),(a),return)
+ SDL_DYNAPI_PROC(int,SDL_GL_GetSwapInterval,(void),(),return)
+ SDL_DYNAPI_PROC(void,SDL_GL_SwapWindow,(SDL_Window *a),(a),)
++SDL_DYNAPI_PROC(void,SDL_GL_SetROI,
++                (SDL_Window *a, SDL_bool enable, Uint32 startx, Uint32 starty, Uint32 endx, Uint32 endy),
++                (a, enable, startx, starty, endx, endy),)
+ SDL_DYNAPI_PROC(void,SDL_GL_DeleteContext,(SDL_GLContext a),(a),)
+ SDL_DYNAPI_PROC(int,SDL_vsscanf,(const char *a, const char *b, va_list c),(a,b,c),return)
+ SDL_DYNAPI_PROC(int,SDL_GameControllerAddMappingsFromRW,(SDL_RWops *a, int b),(a,b),return)
+diff --git a/src/video/SDL_sysvideo.h b/src/video/SDL_sysvideo.h
+index 29ac67c43..5cbee6ef6 100644
+--- a/src/video/SDL_sysvideo.h
++++ b/src/video/SDL_sysvideo.h
+@@ -286,6 +286,8 @@ struct SDL_VideoDevice
+     int (*GL_SetSwapInterval) (_THIS, int interval);
+     int (*GL_GetSwapInterval) (_THIS);
+     int (*GL_SwapWindow) (_THIS, SDL_Window * window);
++    void (*GL_SetROI) (_THIS, SDL_Window * window, SDL_bool enable,
++                       Uint32 startx, Uint32 starty, Uint32 endx, Uint32 endy);
+     void (*GL_DeleteContext) (_THIS, SDL_GLContext context);
+     void (*GL_DefaultProfileConfig) (_THIS, int *mask, int *major, int *minor);
+ 
+diff --git a/src/video/SDL_video.c b/src/video/SDL_video.c
+index 8e920a672..7783b2094 100644
+--- a/src/video/SDL_video.c
++++ b/src/video/SDL_video.c
+@@ -4126,6 +4126,25 @@ void SDL_GL_SwapWindow(SDL_Window *window)
+     SDL_GL_SwapWindowWithResult(window);
+ }
+ 
++void SDL_GL_SetROI(SDL_Window *window, SDL_bool enable,
++                   Uint32 startx, Uint32 starty, Uint32 endx, Uint32 endy)
++{
++    if (!(window->flags & SDL_WINDOW_OPENGL)) {
++        SDL_SetError(NOT_AN_OPENGL_WINDOW);
++	return;
++    }
++
++    if (SDL_GL_GetCurrentWindow() != window) {
++        SDL_SetError("The specified window has not been made current");
++	return;
++    }
++
++    if (_this->GL_SetROI)
++        _this->GL_SetROI(_this, window, enable, startx, starty, endx, endy);
++    else
++       SDL_SetError("The SetROI API is not registerd");
++}
++
+ void SDL_GL_DeleteContext(SDL_GLContext context)
+ {
+     if (_this == NULL || !context) {
+diff --git a/src/video/wayland/SDL_waylandopengles.c b/src/video/wayland/SDL_waylandopengles.c
+index 41e84fbaf..b63ff9013 100644
+--- a/src/video/wayland/SDL_waylandopengles.c
++++ b/src/video/wayland/SDL_waylandopengles.c
+@@ -32,6 +32,7 @@
+ #include "SDL_waylandevents_c.h"
+ 
+ #include "xdg-shell-client-protocol.h"
++#include "secure-display-unstable-v1-client-protocol.h"
+ 
+ /* EGL implementation of SDL OpenGL ES support */
+ 
+@@ -172,6 +173,28 @@ int Wayland_GLES_SwapWindow(_THIS, SDL_Window *window)
+     return 0;
+ }
+ 
++void Wayland_GLES_SetROI(_THIS, SDL_Window *window, SDL_bool enable,
++                         Uint32 startx, Uint32 starty, Uint32 endx, Uint32 endy)
++{
++    SDL_WindowData *data = (SDL_WindowData *)window->driverdata;
++    SDL_VideoData *videodata = (SDL_VideoData *)_this->driverdata;
++    SDL_VideoDisplay *display = SDL_GetDisplayForWindow(window);
++    SDL_WaylandOutputData *node;
++
++    for (node = videodata->output_list; node != NULL; node = node->next) {
++        if ((node->secure_crtc != NULL) && (SDL_strcmp(node->name, display->output) == 0)) {
++	    printf("%s, send roi\n", __func__);
++	    secure_display_crtc_v1_set_roi(node->secure_crtc,
++                                           startx, starty,
++					   endx, endy,
++					   enable);
++            WAYLAND_wl_display_flush(data->waylandData->display);
++
++        } else
++	    printf("%s, no secure_crtc\n", __func__);
++        }
++}
++
+ int Wayland_GLES_MakeCurrent(_THIS, SDL_Window *window, SDL_GLContext context)
+ {
+     int ret;
+diff --git a/src/video/wayland/SDL_waylandopengles.h b/src/video/wayland/SDL_waylandopengles.h
+index deb7dd109..93b99f78b 100644
+--- a/src/video/wayland/SDL_waylandopengles.h
++++ b/src/video/wayland/SDL_waylandopengles.h
+@@ -41,6 +41,7 @@ extern SDL_GLContext Wayland_GLES_CreateContext(_THIS, SDL_Window *window);
+ extern int Wayland_GLES_SetSwapInterval(_THIS, int interval);
+ extern int Wayland_GLES_GetSwapInterval(_THIS);
+ extern int Wayland_GLES_SwapWindow(_THIS, SDL_Window *window);
++extern void Wayland_GLES_SetROI(_THIS, SDL_Window *window, SDL_bool enable, Uint32 startx, Uint32 starty, Uint32 endx, Uint32 endy);
+ extern int Wayland_GLES_MakeCurrent(_THIS, SDL_Window *window, SDL_GLContext context);
+ extern void Wayland_GLES_DeleteContext(_THIS, SDL_GLContext context);
+ 
+diff --git a/src/video/wayland/SDL_waylandvideo.c b/src/video/wayland/SDL_waylandvideo.c
+index 6b9ab2d5e..5b4a358ee 100644
+--- a/src/video/wayland/SDL_waylandvideo.c
++++ b/src/video/wayland/SDL_waylandvideo.c
+@@ -222,6 +222,7 @@ static SDL_VideoDevice *Wayland_CreateDevice(void)
+ 
+ #if SDL_VIDEO_OPENGL_EGL
+     device->GL_SwapWindow = Wayland_GLES_SwapWindow;
++    device->GL_SetROI = Wayland_GLES_SetROI;
+     device->GL_GetSwapInterval = Wayland_GLES_GetSwapInterval;
+     device->GL_SetSwapInterval = Wayland_GLES_SetSwapInterval;
+     device->GL_MakeCurrent = Wayland_GLES_MakeCurrent;
+@@ -750,6 +751,7 @@ static void Wayland_free_display(SDL_VideoData *d, uint32_t id)
+                 zxdg_output_v1_destroy(data->xdg_output);
+             }
+ 	    if (data->secure_crtc) {
++                secure_display_crtc_v1_set_roi(data->secure_crtc, 0, 0, 0, 0, 0);
+                 secure_display_crtc_v1_destroy(data->secure_crtc);
+ 	    }
+             wl_output_destroy(data->output);
+-- 
+2.17.1
+

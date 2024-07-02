@@ -1,0 +1,48 @@
+From c8aaebccc8e8fb5d90080e664202b0011ce4d0bd Mon Sep 17 00:00:00 2001
+From: Viresh Kumar <viresh.kumar@linaro.org>
+Date: Thu, 15 Dec 2022 19:01:40 +0530
+Subject: [PATCH 132/221] tools/libxl: Fix virtio build error for 32-bit
+ platforms
+
+The field 'base' in 'struct libxl_device_virtio' is defined as uint64,
+while we are printing it with '%lu', which is 32bit only 32-bit
+platforms. And so generates a error like:
+
+  libxl_internal.h:4388:51: error: format '%lu' expects argument of type 'long
+  unsigned int', but argument 3 has type 'uint64_t' {aka 'long long unsigned
+  int'} [-Werror=format=]
+
+Fix it by switching to a 64bit PRI instead.
+
+While fixing this, switch from decimal to hex which is the more natural base
+to use for a field like this.
+
+Fixes: 43ba5202e2ee ("libxl: add support for generic virtio device")
+Signed-off-by: Viresh Kumar <viresh.kumar@linaro.org>
+Acked-by: Andrew Cooper <andrew.cooper3@citrix.com>
+---
+ tools/libs/light/libxl_virtio.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/tools/libs/light/libxl_virtio.c b/tools/libs/light/libxl_virtio.c
+index 6a38def2fa..faada49e18 100644
+--- a/tools/libs/light/libxl_virtio.c
++++ b/tools/libs/light/libxl_virtio.c
+@@ -45,12 +45,12 @@ static int libxl__set_xenstore_virtio(libxl__gc *gc, uint32_t domid,
+     const char *transport = libxl_virtio_transport_to_string(virtio->transport);
+ 
+     flexarray_append_pair(back, "irq", GCSPRINTF("%u", virtio->irq));
+-    flexarray_append_pair(back, "base", GCSPRINTF("%lu", virtio->base));
++    flexarray_append_pair(back, "base", GCSPRINTF("%#"PRIx64, virtio->base));
+     flexarray_append_pair(back, "type", GCSPRINTF("%s", virtio->type));
+     flexarray_append_pair(back, "transport", GCSPRINTF("%s", transport));
+ 
+     flexarray_append_pair(front, "irq", GCSPRINTF("%u", virtio->irq));
+-    flexarray_append_pair(front, "base", GCSPRINTF("%lu", virtio->base));
++    flexarray_append_pair(front, "base", GCSPRINTF("%#"PRIx64, virtio->base));
+     flexarray_append_pair(front, "type", GCSPRINTF("%s", virtio->type));
+     flexarray_append_pair(front, "transport", GCSPRINTF("%s", transport));
+ 
+-- 
+2.17.1
+

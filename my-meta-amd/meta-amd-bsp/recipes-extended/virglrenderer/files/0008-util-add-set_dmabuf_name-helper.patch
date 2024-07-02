@@ -1,0 +1,59 @@
+From 777d2937723c1bb9fe14684f887090b3a85bf7ac Mon Sep 17 00:00:00 2001
+From: Pierre-Eric Pelloux-Prayer <pierre-eric.pelloux-prayer@amd.com>
+Date: Thu, 25 Jan 2024 13:46:54 +0100
+Subject: [PATCH 08/16] util: add set_dmabuf_name helper
+
+Small helper to use DMA_BUF_SET_NAME_B.
+
+Reviewed-by: Rob Clark <robdclark@gmail.com>
+---
+ src/virgl_util.c | 16 ++++++++++++++++
+ src/virgl_util.h |  3 +++
+ 2 files changed, 19 insertions(+)
+
+diff --git a/src/virgl_util.c b/src/virgl_util.c
+index 29f0b6e5..adf27892 100644
+--- a/src/virgl_util.c
++++ b/src/virgl_util.c
+@@ -42,6 +42,11 @@
+ #include <stdarg.h>
+ #include <stdio.h>
+ 
++#include <xf86drm.h>
++#include <sys/ioctl.h>
++#define DMA_BUF_BASE    'b'
++#define DMA_BUF_SET_NAME_B   _IOW(DMA_BUF_BASE, 1, __u64)
++
+ #ifdef HAVE_CONFIG_H
+ #include "config.h"
+ #endif
+@@ -349,3 +354,14 @@ void trace_end(void **func_name)
+    fprintf(stderr, "LEAVE %s\n", (const char *) *func_name);
+ }
+ #endif
++
++void set_dmabuf_name(int fd, const char *name)
++{
++   #ifndef NDEBUG
++   if (name && *name != '\0')
++      ioctl(fd, DMA_BUF_SET_NAME_B, (uint64_t)(uintptr_t)name);
++   #else
++   (void)fd;
++   (void)name;
++   #endif
++}
+diff --git a/src/virgl_util.h b/src/virgl_util.h
+index d7b0614e..f86e27be 100644
+--- a/src/virgl_util.h
++++ b/src/virgl_util.h
+@@ -162,4 +162,7 @@ void trace_end(void **scope);
+ #define TRACE_SCOPE_END(SCOPE_OBJ) (void)SCOPE_OBJ
+ #endif /* ENABLE_TRACING */
+ 
++/* Utility to name a dmabuf using DMA_BUF_SET_NAME_B. */
++void set_dmabuf_name(int fd, const char *name);
++
+ #endif /* VIRGL_UTIL_H */
+-- 
+2.17.1
+

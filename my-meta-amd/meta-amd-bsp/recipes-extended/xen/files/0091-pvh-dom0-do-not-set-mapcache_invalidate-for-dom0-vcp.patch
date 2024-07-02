@@ -1,0 +1,31 @@
+From acddee2834c427b9e0f5300e24f2cbfe85469706 Mon Sep 17 00:00:00 2001
+From: Xenia Ragiadakou <xenia.ragiadakou@amd.com>
+Date: Fri, 13 Oct 2023 23:28:30 +0300
+Subject: [PATCH 091/106] pvh dom0: do not set mapcache_invalidate for dom0
+ vcpus
+
+Dom0 does not have ioreq servers.
+
+Signed-off-by: Xenia Ragiadakou <xenia.ragiadakou@amd.com>
+Change-Id: Ia56dad063a99b0f427373dabd7bd068ad8063d0f
+---
+ xen/common/ioreq.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/xen/common/ioreq.c b/xen/common/ioreq.c
+index 34a9b2d6df..b05aa876a5 100644
+--- a/xen/common/ioreq.c
++++ b/xen/common/ioreq.c
+@@ -37,6 +37,9 @@ void ioreq_request_mapcache_invalidate(const struct domain *d)
+ {
+     struct vcpu *v = current;
+ 
++    if ( is_hardware_domain(d) )
++        return;
++
+     if ( d == v->domain )
+         v->mapcache_invalidate = true;
+     else if ( d->creation_finished )
+-- 
+2.25.1
+

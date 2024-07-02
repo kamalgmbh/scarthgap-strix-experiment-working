@@ -1,0 +1,34 @@
+From 78d3a713de8d3486e28c5079e3188ed1c8e6d01d Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Thu, 29 Dec 2022 15:00:32 -0800
+Subject: [PATCH 123/458] Fixed documentation for
+ SDL_JoystickGetDeviceInstanceID
+
+Fixes https://github.com/libsdl-org/SDL/issues/6946
+---
+ include/SDL_joystick.h | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/include/SDL_joystick.h b/include/SDL_joystick.h
+index 9dcadc7b4..00e83cbbf 100644
+--- a/include/SDL_joystick.h
++++ b/include/SDL_joystick.h
+@@ -288,13 +288,12 @@ extern DECLSPEC SDL_JoystickType SDLCALL SDL_JoystickGetDeviceType(int device_in
+ /**
+  * Get the instance ID of a joystick.
+  *
+- * This can be called before any joysticks are opened. If the index is out of
+- * range, this function will return -1.
++ * This can be called before any joysticks are opened.
+  *
+  * \param device_index the index of the joystick to query (the N'th joystick
+  *                     on the system
+  * \returns the instance id of the selected joystick. If called on an invalid
+- *          index, this function returns zero
++ *          index, this function returns -1.
+  *
+  * \since This function is available since SDL 2.0.6.
+  */
+-- 
+2.17.1
+

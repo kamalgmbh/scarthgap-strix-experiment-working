@@ -1,0 +1,32 @@
+From 84039e2514350804076c7bb576372a80e2ff2cd8 Mon Sep 17 00:00:00 2001
+From: Anonymous Maarten <anonymous.maarten@gmail.com>
+Date: Tue, 29 Nov 2022 17:47:30 +0100
+Subject: [PATCH 044/458] cmake: use target_link_libraries to pass
+ -Wl,--undefined=WinMain
+
+(cherry-picked from commit e2060de714481ed58b6a2e781f7439090003a7b4)
+---
+ CMakeLists.txt | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 8ada68e8b..75068d852 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -3304,11 +3304,10 @@ if(NOT WINDOWS_STORE AND NOT SDL2_DISABLE_SDL2MAIN)
+     target_link_libraries(SDL2main PRIVATE shell32)
+   endif()
+   if(MINGW OR CYGWIN)
+-    cmake_minimum_required(VERSION 3.13)
+     if(CMAKE_SIZEOF_VOID_P EQUAL 4)
+-      target_link_options(SDL2main PUBLIC "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,EXECUTABLE>:-Wl,--undefined=_WinMain@16>")
++      target_link_libraries(SDL2main PUBLIC "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,EXECUTABLE>:-Wl,--undefined=_WinMain@16>")
+     else()
+-      target_link_options(SDL2main PUBLIC "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,EXECUTABLE>:-Wl,--undefined=WinMain>")
++      target_link_libraries(SDL2main PUBLIC "$<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,EXECUTABLE>:-Wl,--undefined=WinMain>")
+     endif()
+   endif()
+   if (NOT ANDROID)
+-- 
+2.17.1
+

@@ -1,0 +1,63 @@
+From 6f9285975b1c6e82889a6118503ca367e3aa78fd Mon Sep 17 00:00:00 2001
+From: Andrew Cooper <andrew.cooper3@citrix.com>
+Date: Wed, 1 Nov 2023 20:19:52 +0000
+Subject: [PATCH 001/106] x86/time: Fix UBSAN failure in
+ __update_vcpu_system_time()
+
+As reported:
+
+  (XEN) ================================================================================
+  (XEN) UBSAN: Undefined behaviour in arch/x86/time.c:1542:32
+  (XEN) member access within null pointer of type 'union vcpu_info_t'
+  (XEN) ----[ Xen-4.19-unstable  x86_64  debug=y ubsan=y  Not tainted ]----
+  ...
+  (XEN) Xen call trace:
+  (XEN)    [<ffff82d040345036>] R common/ubsan/ubsan.c#ubsan_epilogue+0xa/0xd2
+  (XEN)    [<ffff82d0403456e8>] F __ubsan_handle_type_mismatch+0x133/0x49b
+  (XEN)    [<ffff82d040345b4a>] F __ubsan_handle_type_mismatch_v1+0xfa/0xfc
+  (XEN)    [<ffff82d040623356>] F arch/x86/time.c#__update_vcpu_system_time+0x212/0x30f
+  (XEN)    [<ffff82d040623461>] F update_vcpu_system_time+0xe/0x10
+  (XEN)    [<ffff82d04062389d>] F arch/x86/time.c#local_time_calibration+0x1f7/0x523
+  (XEN)    [<ffff82d0402a64b5>] F common/softirq.c#__do_softirq+0x1f4/0x31a
+  (XEN)    [<ffff82d0402a67ad>] F do_softirq+0x13/0x15
+  (XEN)    [<ffff82d0405a95dc>] F arch/x86/domain.c#idle_loop+0x2e0/0x367
+  (XEN)
+  (XEN) ================================================================================
+
+GCC 10 at least doesn't consider it valid to derive a pointer from vcpu_info()
+prior to checking that the underlying map pointer is good.
+
+Reorder actions so the map pointer is checked first.
+
+Fixes: 20279afd7323 ("x86: split populating of struct vcpu_time_info into a separate function")
+Signed-off-by: Andrew Cooper <andrew.cooper3@citrix.com>
+Acked-by: Jan Beulich <jbeulich@suse.com>
+Release-acked-by: Henry Wang <Henry.Wang@arm.com>
+(cherry picked from commit 801b804945bb7ccbd760d25637b720d8aac7e004)
+---
+ xen/arch/x86/time.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/xen/arch/x86/time.c b/xen/arch/x86/time.c
+index d0b0986509..6d33edd0ad 100644
+--- a/xen/arch/x86/time.c
++++ b/xen/arch/x86/time.c
+@@ -1539,12 +1539,14 @@ static void collect_time_info(const struct vcpu *v,
+ 
+ static void __update_vcpu_system_time(struct vcpu *v, int force)
+ {
+-    struct vcpu_time_info *u = &vcpu_info(v, time), _u;
++    struct vcpu_time_info *u, _u;
+     const struct domain *d = v->domain;
+ 
+     if ( !v->vcpu_info_area.map )
+         return;
+ 
++    u = &vcpu_info(v, time);
++
+     collect_time_info(v, &_u);
+ 
+     /* Don't bother unless timestamp record has changed or we are forced. */
+-- 
+2.25.1
+

@@ -1,0 +1,40 @@
+From be3b1cff0bc2e3e28ae53beb3cc97ab42e8447ab Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Thu, 8 Dec 2022 17:03:29 -0800
+Subject: [PATCH 084/458] Added logging for SDL_DISPLAYEVENT_MOVED
+
+---
+ src/events/SDL_events.c    | 1 +
+ src/test/SDL_test_common.c | 4 ++++
+ 2 files changed, 5 insertions(+)
+
+diff --git a/src/events/SDL_events.c b/src/events/SDL_events.c
+index ec1835bd3..441038ef2 100644
+--- a/src/events/SDL_events.c
++++ b/src/events/SDL_events.c
+@@ -247,6 +247,7 @@ static void SDL_LogEvent(const SDL_Event *event)
+                 SDL_DISPLAYEVENT_CASE(SDL_DISPLAYEVENT_ORIENTATION);
+                 SDL_DISPLAYEVENT_CASE(SDL_DISPLAYEVENT_CONNECTED);
+                 SDL_DISPLAYEVENT_CASE(SDL_DISPLAYEVENT_DISCONNECTED);
++                SDL_DISPLAYEVENT_CASE(SDL_DISPLAYEVENT_MOVED);
+ #undef SDL_DISPLAYEVENT_CASE
+             default:
+                 SDL_strlcpy(name2, "UNKNOWN (bug? fixme?)", sizeof(name2));
+diff --git a/src/test/SDL_test_common.c b/src/test/SDL_test_common.c
+index 75afd5b26..73ddd6e97 100644
+--- a/src/test/SDL_test_common.c
++++ b/src/test/SDL_test_common.c
+@@ -1462,6 +1462,10 @@ static void SDLTest_PrintEvent(SDL_Event *event)
+             SDL_Log("SDL EVENT: Display %" SDL_PRIu32 " connected",
+                     event->display.display);
+             break;
++        case SDL_DISPLAYEVENT_MOVED:
++            SDL_Log("SDL EVENT: Display %" SDL_PRIu32 " changed position",
++                    event->display.display);
++            break;
+         case SDL_DISPLAYEVENT_ORIENTATION:
+             SDL_Log("SDL EVENT: Display %" SDL_PRIu32 " changed orientation to %s",
+                     event->display.display, DisplayOrientationName(event->display.data1));
+-- 
+2.17.1
+

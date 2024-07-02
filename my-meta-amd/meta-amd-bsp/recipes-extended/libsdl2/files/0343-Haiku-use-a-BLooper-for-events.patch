@@ -1,0 +1,469 @@
+From eb0d214c17077ffe7cdb9c78ff0713a039aa07e1 Mon Sep 17 00:00:00 2001
+From: Jerome Duval <jerome.duval@gmail.com>
+Date: Wed, 29 Mar 2023 21:28:21 +0200
+Subject: [PATCH 343/458] Haiku: use a BLooper for events.
+
+only create a BApplication when it doesn't already exist.
+---
+ src/main/haiku/SDL_BApp.h           | 26 ++++----
+ src/main/haiku/SDL_BeApp.cc         | 93 +++++++++++++++++++++--------
+ src/main/haiku/SDL_BeApp.h          |  2 +-
+ src/video/haiku/SDL_BApp.h          | 26 ++++----
+ src/video/haiku/SDL_BWin.h          | 12 ++--
+ src/video/haiku/SDL_bframebuffer.cc |  4 +-
+ src/video/haiku/SDL_bmessagebox.cc  |  2 +-
+ src/video/haiku/SDL_bmodes.cc       |  4 +-
+ src/video/haiku/SDL_bopengl.cc      |  8 +--
+ src/video/haiku/SDL_bwindow.cc      |  8 +--
+ 10 files changed, 108 insertions(+), 77 deletions(-)
+
+diff --git a/src/main/haiku/SDL_BApp.h b/src/main/haiku/SDL_BApp.h
+index 363606c38..036808167 100644
+--- a/src/main/haiku/SDL_BApp.h
++++ b/src/main/haiku/SDL_BApp.h
+@@ -49,6 +49,7 @@ extern "C" {
+ #include <vector>
+ 
+ /* Forward declarations */
++class SDL_BLooper;
+ class SDL_BWin;
+ 
+ /* Message constants */
+@@ -74,32 +75,25 @@ enum ToSDL
+     BAPP_SCREEN_CHANGED
+ };
+ 
+-/* Create a descendant of BApplication */
+-class SDL_BApp : public BApplication
++
++extern "C" SDL_BLooper *SDL_Looper;
++
++
++/* Create a descendant of BLooper */
++class SDL_BLooper : public BLooper
+ {
+   public:
+-    SDL_BApp(const char *signature) : BApplication(signature)
++    SDL_BLooper(const char* name) : BLooper(name)
+     {
+ #if SDL_VIDEO_OPENGL
+         _current_context = NULL;
+ #endif
+     }
+ 
+-    virtual ~SDL_BApp()
++    virtual ~SDL_BLooper()
+     {
+     }
+ 
+-    virtual void RefsReceived(BMessage *message)
+-    {
+-        char filePath[512];
+-        entry_ref entryRef;
+-        for (int32 i = 0; message->FindRef("refs", i, &entryRef) == B_OK; i++) {
+-            BPath referencePath = BPath(&entryRef);
+-            SDL_SendDropFile(NULL, referencePath.Path());
+-        }
+-        return;
+-    }
+-
+     /* Event-handling functions */
+     virtual void MessageReceived(BMessage *message)
+     {
+@@ -170,7 +164,7 @@ class SDL_BApp : public BApplication
+             break;
+ 
+         default:
+-            BApplication::MessageReceived(message);
++            BLooper::MessageReceived(message);
+             break;
+         }
+     }
+diff --git a/src/main/haiku/SDL_BeApp.cc b/src/main/haiku/SDL_BeApp.cc
+index 9fbffcbfd..f1cf48293 100644
+--- a/src/main/haiku/SDL_BeApp.cc
++++ b/src/main/haiku/SDL_BeApp.cc
+@@ -31,7 +31,7 @@
+ #include <storage/File.h>
+ #include <unistd.h>
+ 
+-#include "SDL_BApp.h"   /* SDL_BApp class definition */
++#include "SDL_BApp.h"   /* SDL_BLooper class definition */
+ #include "SDL_BeApp.h"
+ #include "SDL_timer.h"
+ #include "SDL_error.h"
+@@ -44,12 +44,38 @@ extern "C" {
+ 
+ #include "../../thread/SDL_systhread.h"
+ 
+-/* Flag to tell whether or not the Be application is active or not */
++/* Flag to tell whether or not the Be application and looper are active or not */
+ static int SDL_BeAppActive = 0;
+ static SDL_Thread *SDL_AppThread = NULL;
++SDL_BLooper *SDL_Looper = NULL;
++
+ 
+ /* Default application signature */
+-const char *signature = "application/x-SDL-executable";
++const char *SDL_signature = "application/x-SDL-executable";
++
++
++/* Create a descendant of BApplication */
++class SDL_BApp : public BApplication {
++public:
++    SDL_BApp(const char* signature) :
++        BApplication(signature) {
++    }
++
++
++    virtual ~SDL_BApp() {
++    }
++
++
++    virtual void RefsReceived(BMessage* message) {
++        entry_ref entryRef;
++        for (int32 i = 0; message->FindRef("refs", i, &entryRef) == B_OK; i++) {
++            BPath referencePath = BPath(&entryRef);
++            SDL_SendDropFile(NULL, referencePath.Path());
++        }
++        return;
++    }
++};
++
+ 
+ static int StartBeApp(void *unused)
+ {
+@@ -65,48 +91,62 @@ static int StartBeApp(void *unused)
+             if (app_info.InitCheck() == B_OK) {
+                 char sig[B_MIME_TYPE_LENGTH];
+                 if (app_info.GetSignature(sig) == B_OK) {
+-                    signature = strndup(sig, B_MIME_TYPE_LENGTH);
++                    SDL_signature = strndup(sig, B_MIME_TYPE_LENGTH);
+                 }
+             }
+         }
+     }
+ 
+-    App = new SDL_BApp(signature);
++    App = new SDL_BApp(SDL_signature);
+ 
+     App->Run();
+     delete App;
+     return 0;
+ }
+ 
+-/* Initialize the Be Application, if it's not already started */
+-int
+-SDL_InitBeApp(void)
++
++static int
++StartBeLooper()
+ {
+-    /* Create the BApplication that handles appserver interaction */
+-    if (SDL_BeAppActive <= 0) {
++    if (!be_app) {
+         SDL_AppThread = SDL_CreateThreadInternal(StartBeApp, "SDLApplication", 0, NULL);
+         if (SDL_AppThread == NULL) {
+             return SDL_SetError("Couldn't create BApplication thread");
+         }
+ 
+-        /* Change working directory to that of executable */
+-        app_info info;
+-        if (B_OK == be_app->GetAppInfo(&info)) {
+-            entry_ref ref = info.ref;
+-            BEntry entry;
+-            if (B_OK == entry.SetTo(&ref)) {
+-                BPath path;
+-                if (B_OK == path.SetTo(&entry)) {
+-                    if (B_OK == path.GetParent(&path)) {
+-                        chdir(path.Path());
+-                    }
++        do {
++            SDL_Delay(10);
++        } while ((be_app == NULL) || be_app->IsLaunching());
++    }
++
++     /* Change working directory to that of executable */
++    app_info info;
++    if (B_OK == be_app->GetAppInfo(&info)) {
++        entry_ref ref = info.ref;
++        BEntry entry;
++        if (B_OK == entry.SetTo(&ref)) {
++            BPath path;
++            if (B_OK == path.SetTo(&entry)) {
++                if (B_OK == path.GetParent(&path)) {
++                    chdir(path.Path());
+                 }
+             }
+         }
++    }
+ 
+-        do {
+-            SDL_Delay(10);
+-        } while ((be_app == NULL) || be_app->IsLaunching());
++    SDL_Looper = new SDL_BLooper("SDLLooper");
++    SDL_Looper->Run();
++    return (0);
++}
++
++
++/* Initialize the Be Application, if it's not already started */
++int
++SDL_InitBeApp(void)
++{
++    /* Create the BApplication that handles appserver interaction */
++    if (SDL_BeAppActive <= 0) {
++        StartBeLooper();
+ 
+         /* Mark the application active */
+         SDL_BeAppActive = 0;
+@@ -128,6 +168,9 @@ SDL_QuitBeApp(void)
+ 
+     /* If the reference count reached zero, clean up the app */
+     if (SDL_BeAppActive == 0) {
++        SDL_Looper->Lock();
++        SDL_Looper->Quit();
++        SDL_Looper = NULL;
+         if (SDL_AppThread != NULL) {
+             if (be_app != NULL) {       /* Not tested */
+                 be_app->PostMessage(B_QUIT_REQUESTED);
+@@ -144,7 +187,7 @@ SDL_QuitBeApp(void)
+ #endif
+ 
+ /* SDL_BApp functions */
+-void SDL_BApp::ClearID(SDL_BWin *bwin) {
++void SDL_BLooper::ClearID(SDL_BWin *bwin) {
+     _SetSDLWindow(NULL, bwin->GetID());
+     int32 i = _GetNumWindowSlots() - 1;
+     while (i >= 0 && GetSDLWindow(i) == NULL) {
+diff --git a/src/main/haiku/SDL_BeApp.h b/src/main/haiku/SDL_BeApp.h
+index 819fa3989..9a5adb8ef 100644
+--- a/src/main/haiku/SDL_BeApp.h
++++ b/src/main/haiku/SDL_BeApp.h
+@@ -32,7 +32,7 @@ extern int SDL_InitBeApp(void);
+ extern void SDL_QuitBeApp(void);
+ 
+ /* Be Application Signature*/
+-extern const char *signature;
++extern const char *SDL_signature;
+ 
+ /* vi: set ts=4 sw=4 expandtab: */
+ 
+diff --git a/src/video/haiku/SDL_BApp.h b/src/video/haiku/SDL_BApp.h
+index 363606c38..036808167 100644
+--- a/src/video/haiku/SDL_BApp.h
++++ b/src/video/haiku/SDL_BApp.h
+@@ -49,6 +49,7 @@ extern "C" {
+ #include <vector>
+ 
+ /* Forward declarations */
++class SDL_BLooper;
+ class SDL_BWin;
+ 
+ /* Message constants */
+@@ -74,32 +75,25 @@ enum ToSDL
+     BAPP_SCREEN_CHANGED
+ };
+ 
+-/* Create a descendant of BApplication */
+-class SDL_BApp : public BApplication
++
++extern "C" SDL_BLooper *SDL_Looper;
++
++
++/* Create a descendant of BLooper */
++class SDL_BLooper : public BLooper
+ {
+   public:
+-    SDL_BApp(const char *signature) : BApplication(signature)
++    SDL_BLooper(const char* name) : BLooper(name)
+     {
+ #if SDL_VIDEO_OPENGL
+         _current_context = NULL;
+ #endif
+     }
+ 
+-    virtual ~SDL_BApp()
++    virtual ~SDL_BLooper()
+     {
+     }
+ 
+-    virtual void RefsReceived(BMessage *message)
+-    {
+-        char filePath[512];
+-        entry_ref entryRef;
+-        for (int32 i = 0; message->FindRef("refs", i, &entryRef) == B_OK; i++) {
+-            BPath referencePath = BPath(&entryRef);
+-            SDL_SendDropFile(NULL, referencePath.Path());
+-        }
+-        return;
+-    }
+-
+     /* Event-handling functions */
+     virtual void MessageReceived(BMessage *message)
+     {
+@@ -170,7 +164,7 @@ class SDL_BApp : public BApplication
+             break;
+ 
+         default:
+-            BApplication::MessageReceived(message);
++            BLooper::MessageReceived(message);
+             break;
+         }
+     }
+diff --git a/src/video/haiku/SDL_BWin.h b/src/video/haiku/SDL_BWin.h
+index 54645ee84..ed1b96147 100644
+--- a/src/video/haiku/SDL_BWin.h
++++ b/src/video/haiku/SDL_BWin.h
+@@ -125,8 +125,8 @@ class SDL_BWin : public BWindow
+ 
+ #if SDL_VIDEO_OPENGL
+         if (_SDL_GLView) {
+-            if (((SDL_BApp *)be_app)->GetCurrentContext() == _SDL_GLView)
+-                ((SDL_BApp *)be_app)->SetCurrentContext(NULL);
++            if (SDL_Looper->GetCurrentContext() == _SDL_GLView)
++                SDL_Looper->SetCurrentContext(NULL);
+             if (_SDL_GLView == _cur_view)
+                 RemoveChild(_SDL_GLView);
+             _SDL_GLView = NULL;
+@@ -209,8 +209,8 @@ class SDL_BWin : public BWindow
+     {
+         Lock();
+         if (_SDL_GLView != NULL) {
+-            if (((SDL_BApp *)be_app)->GetCurrentContext() == _SDL_GLView)
+-                ((SDL_BApp *)be_app)->SetCurrentContext(NULL);
++            if (SDL_Looper->GetCurrentContext() == _SDL_GLView)
++                SDL_Looper->SetCurrentContext(NULL);
+             _SDL_GLView = NULL;
+             UpdateCurrentView();
+             // _SDL_GLView deleted by HAIKU_GL_DeleteContext
+@@ -572,7 +572,7 @@ class SDL_BWin : public BWindow
+         if (keyUtf8 != NULL) {
+             msg.AddData("key-utf8", B_INT8_TYPE, (const void *)keyUtf8, len);
+         }
+-        be_app->PostMessage(&msg);
++        SDL_Looper->PostMessage(&msg);
+     }
+ 
+     void _RepaintEvent()
+@@ -584,7 +584,7 @@ class SDL_BWin : public BWindow
+     void _PostWindowEvent(BMessage &msg)
+     {
+         msg.AddInt32("window-id", _id);
+-        be_app->PostMessage(&msg);
++        SDL_Looper->PostMessage(&msg);
+     }
+ 
+     /* Command methods (functions called upon by SDL) */
+diff --git a/src/video/haiku/SDL_bframebuffer.cc b/src/video/haiku/SDL_bframebuffer.cc
+index c508af762..2cb4f6497 100644
+--- a/src/video/haiku/SDL_bframebuffer.cc
++++ b/src/video/haiku/SDL_bframebuffer.cc
+@@ -39,8 +39,8 @@ static SDL_INLINE SDL_BWin *_ToBeWin(SDL_Window *window) {
+     return (SDL_BWin *)(window->driverdata);
+ }
+ 
+-static SDL_INLINE SDL_BApp *_GetBeApp() {
+-    return (SDL_BApp *)be_app;
++static SDL_INLINE SDL_BLooper *_GetBeLooper() {
++    return SDL_Looper;
+ }
+ 
+ int HAIKU_CreateWindowFramebuffer(_THIS, SDL_Window * window,
+diff --git a/src/video/haiku/SDL_bmessagebox.cc b/src/video/haiku/SDL_bmessagebox.cc
+index ed9dfc430..2983ef3c1 100644
+--- a/src/video/haiku/SDL_bmessagebox.cc
++++ b/src/video/haiku/SDL_bmessagebox.cc
+@@ -358,7 +358,7 @@ HAIKU_ShowMessageBox(const SDL_MessageBoxData *messageboxdata, int *buttonid)
+ 	// "2 BApplication objects were created. Only one is allowed."
+ 	BApplication *application = NULL;
+ 	if (be_app == NULL) {
+-		application = new(std::nothrow) BApplication(signature);
++		application = new(std::nothrow) BApplication(SDL_signature);
+ 		if (application == NULL) {
+ 			return SDL_SetError("Cannot create the BApplication object. Lack of memory?");
+ 		}
+diff --git a/src/video/haiku/SDL_bmodes.cc b/src/video/haiku/SDL_bmodes.cc
+index cb8f85287..eb8f15312 100644
+--- a/src/video/haiku/SDL_bmodes.cc
++++ b/src/video/haiku/SDL_bmodes.cc
+@@ -52,8 +52,8 @@ static SDL_INLINE SDL_BWin *_ToBeWin(SDL_Window *window) {
+     return (SDL_BWin *)(window->driverdata);
+ }
+ 
+-static SDL_INLINE SDL_BApp *_GetBeApp() {
+-    return (SDL_BApp *)be_app;
++static SDL_INLINE SDL_BLooper *_GetBeLooper() {
++    return SDL_Looper;
+ }
+ 
+ static SDL_INLINE display_mode * _ExtractBMode(SDL_DisplayMode *mode) {
+diff --git a/src/video/haiku/SDL_bopengl.cc b/src/video/haiku/SDL_bopengl.cc
+index 9dc76e968..7e12ad6a6 100644
+--- a/src/video/haiku/SDL_bopengl.cc
++++ b/src/video/haiku/SDL_bopengl.cc
+@@ -39,8 +39,8 @@ static SDL_INLINE SDL_BWin *_ToBeWin(SDL_Window *window) {
+     return (SDL_BWin *)(window->driverdata);
+ }
+ 
+-static SDL_INLINE SDL_BApp *_GetBeApp() {
+-    return (SDL_BApp *)be_app;
++static SDL_INLINE SDL_BLooper *_GetBeLooper() {
++    return SDL_Looper;
+ }
+ 
+ /* Passing a NULL path means load pointers from the application */
+@@ -97,7 +97,7 @@ int HAIKU_GL_MakeCurrent(_THIS, SDL_Window * window, SDL_GLContext context) {
+             return SDL_SetError("MakeCurrent failed");
+         }
+     }
+-    _GetBeApp()->SetCurrentContext(glView);
++    _GetBeLooper()->SetCurrentContext(glView);
+     return 0;
+ }
+ 
+@@ -138,7 +138,7 @@ SDL_GLContext HAIKU_GL_CreateContext(_THIS, SDL_Window * window) {
+     }
+ #endif
+     bwin->CreateGLView(gl_flags);
+-    _GetBeApp()->SetCurrentContext(bwin->GetGLView());
++    _GetBeLooper()->SetCurrentContext(bwin->GetGLView());
+     return (SDL_GLContext)(bwin->GetGLView());
+ }
+ 
+diff --git a/src/video/haiku/SDL_bwindow.cc b/src/video/haiku/SDL_bwindow.cc
+index bbf933681..18e03d4ae 100644
+--- a/src/video/haiku/SDL_bwindow.cc
++++ b/src/video/haiku/SDL_bwindow.cc
+@@ -37,8 +37,8 @@ static SDL_INLINE SDL_BWin *_ToBeWin(SDL_Window *window) {
+     return (SDL_BWin *)(window->driverdata);
+ }
+ 
+-static SDL_INLINE SDL_BApp *_GetBeApp() {
+-    return (SDL_BApp *)be_app;
++static SDL_INLINE SDL_BLooper *_GetBeLooper() {
++    return SDL_Looper;
+ }
+ 
+ static int _InitWindow(_THIS, SDL_Window *window) {
+@@ -72,7 +72,7 @@ static int _InitWindow(_THIS, SDL_Window *window) {
+     }
+ 
+     window->driverdata = bwin;
+-    int32 winID = _GetBeApp()->GetID(window);
++    int32 winID = _GetBeLooper()->GetID(window);
+     bwin->SetID(winID);
+ 
+     return 0;
+@@ -220,7 +220,7 @@ void HAIKU_SetWindowMouseGrab(_THIS, SDL_Window * window, SDL_bool grabbed) {
+ 
+ void HAIKU_DestroyWindow(_THIS, SDL_Window * window) {
+     _ToBeWin(window)->LockLooper();    /* This MUST be locked */
+-    _GetBeApp()->ClearID(_ToBeWin(window));
++    _GetBeLooper()->ClearID(_ToBeWin(window));
+     _ToBeWin(window)->Quit();
+     window->driverdata = NULL;
+ }
+-- 
+2.17.1
+

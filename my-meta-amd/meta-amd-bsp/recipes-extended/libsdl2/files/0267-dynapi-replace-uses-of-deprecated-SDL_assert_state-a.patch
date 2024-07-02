@@ -1,0 +1,42 @@
+From fd4bb4154b034727b0504921eab78b4c07f39db7 Mon Sep 17 00:00:00 2001
+From: Ozkan Sezer <sezeroz@gmail.com>
+Date: Fri, 3 Mar 2023 03:01:02 +0300
+Subject: [PATCH 267/458] dynapi: replace uses of deprecated SDL_assert_state
+ and SDL_assert_data
+
+---
+ src/dynapi/SDL_dynapi_procs.h | 4 ++--
+ src/dynapi/gendynapi.pl       | 1 +
+ 2 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/dynapi/SDL_dynapi_procs.h b/src/dynapi/SDL_dynapi_procs.h
+index cbec06afb..ebc9fc39b 100644
+--- a/src/dynapi/SDL_dynapi_procs.h
++++ b/src/dynapi/SDL_dynapi_procs.h
+@@ -90,9 +90,9 @@ SDL_DYNAPI_PROC(int,SDL_InitSubSystem,(Uint32 a),(a),return)
+ SDL_DYNAPI_PROC(void,SDL_QuitSubSystem,(Uint32 a),(a),)
+ SDL_DYNAPI_PROC(Uint32,SDL_WasInit,(Uint32 a),(a),return)
+ SDL_DYNAPI_PROC(void,SDL_Quit,(void),(),)
+-SDL_DYNAPI_PROC(SDL_assert_state,SDL_ReportAssertion,(SDL_assert_data *a, const char *b, const char *c, int d),(a,b,c,d),return)
++SDL_DYNAPI_PROC(SDL_AssertState,SDL_ReportAssertion,(SDL_AssertData *a, const char *b, const char *c, int d),(a,b,c,d),return)
+ SDL_DYNAPI_PROC(void,SDL_SetAssertionHandler,(SDL_AssertionHandler a, void *b),(a,b),)
+-SDL_DYNAPI_PROC(const SDL_assert_data*,SDL_GetAssertionReport,(void),(),return)
++SDL_DYNAPI_PROC(const SDL_AssertData*,SDL_GetAssertionReport,(void),(),return)
+ SDL_DYNAPI_PROC(void,SDL_ResetAssertionReport,(void),(),)
+ SDL_DYNAPI_PROC(SDL_bool,SDL_AtomicTryLock,(SDL_SpinLock *a),(a),return)
+ SDL_DYNAPI_PROC(void,SDL_AtomicLock,(SDL_SpinLock *a),(a),)
+diff --git a/src/dynapi/gendynapi.pl b/src/dynapi/gendynapi.pl
+index b740fe8b4..47509f847 100755
+--- a/src/dynapi/gendynapi.pl
++++ b/src/dynapi/gendynapi.pl
+@@ -142,6 +142,7 @@ while (my $d = readdir(HEADERS)) {
+     }
+     close(HEADER);
+ }
++
+ closedir(HEADERS);
+ 
+ close(SDL_DYNAPI_PROCS_H);
+-- 
+2.17.1
+

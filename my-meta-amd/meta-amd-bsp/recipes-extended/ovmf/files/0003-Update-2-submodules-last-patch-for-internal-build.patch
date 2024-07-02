@@ -1,0 +1,37 @@
+From 61566b13a06fc80af56bcf87866bfd60b0a33104 Mon Sep 17 00:00:00 2001
+From: Ken Xue <Ken.Xue@amd.com>
+Date: Fri, 14 Jul 2023 23:16:59 +0800
+Subject: [PATCH 3/6] Update 2 submodules last patch for internal build
+
+[Why]
+OVMF submodules(openssl, mipisyst) are udpated because of
+their submodules url changes within these 2 projects.
+
+[How]
+update latest commit ID for those 2 projects.
+
+JIRA ID: SWDEV-341416
+Signed-off-by: Ken Xue <Ken.Xue@amd.com>
+Change-Id: I54654bf61f2e351cddc91dbc65975b4a07831c1c
+---
+ CryptoPkg/Library/OpensslLib/openssl | 2 +-
+ MdePkg/Library/MipiSysTLib/mipisyst  | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/CryptoPkg/Library/OpensslLib/openssl b/CryptoPkg/Library/OpensslLib/openssl
+index 830bf8e1e4..0784bf0890 160000
+--- a/CryptoPkg/Library/OpensslLib/openssl
++++ b/CryptoPkg/Library/OpensslLib/openssl
+@@ -1 +1 @@
+-Subproject commit 830bf8e1e4749ad65c51b6a1d0d769ae689404ba
++Subproject commit 0784bf0890bdd1d41eca6889a20d8e377813cc7d
+diff --git a/MdePkg/Library/MipiSysTLib/mipisyst b/MdePkg/Library/MipiSysTLib/mipisyst
+index 370b5944c0..921c662bd8 160000
+--- a/MdePkg/Library/MipiSysTLib/mipisyst
++++ b/MdePkg/Library/MipiSysTLib/mipisyst
+@@ -1 +1 @@
+-Subproject commit 370b5944c046bab043dd8b133727b2135af7747a
++Subproject commit 921c662bd8ae8044b2b6cfd55380698ecf06f751
+-- 
+2.17.1
+

@@ -1,0 +1,39 @@
+From 93f02581e78413543873f532ad6f7fe779570f89 Mon Sep 17 00:00:00 2001
+From: Roger Pau Monne <roger.pau@citrix.com>
+Date: Thu, 25 Jan 2024 10:30:40 +0100
+Subject: [PATCH 074/106] x86/hvm: make X86_EMU_USE_PIRQ optional
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Allow selecting X86_EMU_USE_PIRQ for HVM guests, so it's no longer mandated to
+be always on.
+
+There's no restriction in Xen that forces such feature to be always on for HVM
+guests, as for example PVH guests don't support it, as such allow toolstack to
+select whether to enabled it on a per-domain basis.
+
+Signed-off-by: Roger Pau Monné <roger.pau@citrix.com>
+Reviewed-by: Andrew Cooper <andrew.cooper3@citrix.com>
+---
+ xen/arch/x86/domain.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/xen/arch/x86/domain.c b/xen/arch/x86/domain.c
+index 3712e36df9..37dbd46ada 100644
+--- a/xen/arch/x86/domain.c
++++ b/xen/arch/x86/domain.c
+@@ -725,7 +725,9 @@ static bool emulation_flags_ok(const struct domain *d, uint32_t emflags)
+              emflags != (X86_EMU_VPCI | X86_EMU_LAPIC | X86_EMU_IOAPIC) )
+             return false;
+         if ( !is_hardware_domain(d) &&
+-             emflags != (X86_EMU_ALL & ~X86_EMU_VPCI) &&
++             /* HVM PIRQ feature is user-selectable. */
++             (emflags & ~X86_EMU_USE_PIRQ) !=
++             (X86_EMU_ALL & ~(X86_EMU_VPCI | X86_EMU_USE_PIRQ)) &&
+              emflags != X86_EMU_LAPIC )
+             return false;
+     }
+-- 
+2.25.1
+

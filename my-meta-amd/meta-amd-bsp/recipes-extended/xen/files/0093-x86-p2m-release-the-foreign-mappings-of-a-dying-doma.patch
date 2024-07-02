@@ -1,0 +1,106 @@
+From 16696f4a81a3cfb08504002947f9d6aff7d1934d Mon Sep 17 00:00:00 2001
+From: Xenia Ragiadakou <xenia.ragiadakou@amd.com>
+Date: Fri, 1 Dec 2023 02:50:24 +0200
+Subject: [PATCH 093/106] x86/p2m: release the foreign mappings of a dying
+ domain
+
+Upon domain destruction the reference count of the foreign pages mapped
+to the domain is not decremented.
+
+Fix foreign mapped page reference leak by removing the corresponding
+mappings of the domain's p2m when the domain is destroyed.
+
+Signed-off-by: Xenia Ragiadakou <xenia.ragiadakou@amd.com>
+Change-Id: I3e94c2c3ed15a11c324f35eac588948fd9a1cf0a
+---
+ xen/arch/x86/domain.c          | 10 ++++++++++
+ xen/arch/x86/include/asm/p2m.h |  1 +
+ xen/arch/x86/mm/p2m.c          | 32 ++++++++++++++++++++++++++++++++
+ 3 files changed, 43 insertions(+)
+
+diff --git a/xen/arch/x86/domain.c b/xen/arch/x86/domain.c
+index 37dbd46ada..2d315f4b62 100644
+--- a/xen/arch/x86/domain.c
++++ b/xen/arch/x86/domain.c
+@@ -2358,6 +2358,9 @@ int domain_relinquish_resources(struct domain *d)
+         enum {
+             PROG_iommu_pagetables = 1,
+             PROG_shared,
++#ifdef CONFIG_HVM
++            PROG_foreign,
++#endif
+             PROG_paging,
+             PROG_vcpu_pagetables,
+             PROG_xen,
+@@ -2406,6 +2409,13 @@ int domain_relinquish_resources(struct domain *d)
+         }
+ #endif
+ 
++#ifdef CONFIG_HVM
++    PROGRESS(foreign):
++
++        /* Tear down foreign mappings. */
++        p2m_teardown_foreign(d);
++#endif
++
+     PROGRESS(paging):
+ 
+         /* Tear down paging-assistance stuff. */
+diff --git a/xen/arch/x86/include/asm/p2m.h b/xen/arch/x86/include/asm/p2m.h
+index 4aa2f1ebe1..34155c2ca6 100644
+--- a/xen/arch/x86/include/asm/p2m.h
++++ b/xen/arch/x86/include/asm/p2m.h
+@@ -598,6 +598,7 @@ int p2m_alloc_table(struct p2m_domain *p2m);
+ /* Return all the p2m resources to Xen. */
+ void p2m_teardown(struct p2m_domain *p2m, bool remove_root, bool *preempted);
+ void p2m_final_teardown(struct domain *d);
++void p2m_teardown_foreign(struct domain *d);
+ 
+ /* Add/remove a page to/from a domain's p2m table. */
+ int p2m_add_page(struct domain *d, gfn_t gfn, mfn_t mfn,
+diff --git a/xen/arch/x86/mm/p2m.c b/xen/arch/x86/mm/p2m.c
+index 8fa10d9d8a..aeb42d316c 100644
+--- a/xen/arch/x86/mm/p2m.c
++++ b/xen/arch/x86/mm/p2m.c
+@@ -561,6 +561,38 @@ p2m_remove_entry(struct p2m_domain *p2m, gfn_t gfn, mfn_t mfn,
+     return rc;
+ }
+ 
++void p2m_teardown_foreign(struct domain *d)
++{
++    struct p2m_domain *p2m;
++    unsigned long max_pfn;
++    unsigned long gfn;
++
++    if ( !hap_enabled(d) )
++        return;
++
++    p2m = p2m_get_hostp2m(d);
++    p2m_lock(p2m);
++    max_pfn = p2m->max_mapped_pfn;
++    for ( gfn = 0; gfn <= max_pfn; gfn++ )
++    {
++        p2m_access_t a;
++        p2m_type_t t;
++        mfn_t mfn;
++
++        gfn_lock(p2m, _gfn(gfn), 0);
++        mfn = p2m->get_entry(p2m, _gfn(gfn), &t, &a, 0, NULL, NULL);
++        if ( mfn_valid(mfn) && p2m_is_foreign(t) )
++        {
++            int rc = p2m_remove_entry(p2m, _gfn(gfn), mfn, PAGE_ORDER_4K);
++            if ( rc )
++                printk("%s: dom%d: gfn=0x%lx: p2m_remove_entry failed (%d)\n",
++                       __func__, d->domain_id, gfn, rc);
++        }
++        gfn_unlock(p2m, _gfn(gfn), 0);
++    }
++    p2m_unlock(p2m);
++}
++
+ int
+ p2m_remove_page(struct domain *d, gfn_t gfn, mfn_t mfn,
+                 unsigned int page_order)
+-- 
+2.25.1
+

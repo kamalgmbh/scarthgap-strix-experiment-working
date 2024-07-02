@@ -1,0 +1,32 @@
+From 872d9679bd0658fc4664156f75c8905cd7926095 Mon Sep 17 00:00:00 2001
+From: David Stevens <stevensd@chromium.org>
+Date: Wed, 21 Feb 2024 16:25:20 +0900
+Subject: [PATCH 01/49] KVM: Relax BUG_ON argument validation
+
+hva_to_pfn() includes a check that KVM isn't trying to do an async page
+fault in a situation where it can't sleep. Downgrade this check from a
+BUG_ON() to a WARN_ON_ONCE(), since DoS'ing the guest (at worst) is
+better than bringing down the host.
+
+Suggested-by: Sean Christopherson <seanjc@google.com>
+Signed-off-by: David Stevens <stevensd@chromium.org>
+---
+ virt/kvm/kvm_main.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/virt/kvm/kvm_main.c b/virt/kvm/kvm_main.c
+index 0f50960b0e3a..bbb3810ceb13 100644
+--- a/virt/kvm/kvm_main.c
++++ b/virt/kvm/kvm_main.c
+@@ -2985,7 +2985,7 @@ kvm_pfn_t hva_to_pfn(unsigned long addr, bool atomic, bool interruptible,
+ 	int npages, r;
+ 
+ 	/* we can do it either atomically or asynchronously, not both */
+-	BUG_ON(atomic && async);
++	WARN_ON_ONCE(atomic && async);
+ 
+ 	if (hva_to_pfn_fast(addr, write_fault, writable, &pfn))
+ 		return pfn;
+-- 
+2.17.1
+

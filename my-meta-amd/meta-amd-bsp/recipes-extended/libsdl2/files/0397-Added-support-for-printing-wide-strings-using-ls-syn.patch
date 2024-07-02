@@ -1,0 +1,94 @@
+From 730832555946d24df2d846a8d24261355426106b Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Fri, 26 May 2023 13:57:49 -0700
+Subject: [PATCH 397/458] Added support for printing wide strings using "%ls"
+ syntax
+
+(cherry picked from commit 128ca7016018178c0c3231db7db2005dbf234068)
+---
+ src/stdlib/SDL_string.c      | 35 +++++++++++++++++++++--------------
+ test/testautomation_stdlib.c | 12 ++++++++++++
+ 2 files changed, 33 insertions(+), 14 deletions(-)
+
+diff --git a/src/stdlib/SDL_string.c b/src/stdlib/SDL_string.c
+index d71f2da97..4a0170345 100644
+--- a/src/stdlib/SDL_string.c
++++ b/src/stdlib/SDL_string.c
+@@ -1514,6 +1514,19 @@ static size_t SDL_PrintString(char *text, size_t maxlen, SDL_FormatInfo *info, c
+     return length;
+ }
+ 
++static size_t SDL_PrintStringW(char *text, size_t maxlen, SDL_FormatInfo *info, const wchar_t *wide_string)
++{
++    size_t length = 0;
++    if (wide_string) {
++        char *string = SDL_iconv_string("UTF-8", "WCHAR_T", (char *)(wide_string), (SDL_wcslen(wide_string) + 1) * sizeof(*wide_string));
++        length = SDL_PrintString(TEXT_AND_LEN_ARGS, info, string);
++        SDL_free(string);
++    } else {
++        length = SDL_PrintString(TEXT_AND_LEN_ARGS, info, NULL);
++    }
++    return length;
++}
++
+ static void SDL_IntPrecisionAdjust(char *num, size_t maxlen, SDL_FormatInfo *info)
+ { /* left-pad num with zeroes. */
+     size_t sz, pad, have_sign;
+@@ -1831,23 +1844,17 @@ int SDL_vsnprintf(SDL_OUT_Z_CAP(maxlen) char *text, size_t maxlen, const char *f
+                     done = SDL_TRUE;
+                     break;
+                 case 'S':
+-                {
+-                    /* In practice this is used on Windows for WCHAR strings */
+-                    wchar_t *wide_arg = va_arg(ap, wchar_t *);
+-                    if (wide_arg) {
+-                        char *arg = SDL_iconv_string("UTF-8", "UTF-16LE", (char *)(wide_arg), (SDL_wcslen(wide_arg) + 1) * sizeof(*wide_arg));
+-                        info.pad_zeroes = SDL_FALSE;
+-                        length += SDL_PrintString(TEXT_AND_LEN_ARGS, &info, arg);
+-                        SDL_free(arg);
+-                    } else {
+-                        info.pad_zeroes = SDL_FALSE;
+-                        length += SDL_PrintString(TEXT_AND_LEN_ARGS, &info, NULL);
+-                    }
++                    info.pad_zeroes = SDL_FALSE;
++                    length += SDL_PrintStringW(TEXT_AND_LEN_ARGS, &info, va_arg(ap, wchar_t *));
+                     done = SDL_TRUE;
+-                } break;
++                    break;
+                 case 's':
+                     info.pad_zeroes = SDL_FALSE;
+-                    length += SDL_PrintString(TEXT_AND_LEN_ARGS, &info, va_arg(ap, char *));
++                    if (inttype > DO_INT) {
++                        length += SDL_PrintStringW(TEXT_AND_LEN_ARGS, &info, va_arg(ap, wchar_t *));
++                    } else {
++                        length += SDL_PrintString(TEXT_AND_LEN_ARGS, &info, va_arg(ap, char *));
++                    }
+                     done = SDL_TRUE;
+                     break;
+                 default:
+diff --git a/test/testautomation_stdlib.c b/test/testautomation_stdlib.c
+index 3f45cbf9e..ba7ba88f7 100644
+--- a/test/testautomation_stdlib.c
++++ b/test/testautomation_stdlib.c
+@@ -62,6 +62,18 @@ int stdlib_snprintf(void *arg)
+     SDLTest_AssertCheck(SDL_strcmp(text, expected) == 0, "Check text, expected: %s, got: %s", expected, text);
+     SDLTest_AssertCheck(result == SDL_strlen(text), "Check result value, expected: %d, got: %d", (int)SDL_strlen(text), result);
+ 
++    result = SDL_snprintf(text, sizeof(text), "%S", L"foo");
++    expected = "foo";
++    SDLTest_AssertPass("Call to SDL_snprintf(\"%%S\", \"foo\")");
++    SDLTest_AssertCheck(SDL_strcmp(text, expected) == 0, "Check text, expected: %s, got: %s", expected, text);
++    SDLTest_AssertCheck(result == SDL_strlen(text), "Check result value, expected: %d, got: %d", (int)SDL_strlen(text), result);
++
++    result = SDL_snprintf(text, sizeof(text), "%ls", L"foo");
++    expected = "foo";
++    SDLTest_AssertPass("Call to SDL_snprintf(\"%%ls\", \"foo\")");
++    SDLTest_AssertCheck(SDL_strcmp(text, expected) == 0, "Check text, expected: %s, got: %s", expected, text);
++    SDLTest_AssertCheck(result == SDL_strlen(text), "Check result value, expected: %d, got: %d", (int)SDL_strlen(text), result);
++
+     result = SDL_snprintf(text, 2, "%s", "foo");
+     expected = "f";
+     SDLTest_AssertPass("Call to SDL_snprintf(\"%%s\", \"foo\") with buffer size 2");
+-- 
+2.17.1
+

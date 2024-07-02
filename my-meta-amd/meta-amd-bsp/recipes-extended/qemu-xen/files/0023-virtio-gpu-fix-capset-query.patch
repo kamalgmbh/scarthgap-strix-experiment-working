@@ -1,0 +1,94 @@
+From 3b14350a5909a35d2fa18c9d17104105631044d3 Mon Sep 17 00:00:00 2001
+From: Pierre-Eric Pelloux-Prayer <pierre-eric.pelloux-prayer@amd.com>
+Date: Tue, 7 Mar 2023 11:13:16 +0100
+Subject: [PATCH 23/70] virtio-gpu: fix capset query
+
+virtio_gpu_virgl_get_num_capsets will return "num_capsets", but we can't assume
+that capset_index 1 is VIRGL2. It can be VIRGL2, VENUS (if VIRGL2 isn't supported)
+or DRM (if VIRGL2 and VENUS aren't supported).
+---
+ hw/display/virtio-gpu-virgl.c  | 36 ++++++++++++++++------------------
+ include/hw/virtio/virtio-gpu.h |  2 ++
+ 2 files changed, 19 insertions(+), 19 deletions(-)
+
+diff --git a/hw/display/virtio-gpu-virgl.c b/hw/display/virtio-gpu-virgl.c
+index 36b28cd6b3..411644d667 100644
+--- a/hw/display/virtio-gpu-virgl.c
++++ b/hw/display/virtio-gpu-virgl.c
+@@ -483,24 +483,12 @@ static void virgl_cmd_get_capset_info(VirtIOGPU *g,
+     VIRTIO_GPU_FILL_CMD(info);
+ 
+     memset(&resp, 0, sizeof(resp));
+-    if (info.capset_index == 0) {
+-        resp.capset_id = VIRTIO_GPU_CAPSET_VIRGL;
+-        virgl_renderer_get_cap_set(resp.capset_id,
+-                                   &resp.capset_max_version,
+-                                   &resp.capset_max_size);
+-    } else if (info.capset_index == 1) {
+-        resp.capset_id = VIRTIO_GPU_CAPSET_VIRGL2;
+-        virgl_renderer_get_cap_set(resp.capset_id,
+-                                   &resp.capset_max_version,
+-                                   &resp.capset_max_size);
+-    } else if (info.capset_index == 2) {
+-        resp.capset_id = VIRTIO_GPU_CAPSET_VENUS;
++
++    if (info.capset_index < ARRAY_SIZE(g->supported_capset_ids)) {
++        resp.capset_id = g->supported_capset_ids[info.capset_index];
+         virgl_renderer_get_cap_set(resp.capset_id,
+                                    &resp.capset_max_version,
+                                    &resp.capset_max_size);
+-    } else {
+-        resp.capset_max_version = 0;
+-        resp.capset_max_size = 0;
+     }
+     resp.hdr.type = VIRTIO_GPU_RESP_OK_CAPSET_INFO;
+     virtio_gpu_ctrl_response(g, cmd, &resp.hdr, sizeof(resp));
+@@ -1052,18 +1040,28 @@ int virtio_gpu_virgl_init(VirtIOGPU *g)
+ 
+ int virtio_gpu_virgl_get_num_capsets(VirtIOGPU *g)
+ {
+-    uint32_t capset2_max_ver, capset2_max_size, num_capsets;
+-    num_capsets = 1;
++    uint32_t capset2_max_ver, capset2_max_size, num_capsets = 1;
++
++    memset(g->supported_capset_ids, 0, sizeof(g->supported_capset_ids));
++
++    /* VIRGL is always supported. */
++    g->supported_capset_ids[0] = VIRTIO_GPU_CAPSET_VIRGL;
+ 
+     virgl_renderer_get_cap_set(VIRTIO_GPU_CAPSET_VIRGL2,
+                                &capset2_max_ver,
+                                &capset2_max_size);
+-    num_capsets += capset2_max_ver ? 1 : 0;
++    if (capset2_max_ver) {
++        g->supported_capset_ids[num_capsets] = VIRTIO_GPU_CAPSET_VIRGL2;
++        num_capsets++;
++    }
+ 
+     virgl_renderer_get_cap_set(VIRTIO_GPU_CAPSET_VENUS,
+                                &capset2_max_ver,
+                                &capset2_max_size);
+-    num_capsets += capset2_max_size ? 1 : 0;
++    if (capset2_max_size) {
++        g->supported_capset_ids[num_capsets] = VIRTIO_GPU_CAPSET_VENUS;
++        num_capsets++;
++    }
+ 
+     return num_capsets;
+ }
+diff --git a/include/hw/virtio/virtio-gpu.h b/include/hw/virtio/virtio-gpu.h
+index f3c6c7037d..a175f80116 100644
+--- a/include/hw/virtio/virtio-gpu.h
++++ b/include/hw/virtio/virtio-gpu.h
+@@ -205,6 +205,8 @@ struct VirtIOGPU {
+     } dmabuf;
+ 
+     GHashTable *resource_uuids;
++
++    uint32_t supported_capset_ids[4];
+ };
+ 
+ struct VirtIOGPUClass {
+-- 
+2.17.1
+

@@ -1,0 +1,53 @@
+From f444eac55779784234bbbf6d589c448904d17103 Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Thu, 30 Mar 2023 07:25:49 -0700
+Subject: [PATCH 344/458] Fixed analog triggers on the DualSense controller
+
+(cherry picked from commit a67d41050164e447048fa55179cc31b23be9d9b7)
+---
+ src/joystick/hidapi/SDL_hidapi_ps5.c | 16 ++++++++++++----
+ 1 file changed, 12 insertions(+), 4 deletions(-)
+
+diff --git a/src/joystick/hidapi/SDL_hidapi_ps5.c b/src/joystick/hidapi/SDL_hidapi_ps5.c
+index 1c1ca502d..8a3608b6d 100644
+--- a/src/joystick/hidapi/SDL_hidapi_ps5.c
++++ b/src/joystick/hidapi/SDL_hidapi_ps5.c
+@@ -1088,9 +1088,17 @@ static void HIDAPI_DriverPS5_HandleSimpleStatePacket(SDL_Joystick *joystick, SDL
+         SDL_PrivateJoystickButton(joystick, SDL_CONTROLLER_BUTTON_MISC1, (data & 0x02) ? SDL_PRESSED : SDL_RELEASED);
+     }
+ 
+-    axis = ((int)packet->ucTriggerLeft * 257) - 32768;
++    if (packet->ucTriggerLeft == 0 && (packet->rgucButtonsHatAndCounter[1] & 0x04)) {
++        axis = SDL_JOYSTICK_AXIS_MAX;
++    } else {
++        axis = ((int)packet->ucTriggerLeft * 257) - 32768;
++    }
+     SDL_PrivateJoystickAxis(joystick, SDL_CONTROLLER_AXIS_TRIGGERLEFT, axis);
+-    axis = ((int)packet->ucTriggerRight * 257) - 32768;
++    if (packet->ucTriggerRight == 0 && (packet->rgucButtonsHatAndCounter[1] & 0x08)) {
++        axis = SDL_JOYSTICK_AXIS_MAX;
++    } else {
++        axis = ((int)packet->ucTriggerRight * 257) - 32768;
++    }
+     SDL_PrivateJoystickAxis(joystick, SDL_CONTROLLER_AXIS_TRIGGERRIGHT, axis);
+     axis = ((int)packet->ucLeftJoystickX * 257) - 32768;
+     SDL_PrivateJoystickAxis(joystick, SDL_CONTROLLER_AXIS_LEFTX, axis);
+@@ -1186,13 +1194,13 @@ static void HIDAPI_DriverPS5_HandleStatePacketCommon(SDL_Joystick *joystick, SDL
+         SDL_PrivateJoystickButton(joystick, SDL_CONTROLLER_BUTTON_PS5_RIGHT_PADDLE, (data & 0x80) ? SDL_PRESSED : SDL_RELEASED);
+     }
+ 
+-    if (packet->rgucButtonsAndHat[1] & 0x04) {
++    if (packet->ucTriggerLeft == 0 && (packet->rgucButtonsAndHat[1] & 0x04)) {
+         axis = SDL_JOYSTICK_AXIS_MAX;
+     } else {
+         axis = ((int)packet->ucTriggerLeft * 257) - 32768;
+     }
+     SDL_PrivateJoystickAxis(joystick, SDL_CONTROLLER_AXIS_TRIGGERLEFT, axis);
+-    if (packet->rgucButtonsAndHat[1] & 0x08) {
++    if (packet->ucTriggerRight == 0 && (packet->rgucButtonsAndHat[1] & 0x08)) {
+         axis = SDL_JOYSTICK_AXIS_MAX;
+     } else {
+         axis = ((int)packet->ucTriggerRight * 257) - 32768;
+-- 
+2.17.1
+

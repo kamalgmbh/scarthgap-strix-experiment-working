@@ -1,0 +1,43 @@
+From 4139d92e00e82cf727efddced6c4c02a1252109e Mon Sep 17 00:00:00 2001
+From: Xenia Ragiadakou <burzalodowa@gmail.com>
+Date: Wed, 15 Feb 2023 10:15:15 +0200
+Subject: [PATCH 081/106] paging_mode_translate memory exchange hack
+
+Signed-off-by: Xenia Ragiadakou <burzalodowa@gmail.com>
+---
+ xen/arch/x86/mm.c   | 4 ++--
+ xen/common/memory.c | 3 +--
+ 2 files changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/xen/arch/x86/mm.c b/xen/arch/x86/mm.c
+index ab0acbfea6..5a3007e604 100644
+--- a/xen/arch/x86/mm.c
++++ b/xen/arch/x86/mm.c
+@@ -4363,8 +4363,8 @@ int steal_page(
+     const struct domain *owner;
+     int rc;
+ 
+-    if ( paging_mode_external(d) )
+-        return -EOPNOTSUPP;
++//    if ( paging_mode_external(d) )
++//        put_page_and_type(page);//return -EOPNOTSUPP;
+ 
+     /* Grab a reference to make sure the page doesn't change under our feet */
+     rc = -EINVAL;
+diff --git a/xen/common/memory.c b/xen/common/memory.c
+index fa165ebc14..32f24dd2fe 100644
+--- a/xen/common/memory.c
++++ b/xen/common/memory.c
+@@ -793,8 +793,7 @@ static long memory_exchange(XEN_GUEST_HANDLE_PARAM(xen_memory_exchange_t) arg)
+             rc = guest_physmap_add_page(d, _gfn(gpfn), mfn,
+                                         exch.out.extent_order) ?: rc;
+ 
+-            if ( !paging_mode_translate(d) &&
+-                 __copy_mfn_to_guest_offset(exch.out.extent_start,
++            if ( __copy_mfn_to_guest_offset(exch.out.extent_start,
+                                             (i << out_chunk_order) + j,
+                                             mfn) )
+                 rc = -EFAULT;
+-- 
+2.25.1
+

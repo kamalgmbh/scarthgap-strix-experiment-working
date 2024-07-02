@@ -1,0 +1,59 @@
+From 3d0290e528ff04f80d93977ce4b36b57d0afbf0c Mon Sep 17 00:00:00 2001
+From: Michal Orzel <michal.orzel@amd.com>
+Date: Fri, 18 Nov 2022 12:46:18 +0100
+Subject: [PATCH 068/221] xen/arm: Define WLEN_8 macro and use it in
+ debug-pl011
+
+At the moment, early printk code for pl011 uses a hardcoded value
+for 8n1 LCR configuration. Define and use macro WLEN_8 for that purpose
+(no parity and 1 stop bit are defined as 0).
+
+Signed-off-by: Michal Orzel <michal.orzel@amd.com>
+Acked-by: Julien Grall <julien@xen.org>
+---
+ xen/arch/arm/arm32/debug-pl011.inc    | 2 +-
+ xen/arch/arm/arm64/debug-pl011.inc    | 2 +-
+ xen/arch/arm/include/asm/pl011-uart.h | 1 +
+ 3 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/xen/arch/arm/arm32/debug-pl011.inc b/xen/arch/arm/arm32/debug-pl011.inc
+index 214f68dc95..c527f1d442 100644
+--- a/xen/arch/arm/arm32/debug-pl011.inc
++++ b/xen/arch/arm/arm32/debug-pl011.inc
+@@ -29,7 +29,7 @@
+         str   \rc, [\rb, #FBRD]     /* -> UARTFBRD (Baud divisor fraction) */
+         mov   \rc, #(7372800 / CONFIG_EARLY_UART_PL011_BAUD_RATE / 16)
+         str   \rc, [\rb, #IBRD]     /* -> UARTIBRD (Baud divisor integer) */
+-        mov   \rc, #0x60            /* 8n1 */
++        mov   \rc, #WLEN_8          /* 8n1 */
+         str   \rc, [\rb, #LCR_H]     /* -> UARTLCR_H (Line control) */
+         ldr   \rc, =(RXE | TXE | UARTEN)      /* RXE | TXE | UARTEN */
+         str   \rc, [\rb, #CR]     /* -> UARTCR (Control Register) */
+diff --git a/xen/arch/arm/arm64/debug-pl011.inc b/xen/arch/arm/arm64/debug-pl011.inc
+index d82f2f1de1..6d60e78c8b 100644
+--- a/xen/arch/arm/arm64/debug-pl011.inc
++++ b/xen/arch/arm/arm64/debug-pl011.inc
+@@ -28,7 +28,7 @@
+         strh  w\c, [\xb, #FBRD]      /* -> UARTFBRD (Baud divisor fraction) */
+         mov   x\c, #(7372800 / CONFIG_EARLY_UART_PL011_BAUD_RATE / 16)
+         strh  w\c, [\xb, #IBRD]      /* -> UARTIBRD (Baud divisor integer) */
+-        mov   x\c, #0x60             /* 8n1 */
++        mov   x\c, #WLEN_8           /* 8n1 */
+         str   w\c, [\xb, #LCR_H]     /* -> UARTLCR_H (Line control) */
+         ldr   x\c, =(RXE | TXE | UARTEN)
+         str   w\c, [\xb, #CR]        /* -> UARTCR (Control Register) */
+diff --git a/xen/arch/arm/include/asm/pl011-uart.h b/xen/arch/arm/include/asm/pl011-uart.h
+index 57e9ec73ac..5bb563ec08 100644
+--- a/xen/arch/arm/include/asm/pl011-uart.h
++++ b/xen/arch/arm/include/asm/pl011-uart.h
+@@ -55,6 +55,7 @@
+ 
+ /* LCR_H bits */
+ #define SPS    (1<<7) /* Stick parity select */
++#define WLEN_8 (_AC(0x3, U) << 5) /* 8 bits word length */
+ #define FEN    (1<<4) /* FIFO enable */
+ #define STP2   (1<<3) /* Two stop bits select */
+ #define EPS    (1<<2) /* Even parity select */
+-- 
+2.17.1
+

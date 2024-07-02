@@ -1,0 +1,42 @@
+From 9403c9e95a75b28f39d1b64b98267fb3a57cf78d Mon Sep 17 00:00:00 2001
+From: "Ryan C. Gordon" <icculus@icculus.org>
+Date: Tue, 21 Feb 2023 12:56:02 -0500
+Subject: [PATCH 239/458] resampler: Work at double precision on x86-64
+ machines.
+
+We get audio artifacts if we don't work at the higher precision, but
+this is painful on CPUs that have to use a software fallback for this,
+so for now (that is, until we have a better solution), get better output
+on amd64 chips, where the cost is less painful.
+
+(cherry picked from commit 1e5e8e2fda3796e76e6f7b1c39683925a3e9fed9)
+---
+ src/audio/SDL_audiocvt.c | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/src/audio/SDL_audiocvt.c b/src/audio/SDL_audiocvt.c
+index 7a9dc915d..d0eeff4af 100644
+--- a/src/audio/SDL_audiocvt.c
++++ b/src/audio/SDL_audiocvt.c
+@@ -198,10 +198,18 @@ static int SDL_ResampleAudio(const int chans, const int inrate, const int outrat
+                              const float *inbuf, const int inbuflen,
+                              float *outbuf, const int outbuflen)
+ {
++    /* !!! FIXME: this produces artifacts if we don't work at double precision, but this turns out to
++                  be a big performance hit. Until we can resolve this better, we force this to double
++                  for amd64 CPUs, which should be able to take the hit for now, vs small embedded
++                  things that might end up in a software fallback here. */
+     /* Note that this used to be double, but it looks like we can get by with float in most cases at
+        almost twice the speed on Intel processors, and orders of magnitude more
+        on CPUs that need a software fallback for double calculations. */
++    #if defined(_M_X64) || defined(__x86_64__)
++    typedef double ResampleFloatType;
++    #else
+     typedef float ResampleFloatType;
++    #endif
+ 
+     const ResampleFloatType finrate = (ResampleFloatType)inrate;
+     const ResampleFloatType ratio = ((float)outrate) / ((float)inrate);
+-- 
+2.17.1
+

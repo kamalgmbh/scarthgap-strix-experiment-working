@@ -1,0 +1,53 @@
+From 582fb3901a86c0a4d6877113c28297455d09c9b0 Mon Sep 17 00:00:00 2001
+From: Sylvain Becker <sylvain.becker@gmail.com>
+Date: Wed, 14 Dec 2022 17:41:35 +0100
+Subject: [PATCH 097/458] DBus: add a reference to the connection
+
+Fixed bug #6712
+---
+ src/core/linux/SDL_dbus.c | 1 +
+ src/core/linux/SDL_dbus.h | 1 +
+ src/core/linux/SDL_ibus.c | 3 +++
+ 3 files changed, 5 insertions(+)
+
+diff --git a/src/core/linux/SDL_dbus.c b/src/core/linux/SDL_dbus.c
+index e8b138575..0e22a1012 100644
+--- a/src/core/linux/SDL_dbus.c
++++ b/src/core/linux/SDL_dbus.c
+@@ -54,6 +54,7 @@ static int LoadDBUSSyms(void)
+     SDL_DBUS_SYM(connection_send);
+     SDL_DBUS_SYM(connection_send_with_reply_and_block);
+     SDL_DBUS_SYM(connection_close);
++    SDL_DBUS_SYM(connection_ref);
+     SDL_DBUS_SYM(connection_unref);
+     SDL_DBUS_SYM(connection_flush);
+     SDL_DBUS_SYM(connection_read_write);
+diff --git a/src/core/linux/SDL_dbus.h b/src/core/linux/SDL_dbus.h
+index 4d895cf54..097be728f 100644
+--- a/src/core/linux/SDL_dbus.h
++++ b/src/core/linux/SDL_dbus.h
+@@ -46,6 +46,7 @@ typedef struct SDL_DBusContext
+     dbus_bool_t (*connection_send)(DBusConnection *, DBusMessage *, dbus_uint32_t *);
+     DBusMessage *(*connection_send_with_reply_and_block)(DBusConnection *, DBusMessage *, int, DBusError *);
+     void (*connection_close)(DBusConnection *);
++    void (*connection_ref)(DBusConnection *);
+     void (*connection_unref)(DBusConnection *);
+     void (*connection_flush)(DBusConnection *);
+     dbus_bool_t (*connection_read_write)(DBusConnection *, int);
+diff --git a/src/core/linux/SDL_ibus.c b/src/core/linux/SDL_ibus.c
+index dfb7c8637..9db5168b6 100644
+--- a/src/core/linux/SDL_ibus.c
++++ b/src/core/linux/SDL_ibus.c
+@@ -484,6 +484,9 @@ static SDL_bool IBus_SetupConnection(SDL_DBusContext *dbus, const char *addr)
+         result = SDL_DBus_CallMethodOnConnection(ibus_conn, ibus_service, IBUS_PATH, ibus_interface, "CreateInputContext",
+                                                  DBUS_TYPE_STRING, &client_name, DBUS_TYPE_INVALID,
+                                                  DBUS_TYPE_OBJECT_PATH, &path, DBUS_TYPE_INVALID);
++    } else {
++        /* re-using dbus->session_conn */
++        dbus->connection_ref(ibus_conn);
+     }
+ 
+     if (result) {
+-- 
+2.17.1
+

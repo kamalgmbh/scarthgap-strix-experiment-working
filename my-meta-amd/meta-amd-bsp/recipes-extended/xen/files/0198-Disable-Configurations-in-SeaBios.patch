@@ -1,0 +1,62 @@
+From a681041929bfea0cd704b1c4535e79ae5d917438 Mon Sep 17 00:00:00 2001
+From: Raghavendra Prasad Mallela <raghavendraprasad.mallela@amd.com>
+Date: Fri, 19 May 2023 23:06:40 +0530
+Subject: [PATCH 198/221] Disable Configurations in SeaBios
+
+SeaBios will wait 2.5sec for user to enter "ESC" key
+if boot menu needs to be displayed. This menu is not
+needed during DOMU boot, as the image is present in
+hard drive which is the default option that seabios
+considers if user didn't pressed any key. This patch
+disables the Boot Menu config along with CDROM boot
+and Floopy Drive boot
+
+With this changes 3sec has been reduced during DOMU
+bootup.
+
+Signed-off-by: Raghavendra Prasad Mallela <raghavendraprasad.mallela@amd.com>
+Change-Id: I2b11a8bc5d5bba0240bb6fcf5f53e6bdeb8553ee
+---
+ tools/firmware/seabios-config | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/tools/firmware/seabios-config b/tools/firmware/seabios-config
+index 4652f9b3b2..3f01c1c654 100644
+--- a/tools/firmware/seabios-config
++++ b/tools/firmware/seabios-config
+@@ -12,9 +12,9 @@ CONFIG_QEMU_HARDWARE=y
+ CONFIG_XEN=y
+ CONFIG_THREADS=y
+ CONFIG_RELOCATE_INIT=y
+-CONFIG_BOOTMENU=y
+-CONFIG_BOOTSPLASH=y
+-CONFIG_BOOTORDER=y
++# CONFIG_BOOTMENU is not set
++# CONFIG_BOOTSPLASH is not set
++# CONFIG_BOOTORDER is not set
+ CONFIG_ENTRY_EXTRASTACK=y
+ CONFIG_MALLOC_UPPERMEMORY=y
+ CONFIG_ROM_SIZE=0
+@@ -34,8 +34,8 @@ CONFIG_ESP_SCSI=y
+ CONFIG_LSI_SCSI=y
+ CONFIG_MEGASAS=y
+ CONFIG_MPT_SCSI=y
+-CONFIG_FLOPPY=y
+-CONFIG_FLASH_FLOPPY=y
++# CONFIG_FLOPPY is not set
++# CONFIG_FLASH_FLOPPY is not set
+ CONFIG_PS2PORT=y
+ CONFIG_USB=y
+ CONFIG_USB_UHCI=y
+@@ -62,7 +62,7 @@ CONFIG_TSC_TIMER=y
+ #
+ CONFIG_DRIVES=y
+ CONFIG_CDROM_BOOT=y
+-CONFIG_CDROM_EMU=y
++# CONFIG_CDROM_EMU is not set
+ CONFIG_PCIBIOS=y
+ CONFIG_APMBIOS=y
+ CONFIG_PNPBIOS=y
+-- 
+2.17.1
+

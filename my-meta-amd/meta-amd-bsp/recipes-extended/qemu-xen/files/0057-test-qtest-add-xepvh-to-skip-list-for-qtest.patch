@@ -1,0 +1,30 @@
+From 256fa039e2b6788b84c61bf875938bab3f298c9a Mon Sep 17 00:00:00 2001
+From: Vikram Garhwal <vikram.garhwal@amd.com>
+Date: Wed, 14 Jun 2023 17:03:39 -0700
+Subject: [PATCH 57/70] test/qtest: add xepvh to skip list for qtest
+
+Like existing xen machines, xenpvh also cannot be used for qtest.
+
+Signed-off-by: Vikram Garhwal <vikram.garhwal@amd.com>
+Reviewed-by: Stefano Stabellini <sstabellini@kernel.org>
+---
+ tests/qtest/libqtest.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/tests/qtest/libqtest.c b/tests/qtest/libqtest.c
+index c3a0ef5bb4..faa4b572de 100644
+--- a/tests/qtest/libqtest.c
++++ b/tests/qtest/libqtest.c
+@@ -1368,7 +1368,8 @@ void qtest_cb_for_every_machine(void (*cb)(const char *machine),
+     for (i = 0; machines[i].name != NULL; i++) {
+         /* Ignore machines that cannot be used for qtests */
+         if (!strncmp("xenfv", machines[i].name, 5) ||
+-            g_str_equal("xenpv", machines[i].name)) {
++            g_str_equal("xenpv", machines[i].name) ||
++            g_str_equal("xenpvh", machines[i].name)) {
+             continue;
+         }
+         if (!skip_old_versioned ||
+-- 
+2.17.1
+

@@ -1,0 +1,85 @@
+From 509f737d3e80c75f948eb896a08c324287b00adc Mon Sep 17 00:00:00 2001
+From: Andrew Cooper <andrew.cooper3@citrix.com>
+Date: Wed, 8 Nov 2023 14:53:23 +0000
+Subject: [PATCH 008/106] docs/sphinx: Fix indexing
+
+sphinx-build reports:
+
+  docs/designs/launch/hyperlaunch.rst: WARNING: document isn't included in any toctree
+  docs/designs/launch/hyperlaunch-devicetree.rst: WARNING: document isn't included in any toctree
+  docs/misc/xen-makefiles/makefiles.rst: WARNING: document isn't included in any toctree
+  docs/misra/C-language-toolchain.rst: WARNING: document isn't included in any toctree
+  docs/misra/C-runtime-failures.rst: WARNING: document isn't included in any toctree
+  docs/misra/documenting-violations.rst: WARNING: document isn't included in any toctree
+  docs/misra/exclude-list.rst: WARNING: document isn't included in any toctree
+  docs/misra/xen-static-analysis.rst: WARNING: document isn't included in any toctree
+
+Create an up-to-date index.rst in misra/ create an "unsorted docs" section at
+the top level to contain everything else.  They can be re-filed at a later
+date.
+
+Signed-off-by: Andrew Cooper <andrew.cooper3@citrix.com>
+Acked-by: Stefano Stabellini <sstabellini@kernel.org>
+Release-acked-by: Henry Wang <Henry.Wang@arm.com>
+(cherry picked from commit fb41228ececea948c7953c8c16fe28fd65c6536b)
+---
+ docs/index.rst       | 13 +++++++------
+ docs/misra/index.rst | 17 +++++++++++++++++
+ 2 files changed, 24 insertions(+), 6 deletions(-)
+ create mode 100644 docs/misra/index.rst
+
+diff --git a/docs/index.rst b/docs/index.rst
+index f3f779f89c..22fdde8059 100644
+--- a/docs/index.rst
++++ b/docs/index.rst
+@@ -53,17 +53,18 @@ kind of development environment.
+    hypervisor-guide/index
+ 
+ 
+-MISRA C coding guidelines
+--------------------------
++Unsorted documents
++------------------
+ 
+-MISRA C rules and directive to be used as coding guidelines when writing
+-Xen hypervisor code.
++Documents in need of some rearranging.
+ 
+ .. toctree::
+    :maxdepth: 2
+ 
+-   misra/rules
+-   misra/deviations
++   designs/launch/hyperlaunch
++   designs/launch/hyperlaunch-devicetree
++   misc/xen-makefiles/makefiles
++   misra/index
+ 
+ 
+ Miscellanea
+diff --git a/docs/misra/index.rst b/docs/misra/index.rst
+new file mode 100644
+index 0000000000..280d36450b
+--- /dev/null
++++ b/docs/misra/index.rst
+@@ -0,0 +1,17 @@
++.. SPDX-License-Identifier: CC-BY-4.0
++
++MISRA C coding guidelines
++=========================
++
++MISRA C rules and directive to be used as coding guidelines when writing
++Xen hypervisor code and related documents.
++
++.. toctree::
++   :maxdepth: 2
++
++   rules
++   deviations
++   C-language-toolchain
++   documenting-violations
++   exclude-list
++   xen-static-analysis
+-- 
+2.25.1
+

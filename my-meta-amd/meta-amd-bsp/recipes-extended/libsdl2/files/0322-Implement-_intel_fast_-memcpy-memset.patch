@@ -1,0 +1,38 @@
+From d1dc19520875cf574a667d52e630dab98dcd005d Mon Sep 17 00:00:00 2001
+From: Anonymous Maarten <anonymous.maarten@gmail.com>
+Date: Thu, 23 Mar 2023 06:45:19 +0100
+Subject: [PATCH 322/458] Implement _intel_fast_(memcpy|memset)
+
+The classic Intel compiler generates calls to these functions when
+building the SDL library with SDL_LIBC=OFF.
+---
+ src/stdlib/SDL_mslibc.c | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)
+
+diff --git a/src/stdlib/SDL_mslibc.c b/src/stdlib/SDL_mslibc.c
+index fc7715b57..677f40111 100644
+--- a/src/stdlib/SDL_mslibc.c
++++ b/src/stdlib/SDL_mslibc.c
+@@ -701,6 +701,19 @@ RETZERO:
+ 
+ #endif /* MSC_VER */
+ 
++#if defined(__ICL)
++/* The classic Intel compiler generates calls to _intel_fast_memcpy
++ * and _intel_fast_memset when building an optimized SDL library */
++void *_intel_fast_memcpy(void *dst, const void *src, size_t len)
++{
++    return SDL_memcpy(dst, src, len);
++}
++void *_intel_fast_memset(void *dst, int c, size_t len)
++{
++    return SDL_memset(dst, c, len);
++}
++#endif
++
+ #endif /* !HAVE_LIBC && !SDL_STATIC_LIB */
+ 
+ /* vi: set ts=4 sw=4 expandtab: */
+-- 
+2.17.1
+

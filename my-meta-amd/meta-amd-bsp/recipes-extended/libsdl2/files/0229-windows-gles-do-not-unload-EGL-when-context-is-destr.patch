@@ -1,0 +1,32 @@
+From eb22fbc8947febf09cc07d20d216a206a33f27b3 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Marc-Andr=C3=A9=20Lureau?= <marcandre.lureau@redhat.com>
+Date: Thu, 16 Feb 2023 18:47:36 +0400
+Subject: [PATCH 229/458] windows/gles: do not unload EGL when context is
+ destroyed
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+It's legitimate to have multiple contexts.
+
+Signed-off-by: Marc-André Lureau <marcandre.lureau@redhat.com>
+(cherry picked from commit 93861e1de00a76080fa6ed756a6bd9c764b3ec07)
+---
+ src/video/windows/SDL_windowsopengles.c | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/src/video/windows/SDL_windowsopengles.c b/src/video/windows/SDL_windowsopengles.c
+index 7b8f753be..2c0748c04 100644
+--- a/src/video/windows/SDL_windowsopengles.c
++++ b/src/video/windows/SDL_windowsopengles.c
+@@ -93,7 +93,6 @@ WIN_GLES_CreateContext(_THIS, SDL_Window *window)
+ void WIN_GLES_DeleteContext(_THIS, SDL_GLContext context)
+ {
+     SDL_EGL_DeleteContext(_this, context);
+-    WIN_GLES_UnloadLibrary(_this);
+ }
+ 
+ /* *INDENT-OFF* */ /* clang-format off */
+-- 
+2.17.1
+

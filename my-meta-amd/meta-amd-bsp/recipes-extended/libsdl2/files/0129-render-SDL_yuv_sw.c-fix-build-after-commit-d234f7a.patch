@@ -1,0 +1,24 @@
+From c7f22f0324640688cb2f0b891b046ae373f56aca Mon Sep 17 00:00:00 2001
+From: Ozkan Sezer <sezeroz@gmail.com>
+Date: Mon, 2 Jan 2023 20:51:56 +0300
+Subject: [PATCH 129/458] render/SDL_yuv_sw.c: fix build after commit d234f7a
+
+---
+ src/render/SDL_yuv_sw.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/src/render/SDL_yuv_sw.c b/src/render/SDL_yuv_sw.c
+index 321ac2e46..3f57f37ad 100644
+--- a/src/render/SDL_yuv_sw.c
++++ b/src/render/SDL_yuv_sw.c
+@@ -25,6 +25,7 @@
+ #if SDL_HAVE_YUV
+ 
+ #include "SDL_yuv_sw_c.h"
++#include "../video/SDL_yuv_c.h"
+ #include "SDL_cpuinfo.h"
+ 
+ SDL_SW_YUVTexture *
+-- 
+2.17.1
+

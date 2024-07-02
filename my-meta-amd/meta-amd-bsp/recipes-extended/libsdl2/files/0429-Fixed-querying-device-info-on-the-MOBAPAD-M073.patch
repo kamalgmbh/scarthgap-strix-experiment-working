@@ -1,0 +1,32 @@
+From 320f3fffbe06f4c412f5e62427812167b5bfffe3 Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Fri, 9 Jun 2023 18:41:21 -0700
+Subject: [PATCH 429/458] Fixed querying device info on the MOBAPAD M073
+
+The query packet needs to contain valid rumble data in order to be accepted by the controller.
+
+Fixes https://github.com/libsdl-org/SDL/issues/7788
+
+(cherry picked from commit 5490873daa12a57ff4b36090f25f04530323c6e4)
+---
+ src/joystick/hidapi/SDL_hidapi_switch.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/src/joystick/hidapi/SDL_hidapi_switch.c b/src/joystick/hidapi/SDL_hidapi_switch.c
+index 3b6a9c885..eeb1d2aad 100644
+--- a/src/joystick/hidapi/SDL_hidapi_switch.c
++++ b/src/joystick/hidapi/SDL_hidapi_switch.c
+@@ -1253,6 +1253,10 @@ static SDL_bool HIDAPI_DriverSwitch_InitDevice(SDL_HIDAPI_Device *device)
+     /* Find out whether or not we can send output reports */
+     ctx->m_bInputOnly = SDL_IsJoystickNintendoSwitchProInputOnly(device->vendor_id, device->product_id);
+     if (!ctx->m_bInputOnly) {
++        /* Initialize rumble data, important for reading device info on the MOBAPAD M073  */
++        SetNeutralRumble(&ctx->m_RumblePacket.rumbleData[0]);
++        SetNeutralRumble(&ctx->m_RumblePacket.rumbleData[1]);
++
+         if (!BReadDeviceInfo(ctx)) {
+             SDL_LogDebug(SDL_LOG_CATEGORY_INPUT,
+                          "HIDAPI_DriverSwitch_InitDevice(): Couldn't read device info");
+-- 
+2.17.1
+

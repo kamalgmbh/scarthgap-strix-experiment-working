@@ -1,0 +1,48 @@
+From 1bd9ebf533865c199aee61330e5c1641be75974c Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Tue, 7 Mar 2023 10:10:43 -0800
+Subject: [PATCH 273/458] If we're not the current fullscreen window and we
+ don't want to be fullscreen, don't touch the current video mode
+
+Fixes an assertion in qemu on macOS, which creates multiple hidden windows:
+2023-03-07 09:56:55.304 qemu-system-i386[9931:2984587] *** Terminating app due to uncaught exception 'NSGenericException', reason: 'NSWindowStyleMaskFullScreen cleared on a window outside of a full screen transition. Called from (
+	0   AppKit                              0x00000001968f77ac __25-[NSWindow setStyleMask:]_block_invoke + 140
+	1   AppKit                              0x00000001968f76cc NSPerformVisuallyAtomicChange + 108
+	2   AppKit                              0x00000001968f7580 -[NSWindow setStyleMask:] + 188
+	3   libSDL2-2.0.0.dylib                 0x0000000106531328 Cocoa_SetWindowFullscreen + 568
+	4   libSDL2-2.0.0.dylib                 0x0000000106501700 SDL_UpdateFullscreenMode + 1316
+	5   libSDL2-2.0.0.dylib                 0x0000000106504270 SDL_SetWindowFullscreen_REAL + 328
+	6   libSDL2-2.0.0.dylib                 0x000000010650117c SDL_FinishWindowCreation + 100
+	7   libSDL2-2.0.0.dylib                 0x0000000106500998 SDL_CreateWindow_REAL + 1812
+	8   libSDL2-2.0.0.dylib                 0x00000001063efd54 SDL_CreateWindow + 76
+	9   qemu-system-i386                    0x00000001050aa600 sdl2_window_create + 192
+	10  qemu-system-i386                    0x00000001050a9fa0 sdl2_2d_switch + 196
+	11  qemu-system-i386                    0x0000000104e9c784 displaychangelistener_display_console + 524
+	12  qemu-system-i386                    0x0000000104e9e36c register_displaychangelistener + 264
+	13  qemu-system-i386                    0x00000001050ab6d0 sdl2_display_init + 304
+	14  qemu-system-i386                    0x000000010505c870 qemu_init + 13380
+---
+ src/video/SDL_video.c | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/src/video/SDL_video.c b/src/video/SDL_video.c
+index 12f4e2176..5f9eb2ffc 100644
+--- a/src/video/SDL_video.c
++++ b/src/video/SDL_video.c
+@@ -1420,6 +1420,13 @@ static int SDL_UpdateFullscreenMode(SDL_Window *window, SDL_bool fullscreen)
+         if ((window->last_fullscreen_flags & FULLSCREEN_MASK) == (window->flags & FULLSCREEN_MASK)) {
+             return 0;
+         }
++        if (!fullscreen) {
++            if (_this->SetWindowFullscreen) {
++                _this->SetWindowFullscreen(_this, window, display, SDL_FALSE);
++            }
++            window->last_fullscreen_flags = window->flags;
++            return 0;
++        }
+     }
+ 
+     /* See if there are any fullscreen windows */
+-- 
+2.17.1
+

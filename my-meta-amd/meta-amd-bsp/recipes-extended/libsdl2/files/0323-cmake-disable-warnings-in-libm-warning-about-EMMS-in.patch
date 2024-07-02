@@ -1,0 +1,38 @@
+From 51c10bef0b06e308bb819335b740fbe583a08064 Mon Sep 17 00:00:00 2001
+From: Anonymous Maarten <anonymous.maarten@gmail.com>
+Date: Thu, 23 Mar 2023 06:56:44 +0100
+Subject: [PATCH 323/458] cmake: disable warnings in libm + warning about EMMS
+ instruction
+
+SDL_BlitCopyMMX ends with _mm_empty(), so the MMX state should be emptied.
+
+(_mm_empty is the intrinsic function for emms)
+---
+ CMakeLists.txt | 11 +++++++++++
+ 1 file changed, 11 insertions(+)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index b5441b90b..d1ca06ad9 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -526,6 +526,17 @@ file(GLOB SOURCE_FILES
+   ${SDL2_SOURCE_DIR}/src/video/*.c
+   ${SDL2_SOURCE_DIR}/src/video/yuv2rgb/*.c)
+ 
++if(USE_INTELCC)
++  # warning #39: division by zero
++  # warning #239: floating point underflow
++  # warning #264: floating-point value does not fit in required floating-point type
++  # warning #13203: No EMMS instruction before call to function
++  set_property(SOURCE "${SDL2_SOURCE_DIR}/src/libm/e_exp.c" APPEND_STRING PROPERTY COMPILE_FLAGS " -wd239 -wd264")
++  set_property(SOURCE "${SDL2_SOURCE_DIR}/src/libm/e_log.c" APPEND_STRING PROPERTY COMPILE_FLAGS " -wd39")
++  set_property(SOURCE "${SDL2_SOURCE_DIR}/src/libm/e_log10.c" APPEND_STRING PROPERTY COMPILE_FLAGS " -wd39")
++  set_property(SOURCE "${SDL2_SOURCE_DIR}/src/video/SDL_blit_copy.c" APPEND_STRING PROPERTY COMPILE_FLAGS " -wd13203")
++endif()
++
+ 
+ set(SDL_DEFAULT_ASSERT_LEVEL_CONFIGURED 1)
+ if(SDL_ASSERTIONS MATCHES "^(auto|)$")
+-- 
+2.17.1
+

@@ -1,0 +1,53 @@
+From 34f8b971b2dd1968fd5b9bf4ce1247dc9d31f6b5 Mon Sep 17 00:00:00 2001
+From: Ayan Kumar Halder <ayankuma@amd.com>
+Date: Tue, 8 Nov 2022 09:45:03 +0000
+Subject: [PATCH 063/221] xen/arm: Enforce alignment check in debug build for
+ {read, write}_atomic
+
+Xen provides helper to atomically read/write memory (see {read,
+write}_atomic()). Those helpers can only work if the address is aligned
+to the size of the access (see B2.2.1 ARM DDI 08476I.a).
+
+On Arm32, the alignment is already enforced by the processor because
+HSCTLR.A bit is set (it enforce alignment for every access). For Arm64,
+this bit is not set because memcpy()/memset() can use unaligned access
+for performance reason (the implementation is taken from the Cortex
+library).
+
+To avoid any overhead in production build, the alignment will only be
+checked using an ASSERT. Note that it might be possible to do it in
+production build using the acquire/exclusive version of load/store. But
+this is left to a follow-up (if wanted).
+
+Signed-off-by: Ayan Kumar Halder <ayan.kumar.halder@amd.com>
+Signed-off-by: Julien Grall <julien@xen.org>
+Reviewed-by: Michal Orzel <michal.orzel@amd.com>
+Reviewed-by: Bertrand Marquis <bertrand.marquis@arm.com>
+Acked-by: Stefano Stabellini <sstabellini@kernel.org>
+---
+ xen/arch/arm/include/asm/atomic.h | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/xen/arch/arm/include/asm/atomic.h b/xen/arch/arm/include/asm/atomic.h
+index 1f60c28b1b..64314d59b3 100644
+--- a/xen/arch/arm/include/asm/atomic.h
++++ b/xen/arch/arm/include/asm/atomic.h
+@@ -78,6 +78,7 @@ static always_inline void read_atomic_size(const volatile void *p,
+                                            void *res,
+                                            unsigned int size)
+ {
++    ASSERT(IS_ALIGNED((vaddr_t)p, size));
+     switch ( size )
+     {
+     case 1:
+@@ -102,6 +103,7 @@ static always_inline void write_atomic_size(volatile void *p,
+                                             void *val,
+                                             unsigned int size)
+ {
++    ASSERT(IS_ALIGNED((vaddr_t)p, size));
+     switch ( size )
+     {
+     case 1:
+-- 
+2.17.1
+

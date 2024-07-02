@@ -1,0 +1,184 @@
+From 19343b0a314dec116746ab2304747dacf60a1911 Mon Sep 17 00:00:00 2001
+From: Xenia Ragiadakou <xenia.ragiadakou@amd.com>
+Date: Tue, 11 Apr 2023 16:57:23 +0300
+Subject: [PATCH 193/221] vpci: reinitialize msi interrupts upon resume from D3
+ state
+
+Signed-off-by: Xenia Ragiadakou <xenia.ragiadakou@amd.com>
+Signed-off-by: Stefano Stabellini <stefano.stabellini@amd.com>
+Change-Id: I7fee07d806427ec315b707bd729ea5d56d5f9c1b
+---
+ xen/drivers/vpci/Makefile |   1 +
+ xen/drivers/vpci/pm.c     | 127 ++++++++++++++++++++++++++++++++++++++
+ xen/include/xen/vpci.h    |   6 ++
+ 3 files changed, 134 insertions(+)
+ create mode 100644 xen/drivers/vpci/pm.c
+
+diff --git a/xen/drivers/vpci/Makefile b/xen/drivers/vpci/Makefile
+index 1a1413b93e..c41907f19d 100644
+--- a/xen/drivers/vpci/Makefile
++++ b/xen/drivers/vpci/Makefile
+@@ -1,2 +1,3 @@
+ obj-y += vpci.o header.o
+ obj-$(CONFIG_HAS_PCI_MSI) += msi.o msix.o
++obj-y += pm.o
+diff --git a/xen/drivers/vpci/pm.c b/xen/drivers/vpci/pm.c
+new file mode 100644
+index 0000000000..a27f702feb
+--- /dev/null
++++ b/xen/drivers/vpci/pm.c
+@@ -0,0 +1,127 @@
++/* SPDX-License-Identifier: GPL-2.0 */
++
++#include <xen/vpci.h>
++#include <asm/msi.h>
++
++#define PCI_D0		(0U)
++#define PCI_D3hot	(3U)
++#define PCI_D3cold	(4U)
++
++static uint32_t cf_check pm_ctrl_read(const struct pci_dev *pdev,
++                                      unsigned int reg, void *data)
++{
++    struct vpci_pm *pm = data;
++    u16 pmcsr, state;
++
++    pmcsr = pci_conf_read16(pdev->sbdf, reg);
++    if ( pmcsr == ~0U )
++    {
++        printk("%s: %pp: is in PCI_D3cold last state is %u\n",
++               __func__, &pdev->sbdf, pm->state);
++        state = PCI_D3cold;
++    }
++    else
++    {
++        state = pmcsr & PCI_PM_CTRL_STATE_MASK;
++    }
++
++    if ( state != pm->state )
++    {
++        if ( state == PCI_D0 && pm->state >= PCI_D3hot )
++        {
++            struct vpci_msix *msix = pdev->vpci->msix;
++            struct vpci_msi *msi = pdev->vpci->msi;
++
++            printk("%s: %pp: resumes from state=%u\n",
++                   __func__, &pdev->sbdf, pm->state);
++
++            if ( msix && msix->enabled )
++            {
++                int i, rc;
++                for ( i = 0; i < msix->max_entries; i++ ) {
++                    struct vpci_msix_entry *entry = &msix->entries[i];
++                    rc = vpci_msix_arch_disable_entry(entry, pdev);
++                    if ( rc && rc != -ENOENT )
++                        printk("cannot disable entry rc=%d\n", rc);
++                    entry->masked = true;
++                }
++                msix->masked = true;
++                msix->enabled = false;
++            }
++            if ( msi && msi->enabled )
++            {
++                vpci_msi_arch_disable(msi, pdev);
++                msi->enabled = false;
++            }
++        }
++        else if ( state >= PCI_D3hot && pm->state < PCI_D3hot )
++        {
++            printk("%s: %pp: suspends to state=%u from state=%u\n",
++                   __func__, &pdev->sbdf, state, pm->state);
++        }
++
++        pm->state = state;
++    }
++
++    return pmcsr;
++}
++
++static void cf_check pm_ctrl_write(const struct pci_dev *pdev,
++                                   unsigned int reg, uint32_t val, void *data)
++{
++    struct vpci_pm *pm = data;
++    u16 pmcsr, curr_state, new_state;
++
++    pmcsr = pci_conf_read16(pdev->sbdf, reg);
++    if ( pmcsr == ~0U )
++    {
++        printk("%s: %pp: in PCI_D3cold last state was %u; update and return\n",
++               __func__, &pdev->sbdf, pm->state);
++        pm->state = PCI_D3cold;
++        return;
++    }
++
++    curr_state = pmcsr & PCI_PM_CTRL_STATE_MASK;
++    new_state = val & PCI_PM_CTRL_STATE_MASK;
++    if ( curr_state != pm->state )
++    {
++        printk("%s: curr state is %u but stored state is %u, update stored\n",
++               __func__, curr_state, pm->state);
++        pm->state = curr_state;
++    }
++
++    pci_conf_write16(pdev->sbdf, reg, val);
++}
++
++static int cf_check init_pm(struct pci_dev *pdev)
++{
++    struct vpci_pm *pm;
++    unsigned int pm_offset;
++    int rc;
++
++    pm_offset = pci_find_cap_offset(pdev->seg, pdev->bus, PCI_SLOT(pdev->devfn),
++                                    PCI_FUNC(pdev->devfn), PCI_CAP_ID_PM);
++    if ( !pm_offset )
++        return 0;
++
++    /* Trap accesses to PCI_PM_CTRL */
++    pm = &pdev->vpci->pm;
++    rc = vpci_add_register(pdev->vpci, pm_ctrl_read, pm_ctrl_write,
++                           pm_offset + PCI_PM_CTRL, 2, pm);
++    if ( rc )
++        printk("%s: %pp: vpci_add_register for PCI_PM_CTRL failed (rc=%d)\n",
++               __func__, &pdev->sbdf, rc);
++
++    return rc;
++}
++REGISTER_VPCI_INIT(init_pm, VPCI_PRIORITY_MIDDLE);
++
++/*
++ * Local variables:
++ * mode: C
++ * c-file-style: "BSD"
++ * c-basic-offset: 4
++ * tab-width: 4
++ * indent-tabs-mode: nil
++ * End:
++ */
+diff --git a/xen/include/xen/vpci.h b/xen/include/xen/vpci.h
+index d8acfeba8a..9bdbd5bfd6 100644
+--- a/xen/include/xen/vpci.h
++++ b/xen/include/xen/vpci.h
+@@ -3,6 +3,7 @@
+ 
+ #ifdef CONFIG_HAS_VPCI
+ 
++#include <xen/domain.h>
+ #include <xen/pci.h>
+ #include <xen/types.h>
+ #include <xen/list.h>
+@@ -144,6 +145,11 @@ struct vpci {
+             struct vpci_arch_msix_entry arch;
+         } entries[];
+     } *msix;
++
++    /* PM data */
++    struct vpci_pm {
++        uint16_t state;
++    } pm;
+ #endif
+ };
+ 
+-- 
+2.17.1
+

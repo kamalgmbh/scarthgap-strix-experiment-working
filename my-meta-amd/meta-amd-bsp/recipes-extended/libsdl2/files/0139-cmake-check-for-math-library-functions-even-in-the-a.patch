@@ -1,0 +1,38 @@
+From 0d5467a6e96985a8c68961e86df59da15a76de90 Mon Sep 17 00:00:00 2001
+From: Ozkan Sezer <sezeroz@gmail.com>
+Date: Sat, 7 Jan 2023 14:25:04 +0300
+Subject: [PATCH 139/458] cmake: check for math library functions even in the
+ absence of libm
+
+(Reference issue: https://github.com/libsdl-org/SDL/issues/7011)
+---
+ CMakeLists.txt | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index ef6e20db6..e539ffb6d 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -1048,7 +1048,8 @@ if(SDL_LIBC)
+     check_library_exists(m pow "" HAVE_LIBM)
+     if(HAVE_LIBM)
+       set(CMAKE_REQUIRED_LIBRARIES m)
+-      foreach(_FN
++    endif()
++    foreach(_FN
+               atan atan2 atanf atan2f ceil ceilf copysign copysignf cos cosf
+               exp expf fabs fabsf floor floorf fmod fmodf log logf log10 log10f
+               lround lroundf pow powf round roundf scalbn scalbnf sin sinf sqrt
+@@ -1056,7 +1057,8 @@ if(SDL_LIBC)
+         string(TOUPPER ${_FN} _UPPER)
+         set(_HAVEVAR "HAVE_${_UPPER}")
+         check_symbol_exists("${_FN}" "math.h" ${_HAVEVAR})
+-      endforeach()
++    endforeach()
++    if(HAVE_LIBM)
+       set(CMAKE_REQUIRED_LIBRARIES)
+       if(NOT VITA)
+         list(APPEND EXTRA_LIBS m)
+-- 
+2.17.1
+

@@ -1,0 +1,66 @@
+From 0739d237ada557ad0b2e6b30fa428d801f65b187 Mon Sep 17 00:00:00 2001
+From: Samuel Venable <samuelvenable@hotmail.com>
+Date: Sun, 27 Nov 2022 21:19:41 -0500
+Subject: [PATCH 031/458] [skip ci] Solaris getexecname() returns argv[0]
+
+`argv[0]`/`getexexname()` are not always absolute paths by default and can be modified to anything the developer wants them to be.
+
+Consider using `readSymLink("/proc/self/path/a.out")` instead and `getexecname()` as the fallback, since the symlink will always be the correct absolute path (unless /proc is ot mounted, but it is by default on Solaris and Illumos platforms).
+
+(cherry picked from commit 4f5e9fd5bda0d58c2907f75fa4ea0c92c3a2525f)
+---
+ src/filesystem/unix/SDL_sysfilesystem.c | 24 ++++++++++++++----------
+ 1 file changed, 14 insertions(+), 10 deletions(-)
+
+diff --git a/src/filesystem/unix/SDL_sysfilesystem.c b/src/filesystem/unix/SDL_sysfilesystem.c
+index 416334d1a..00cbd183b 100644
+--- a/src/filesystem/unix/SDL_sysfilesystem.c
++++ b/src/filesystem/unix/SDL_sysfilesystem.c
+@@ -208,16 +208,6 @@ SDL_GetBasePath(void)
+         SDL_free(cmdline);
+     }
+ #endif
+-#if defined(__SOLARIS__)
+-    const char *path = getexecname();
+-    if ((path != NULL) && (path[0] == '/')) { /* must be absolute path... */
+-        retval = SDL_strdup(path);
+-        if (!retval) {
+-            SDL_OutOfMemory();
+-            return NULL;
+-        }
+-    }
+-#endif
+ 
+     /* is a Linux-style /proc filesystem available? */
+     if (!retval && (access("/proc", F_OK) == 0)) {
+@@ -228,6 +218,8 @@ SDL_GetBasePath(void)
+         retval = readSymLink("/proc/curproc/file");
+ #elif defined(__NETBSD__)
+         retval = readSymLink("/proc/curproc/exe");
++#elif defined(__SOLARIS__)
++        retval = readSymLink("/proc/self/path/a.out");
+ #elif defined(__QNXNTO__)
+         retval = SDL_LoadFile("/proc/self/exefile", NULL);
+ #else
+@@ -245,6 +237,18 @@ SDL_GetBasePath(void)
+ #endif
+     }
+ 
++#if defined(__SOLARIS__)  /* try this as a fallback if /proc didn't pan out */
++    if (!retval) {
++        const char *path = getexecname();
++        if ((path != NULL) && (path[0] == '/')) { /* must be absolute path... */
++            retval = SDL_strdup(path);
++            if (!retval) {
++                SDL_OutOfMemory();
++                return NULL;
++            }
++        }
++#endif
++
+     /* If we had access to argv[0] here, we could check it for a path,
+         or troll through $PATH looking for it, too. */
+ 
+-- 
+2.17.1
+

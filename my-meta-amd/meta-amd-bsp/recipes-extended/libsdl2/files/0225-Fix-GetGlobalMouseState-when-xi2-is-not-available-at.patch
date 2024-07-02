@@ -1,0 +1,28 @@
+From 7d55ccb8b04f2b1d88a959a55a51bb788fc531f4 Mon Sep 17 00:00:00 2001
+From: Lauri Kasanen <cand@gmx.com>
+Date: Sun, 19 Feb 2023 16:04:47 +0200
+Subject: [PATCH 225/458] Fix GetGlobalMouseState when xi2 is not available at
+ runtime
+
+(cherry picked from commit 0123d6311d5c0059d617324426ef7eef8d577d9b)
+---
+ src/video/x11/SDL_x11mouse.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/src/video/x11/SDL_x11mouse.c b/src/video/x11/SDL_x11mouse.c
+index 786e219eb..978a30584 100644
+--- a/src/video/x11/SDL_x11mouse.c
++++ b/src/video/x11/SDL_x11mouse.c
+@@ -416,6 +416,9 @@ static Uint32 X11_GetGlobalMouseState(int *x, int *y)
+ 
+ #if !SDL_VIDEO_DRIVER_X11_XINPUT2
+     videodata->global_mouse_changed = SDL_TRUE;
++#else
++    if (!SDL_X11_HAVE_XINPUT2)
++        videodata->global_mouse_changed = SDL_TRUE;
+ #endif
+ 
+     /* check if we have this cached since XInput last saw the mouse move. */
+-- 
+2.17.1
+

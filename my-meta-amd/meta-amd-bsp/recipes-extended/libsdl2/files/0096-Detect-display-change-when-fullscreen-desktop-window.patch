@@ -1,0 +1,56 @@
+From c7097418711b57e786eeb464bbe366c056b19801 Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Mon, 12 Dec 2022 20:26:17 -0800
+Subject: [PATCH 096/458] Detect display change when fullscreen desktop windows
+ move displays
+
+This happens when using Win+Alt+Left/Right on a resizable fullscreen desktop window on Windows
+
+(cherry picked from commit 650e16a8245f3fb5056fc7f6b398fb88244b3477)
+---
+ src/video/SDL_video.c | 22 +++++++++++++++++++---
+ 1 file changed, 19 insertions(+), 3 deletions(-)
+
+diff --git a/src/video/SDL_video.c b/src/video/SDL_video.c
+index 1dcd1999a..1a52916ab 100644
+--- a/src/video/SDL_video.c
++++ b/src/video/SDL_video.c
+@@ -1198,16 +1198,32 @@ int SDL_GetWindowDisplayIndex(SDL_Window *window)
+             return displayIndex;
+         }
+ 
++        displayIndex =  GetRectDisplayIndex(window->x, window->y, window->w, window->h);
++
+         /* Find the display containing the window if fullscreen */
+         for (i = 0; i < _this->num_displays; ++i) {
+             SDL_VideoDisplay *display = &_this->displays[i];
+ 
+             if (display->fullscreen_window == window) {
+-                return i;
++                if (displayIndex != i) {
++                    if (displayIndex < 0) {
++                        displayIndex = i;
++                    } else {
++                        SDL_VideoDisplay *new_display = &_this->displays[displayIndex];
++
++                        /* The window was moved to a different display */
++                        if (new_display->fullscreen_window != NULL) {
++                            /* Uh oh, there's already a fullscreen window here */
++                        } else {
++                            new_display->fullscreen_window = window;
++                        }
++                        display->fullscreen_window = NULL;
++                    }
++                }
++                break;
+             }
+         }
+-
+-        return GetRectDisplayIndex(window->x, window->y, window->w, window->h);
++        return displayIndex;
+     }
+ }
+ 
+-- 
+2.17.1
+

@@ -1,0 +1,28 @@
+From b3e1fd97b84d17ac238f14131d24360c2d825019 Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Mon, 12 Jun 2023 16:57:41 -0700
+Subject: [PATCH 436/458] Fixed enumerating Steam Controllers on iOS
+
+(cherry picked from commit dec0dbff13d4091035209016eb2d0dd82c9aba58)
+---
+ src/hidapi/ios/hid.m | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/hidapi/ios/hid.m b/src/hidapi/ios/hid.m
+index 55845701a..8ebfdbe72 100644
+--- a/src/hidapi/ios/hid.m
++++ b/src/hidapi/ios/hid.m
+@@ -848,8 +848,8 @@ struct hid_device_info  HID_API_EXPORT *hid_enumerate(unsigned short vendor_id,
+ 		}
+ 	}
+ 
+-	if ( ( vendor_id == 0 && product_id == 0 ) ||
+-		 ( vendor_id == VALVE_USB_VID && product_id == D0G_BLE2_PID ) )
++	if ( ( vendor_id == 0 || vendor_id == VALVE_USB_VID ) &&
++	     ( product_id == 0 || product_id == D0G_BLE2_PID ) )
+ 	{
+ 		HIDBLEManager *bleManager = HIDBLEManager.sharedInstance;
+ 		[bleManager updateConnectedSteamControllers:false];
+-- 
+2.17.1
+

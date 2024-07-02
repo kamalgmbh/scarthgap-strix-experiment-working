@@ -1,0 +1,79 @@
+From beca41480da12ee77fb72af3fc0d5a8514fe624e Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Fri, 19 May 2023 14:26:37 -0700
+Subject: [PATCH 379/458] Undo name change for the controller list
+
+(cherry picked from commit f60622c5103e37f221aa8252acfa9073cfbafbc7)
+---
+ src/joystick/controller_list.h |  2 +-
+ src/joystick/controller_type.c | 20 ++++++++++----------
+ 2 files changed, 11 insertions(+), 11 deletions(-)
+
+diff --git a/src/joystick/controller_list.h b/src/joystick/controller_list.h
+index b4a983550..4d00ae198 100644
+--- a/src/joystick/controller_list.h
++++ b/src/joystick/controller_list.h
+@@ -19,7 +19,7 @@
+ */
+ #define MAKE_CONTROLLER_ID( nVID, nPID )	(unsigned int)( (unsigned int)nVID << 16 | (unsigned int)nPID )
+ 
+-static const ControllerDescription_t SDL_controller_list[] = {
++static const ControllerDescription_t arrControllers[] = {
+ 	{ MAKE_CONTROLLER_ID( 0x0079, 0x181a ), k_eControllerType_PS3Controller, NULL },	// Venom Arcade Stick
+ 	{ MAKE_CONTROLLER_ID( 0x0079, 0x1844 ), k_eControllerType_PS3Controller, NULL },	// From SDL
+ 	{ MAKE_CONTROLLER_ID( 0x044f, 0xb315 ), k_eControllerType_PS3Controller, NULL },	// Firestorm Dual Analog 3
+diff --git a/src/joystick/controller_type.c b/src/joystick/controller_type.c
+index 8f8adf451..cda3586a7 100644
+--- a/src/joystick/controller_type.c
++++ b/src/joystick/controller_type.c
+@@ -61,13 +61,13 @@ EControllerType GuessControllerType( int nVID, int nPID )
+ 	{
+ 		s_bCheckedForDuplicates = true;
+ 		int i, j;
+-		for ( i = 0; i < sizeof( SDL_controller_list ) / sizeof( SDL_controller_list[ 0 ] ); ++i )
++		for ( i = 0; i < sizeof( arrControllers ) / sizeof( arrControllers[ 0 ] ); ++i )
+ 		{
+-			for ( j = i + 1; j < sizeof( SDL_controller_list ) / sizeof( SDL_controller_list[ 0 ] ); ++j )
++			for ( j = i + 1; j < sizeof( arrControllers ) / sizeof( arrControllers[ 0 ] ); ++j )
+ 			{
+-				if ( SDL_controller_list[ i ].m_unDeviceID == SDL_controller_list[ j ].m_unDeviceID )
++				if ( arrControllers[ i ].m_unDeviceID == arrControllers[ j ].m_unDeviceID )
+ 				{
+-					Log( "Duplicate controller entry found for VID 0x%.4x PID 0x%.4x\n", ( SDL_controller_list[ i ].m_unDeviceID >> 16 ), SDL_controller_list[ i ].m_unDeviceID & 0xFFFF );
++					Log( "Duplicate controller entry found for VID 0x%.4x PID 0x%.4x\n", ( arrControllers[ i ].m_unDeviceID >> 16 ), arrControllers[ i ].m_unDeviceID & 0xFFFF );
+ 				}
+ 			}
+ 		}
+@@ -111,11 +111,11 @@ EControllerType GuessControllerType( int nVID, int nPID )
+ 		return k_eControllerType_UnknownNonSteamController;
+ 	}
+ 
+-	for ( iIndex = 0; iIndex < sizeof( SDL_controller_list ) / sizeof( SDL_controller_list[0] ); ++iIndex )
++	for ( iIndex = 0; iIndex < sizeof( arrControllers ) / sizeof( arrControllers[0] ); ++iIndex )
+ 	{
+-		if ( unDeviceID == SDL_controller_list[ iIndex ].m_unDeviceID )
++		if ( unDeviceID == arrControllers[ iIndex ].m_unDeviceID )
+ 		{
+-			return SDL_controller_list[ iIndex ].m_eControllerType;
++			return arrControllers[ iIndex ].m_eControllerType;
+ 		}
+ 	}
+ 
+@@ -127,11 +127,11 @@ const char *GuessControllerName( int nVID, int nPID )
+ {
+ 	unsigned int unDeviceID = MAKE_CONTROLLER_ID( nVID, nPID );
+ 	int iIndex;
+-	for ( iIndex = 0; iIndex < sizeof( SDL_controller_list ) / sizeof( SDL_controller_list[0] ); ++iIndex )
++	for ( iIndex = 0; iIndex < sizeof( arrControllers ) / sizeof( arrControllers[0] ); ++iIndex )
+ 	{
+-		if ( unDeviceID == SDL_controller_list[ iIndex ].m_unDeviceID )
++		if ( unDeviceID == arrControllers[ iIndex ].m_unDeviceID )
+ 		{
+-			return SDL_controller_list[ iIndex ].m_pszName;
++			return arrControllers[ iIndex ].m_pszName;
+ 		}
+ 	}
+ 
+-- 
+2.17.1
+

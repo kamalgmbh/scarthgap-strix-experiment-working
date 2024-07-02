@@ -1,0 +1,30 @@
+From 84ece04e7f11fe30c2f83753d72f481610357ed0 Mon Sep 17 00:00:00 2001
+From: Jiamei Xie <jiamei.xie@arm.com>
+Date: Mon, 5 Dec 2022 15:26:40 +0800
+Subject: [PATCH 166/221] xen/arm: vpl011: add ASSERT_UNREACHABLE in
+ vpl011_mmio_read
+
+In vpl011_mmio_read switch block, all cases should have a return. Add
+ASSERT_UNREACHABLE to catch case where the return is not added.
+
+Signed-off-by: Jiamei Xie <jiamei.xie@arm.com>
+Acked-by: Julien Grall <jgrall@amazon.com>
+---
+ xen/arch/arm/vpl011.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/xen/arch/arm/vpl011.c b/xen/arch/arm/vpl011.c
+index c5b695469b..541ec962f1 100644
+--- a/xen/arch/arm/vpl011.c
++++ b/xen/arch/arm/vpl011.c
+@@ -406,6 +406,7 @@ static int vpl011_mmio_read(struct vcpu *v,
+         goto read_as_zero;
+     }
+ 
++    ASSERT_UNREACHABLE();
+     return 1;
+ 
+ read_as_zero:
+-- 
+2.17.1
+

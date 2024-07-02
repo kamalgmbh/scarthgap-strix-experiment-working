@@ -1,0 +1,28 @@
+From 3eaf56894e70b24b994e6f155ab0279ee3535ddc Mon Sep 17 00:00:00 2001
+From: Frank Praznik <frank.praznik@gmail.com>
+Date: Wed, 23 Nov 2022 18:11:50 -0500
+Subject: [PATCH 015/458] wayland: Fix libdecor_dispatch signature
+
+The function returns an int, not a bool.
+
+(cherry picked from commit f47169fcba8a27bb0740b6b4993989ff9262c21f)
+---
+ src/video/wayland/SDL_waylandsym.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/video/wayland/SDL_waylandsym.h b/src/video/wayland/SDL_waylandsym.h
+index 8b31d8cac..4ff726e99 100644
+--- a/src/video/wayland/SDL_waylandsym.h
++++ b/src/video/wayland/SDL_waylandsym.h
+@@ -211,7 +211,7 @@ SDL_WAYLAND_SYM(bool, libdecor_configuration_get_content_size, (struct libdecor_
+                                                                 int *))
+ SDL_WAYLAND_SYM(bool, libdecor_configuration_get_window_state, (struct libdecor_configuration *,\
+                                                                 enum libdecor_window_state *))
+-SDL_WAYLAND_SYM(bool, libdecor_dispatch, (struct libdecor *, int))
++SDL_WAYLAND_SYM(int, libdecor_dispatch, (struct libdecor *, int))
+ #endif
+ 
+ #undef SDL_WAYLAND_MODULE
+-- 
+2.17.1
+

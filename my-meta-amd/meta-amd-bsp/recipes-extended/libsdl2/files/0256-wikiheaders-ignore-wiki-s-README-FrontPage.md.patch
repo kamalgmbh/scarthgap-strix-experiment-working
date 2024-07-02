@@ -1,0 +1,41 @@
+From 462d95ab4dbcd6454a94f53e2ccb6f1fe3567d95 Mon Sep 17 00:00:00 2001
+From: "Ryan C. Gordon" <icculus@icculus.org>
+Date: Tue, 28 Feb 2023 11:55:19 -0500
+Subject: [PATCH 256/458] wikiheaders: ignore wiki's README/FrontPage.md
+
+(cherry picked from commit 6d1e14b7924e45937941a64bcaf751e17b41a8e9)
+---
+ build-scripts/wikiheaders.pl | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/build-scripts/wikiheaders.pl b/build-scripts/wikiheaders.pl
+index 29d62b078..a9d8d729a 100755
+--- a/build-scripts/wikiheaders.pl
++++ b/build-scripts/wikiheaders.pl
+@@ -1021,6 +1021,7 @@ if ($copy_direction == 1) {  # --copy-to-headers
+             while (readdir(DH)) {
+                 my $dent = $_;
+                 if ($dent =~ /\A(.*?)\.md\Z/) {  # we only bridge Markdown files here.
++                    next if $1 eq 'FrontPage';
+                     copy("$wikireadmepath/$dent", "$readmepath/README-$dent") or die("failed to copy '$wikireadmepath/$dent' to '$readmepath/README-$dent': $!\n");
+                 }
+             }
+@@ -1364,6 +1365,7 @@ if ($copy_direction == 1) {  # --copy-to-headers
+                 my $dent = $_;
+                 if ($dent =~ /\AREADME\-(.*?\.md)\Z/) {  # we only bridge Markdown files here.
+                     my $wikifname = $1;
++                    next if $wikifname eq 'FrontPage.md';
+                     copy("$readmepath/$dent", "$wikireadmepath/$wikifname") or die("failed to copy '$readmepath/$dent' to '$wikireadmepath/$wikifname': $!\n");
+                 }
+             }
+@@ -1377,6 +1379,7 @@ if ($copy_direction == 1) {  # --copy-to-headers
+                 my $dent = $_;
+                 if ($dent =~ /\A(.*?)\.(mediawiki|md)\Z/) {
+                     my $wikiname = $1;
++                    next if $wikiname eq 'FrontPage';
+                     print FH "- [$wikiname]($wikiname)\n";
+                 }
+             }
+-- 
+2.17.1
+

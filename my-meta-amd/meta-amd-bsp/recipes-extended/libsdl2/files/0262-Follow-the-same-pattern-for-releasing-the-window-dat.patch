@@ -1,0 +1,42 @@
+From 6ff3e49b6f5b60ef1ca85f146b5541f200ccbfcf Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Tue, 28 Feb 2023 15:54:15 -0800
+Subject: [PATCH 262/458] Follow the same pattern for releasing the window data
+ in the UIKit driver
+
+Possible fix for https://github.com/libsdl-org/SDL/issues/7361
+
+(cherry picked from commit ebdb32065163b8ee1ef9c1a0dfa601335b4ad83d)
+---
+ src/video/uikit/SDL_uikitwindow.m | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/video/uikit/SDL_uikitwindow.m b/src/video/uikit/SDL_uikitwindow.m
+index d2a465ba6..0b9c51172 100644
+--- a/src/video/uikit/SDL_uikitwindow.m
++++ b/src/video/uikit/SDL_uikitwindow.m
+@@ -347,7 +347,7 @@ UIKit_DestroyWindow(_THIS, SDL_Window * window)
+ {
+     @autoreleasepool {
+         if (window->driverdata != NULL) {
+-            SDL_WindowData *data = (SDL_WindowData *) CFBridgingRelease(window->driverdata);
++            SDL_WindowData *data = (__bridge SDL_WindowData *)window->driverdata;
+             NSArray *views = nil;
+ 
+             [data.viewcontroller stopAnimation];
+@@ -366,9 +366,11 @@ UIKit_DestroyWindow(_THIS, SDL_Window * window)
+              * SDL window. */
+             data.uiwindow.rootViewController = nil;
+             data.uiwindow.hidden = YES;
++
++            CFRelease(window->driverdata);
++            window->driverdata = NULL;
+         }
+     }
+-    window->driverdata = NULL;
+ }
+ 
+ void
+-- 
+2.17.1
+

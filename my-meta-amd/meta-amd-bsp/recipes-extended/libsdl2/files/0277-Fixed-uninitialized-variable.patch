@@ -1,0 +1,25 @@
+From 35c13196f0104d23a4ed2f3f32e13854e0eda0de Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Wed, 8 Mar 2023 08:40:38 -0800
+Subject: [PATCH 277/458] Fixed uninitialized variable
+
+---
+ src/joystick/SDL_joystick.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/joystick/SDL_joystick.c b/src/joystick/SDL_joystick.c
+index aad453ab5..0a74be113 100644
+--- a/src/joystick/SDL_joystick.c
++++ b/src/joystick/SDL_joystick.c
+@@ -202,7 +202,7 @@ static SDL_bool SDL_GetDriverAndJoystickIndex(int device_index, SDL_JoystickDriv
+ 
+ static int SDL_FindFreePlayerIndex()
+ {
+-    int player_index;
++    int player_index = -1;
+ 
+     SDL_AssertJoysticksLocked();
+ 
+-- 
+2.17.1
+

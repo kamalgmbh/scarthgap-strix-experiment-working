@@ -1,0 +1,30 @@
+From 132b88749c284e4d51d93f1e08f5bb0ff9d705dc Mon Sep 17 00:00:00 2001
+From: Frank Praznik <frank.praznik@gmail.com>
+Date: Thu, 27 Apr 2023 13:06:00 -0400
+Subject: [PATCH 360/458]  wayland: Destroy proxy wrappers and callbacks before
+ event queues
+
+Destroy any proxy wrappers and callbacks before the associated event queues to silence libwayland warnings about destroying the queues while proxies are still attached.
+---
+ src/video/wayland/SDL_waylandwindow.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/video/wayland/SDL_waylandwindow.c b/src/video/wayland/SDL_waylandwindow.c
+index 83d820d85..49d591bdd 100644
+--- a/src/video/wayland/SDL_waylandwindow.c
++++ b/src/video/wayland/SDL_waylandwindow.c
+@@ -2308,9 +2308,9 @@ void Wayland_DestroyWindow(_THIS, SDL_Window *window)
+         SDL_free(wind->outputs);
+ 
+         if (wind->gles_swap_frame_callback) {
+-            WAYLAND_wl_event_queue_destroy(wind->gles_swap_frame_event_queue);
+-            WAYLAND_wl_proxy_wrapper_destroy(wind->gles_swap_frame_surface_wrapper);
+             wl_callback_destroy(wind->gles_swap_frame_callback);
++            WAYLAND_wl_proxy_wrapper_destroy(wind->gles_swap_frame_surface_wrapper);
++            WAYLAND_wl_event_queue_destroy(wind->gles_swap_frame_event_queue);
+         }
+ 
+         if (wind->surface_damage_frame_callback) {
+-- 
+2.17.1
+

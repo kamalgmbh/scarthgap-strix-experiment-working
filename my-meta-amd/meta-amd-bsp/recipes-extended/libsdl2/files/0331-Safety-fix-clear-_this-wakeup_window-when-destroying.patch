@@ -1,0 +1,29 @@
+From 16c9bad78671713b20628eed0e3738d3429a5951 Mon Sep 17 00:00:00 2001
+From: Sylvain <sylvain.becker@gmail.com>
+Date: Tue, 28 Mar 2023 09:49:45 +0200
+Subject: [PATCH 331/458] Safety fix: clear "_this->wakeup_window" when
+ destroying the window
+
+(cherry picked from commit c838ccf0e3a330ebbcf433698b8f5370c6fa80d6)
+---
+ src/video/SDL_video.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/src/video/SDL_video.c b/src/video/SDL_video.c
+index 573b38f05..ff50151b2 100644
+--- a/src/video/SDL_video.c
++++ b/src/video/SDL_video.c
+@@ -3276,6 +3276,10 @@ void SDL_DestroyWindow(SDL_Window *window)
+         _this->current_glwin = NULL;
+     }
+ 
++    if (_this->wakeup_window == window) {
++        _this->wakeup_window = NULL;
++    }
++
+     /* Now invalidate magic */
+     window->magic = NULL;
+ 
+-- 
+2.17.1
+

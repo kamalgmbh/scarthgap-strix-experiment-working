@@ -1,0 +1,35 @@
+From a70964aaf4e70a223a8dc5407ba06f62b80a704f Mon Sep 17 00:00:00 2001
+From: Ozkan Sezer <sezeroz@gmail.com>
+Date: Wed, 8 Mar 2023 20:00:50 +0300
+Subject: [PATCH 278/458] fix SDL_FindFreePlayerIndex so it can really return
+ -1.
+
+---
+ src/joystick/SDL_joystick.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/joystick/SDL_joystick.c b/src/joystick/SDL_joystick.c
+index 0a74be113..c3120e724 100644
+--- a/src/joystick/SDL_joystick.c
++++ b/src/joystick/SDL_joystick.c
+@@ -202,7 +202,7 @@ static SDL_bool SDL_GetDriverAndJoystickIndex(int device_index, SDL_JoystickDriv
+ 
+ static int SDL_FindFreePlayerIndex()
+ {
+-    int player_index = -1;
++    int player_index;
+ 
+     SDL_AssertJoysticksLocked();
+ 
+@@ -211,7 +211,7 @@ static int SDL_FindFreePlayerIndex()
+             return player_index;
+         }
+     }
+-    return player_index;
++    return -1;
+ }
+ 
+ static int SDL_GetPlayerIndexForJoystickID(SDL_JoystickID instance_id)
+-- 
+2.17.1
+

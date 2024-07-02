@@ -1,0 +1,26 @@
+From faa7e3cc2e0de5867ab7c0a7376e67bca89c7f0f Mon Sep 17 00:00:00 2001
+From: Sylvain <sylvain.becker@gmail.com>
+Date: Sat, 10 Dec 2022 17:54:16 +0100
+Subject: [PATCH 089/458] Update DYNAPI SDL_WinRTRunApp() prototype which was
+ wrong (see #6783)
+
+---
+ src/dynapi/SDL_dynapi_procs.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/dynapi/SDL_dynapi_procs.h b/src/dynapi/SDL_dynapi_procs.h
+index 43ec6e769..09c60713c 100644
+--- a/src/dynapi/SDL_dynapi_procs.h
++++ b/src/dynapi/SDL_dynapi_procs.h
+@@ -607,7 +607,7 @@ SDL_DYNAPI_PROC(SDL_bool,SDL_DXGIGetOutputInfo,(int a,int *b, int *c),(a,b,c),re
+ #endif
+ SDL_DYNAPI_PROC(SDL_bool,SDL_RenderIsClipEnabled,(SDL_Renderer *a),(a),return)
+ #ifdef __WINRT__
+-SDL_DYNAPI_PROC(int,SDL_WinRTRunApp,(int a, char **b, void *c),(a,b,c),return)
++SDL_DYNAPI_PROC(int,SDL_WinRTRunApp,(SDL_main_func a, void *b),(a,b),return)
+ SDL_DYNAPI_PROC(const wchar_t*,SDL_WinRTGetFSPathUNICODE,(SDL_WinRT_Path a),(a),return)
+ SDL_DYNAPI_PROC(const char*,SDL_WinRTGetFSPathUTF8,(SDL_WinRT_Path a),(a),return)
+ #endif
+-- 
+2.17.1
+

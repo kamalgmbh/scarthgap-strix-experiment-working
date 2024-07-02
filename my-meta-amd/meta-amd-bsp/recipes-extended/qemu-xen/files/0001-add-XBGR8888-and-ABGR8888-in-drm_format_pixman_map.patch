@@ -1,0 +1,59 @@
+From 0dc971c2ddf82f375c30b5d8c7314ae4f67ff877 Mon Sep 17 00:00:00 2001
+From: Ken Xue <Ken.Xue@amd.com>
+Date: Wed, 16 Aug 2023 09:22:21 +0800
+Subject: [PATCH] add XBGR8888 and ABGR8888 in drm_format_pixman_map
+
+[Why]
+Android uses XBGR8888 and ABGR8888 as default scanout buffer.
+But qemu does not support it.
+
+[How]
+Add those 2 format into drm_format_pixman_map.
+
+Signed-off-by: Ken Xue <Ken.Xue@amd.com>
+Change-Id: I461b773d494efdd87e886106e38a1d3809a29963
+---
+ include/ui/qemu-pixman.h | 4 ++++
+ ui/qemu-pixman.c         | 4 +++-
+ 2 files changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/include/ui/qemu-pixman.h b/include/ui/qemu-pixman.h
+index 0c775604d1..d0569e5389 100644
+--- a/include/ui/qemu-pixman.h
++++ b/include/ui/qemu-pixman.h
+@@ -32,6 +32,8 @@
+ # define PIXMAN_LE_r8g8b8     PIXMAN_b8g8r8
+ # define PIXMAN_LE_a8r8g8b8   PIXMAN_b8g8r8a8
+ # define PIXMAN_LE_x8r8g8b8   PIXMAN_b8g8r8x8
++# define PIXMAN_LE_a8b8g8r8   PIXMAN_r8g8b8a8
++# define PIXMAN_LE_x8b8g8r8   PIXMAN_r8g8b8x8
+ #else
+ # define PIXMAN_BE_r8g8b8     PIXMAN_b8g8r8
+ # define PIXMAN_BE_x8r8g8b8   PIXMAN_b8g8r8x8
+@@ -45,6 +47,8 @@
+ # define PIXMAN_LE_r8g8b8     PIXMAN_r8g8b8
+ # define PIXMAN_LE_a8r8g8b8   PIXMAN_a8r8g8b8
+ # define PIXMAN_LE_x8r8g8b8   PIXMAN_x8r8g8b8
++# define PIXMAN_LE_a8b8g8r8   PIXMAN_a8b8g8r8
++# define PIXMAN_LE_x8b8g8r8   PIXMAN_x8b8g8r8
+ #endif
+ 
+ /* -------------------------------------------------------------------- */
+diff --git a/ui/qemu-pixman.c b/ui/qemu-pixman.c
+index 3ab7e2e958..7f68e6f5ef 100644
+--- a/ui/qemu-pixman.c
++++ b/ui/qemu-pixman.c
+@@ -95,7 +95,9 @@ static const struct {
+ } drm_format_pixman_map[] = {
+     { DRM_FORMAT_RGB888,   PIXMAN_LE_r8g8b8   },
+     { DRM_FORMAT_ARGB8888, PIXMAN_LE_a8r8g8b8 },
+-    { DRM_FORMAT_XRGB8888, PIXMAN_LE_x8r8g8b8 }
++    { DRM_FORMAT_XRGB8888, PIXMAN_LE_x8r8g8b8 },
++    { DRM_FORMAT_XBGR8888, PIXMAN_LE_x8b8g8r8 },
++    { DRM_FORMAT_ABGR8888, PIXMAN_LE_a8b8g8r8 },
+ };
+ 
+ pixman_format_code_t qemu_drm_format_to_pixman(uint32_t drm_format)
+-- 
+2.34.1
+

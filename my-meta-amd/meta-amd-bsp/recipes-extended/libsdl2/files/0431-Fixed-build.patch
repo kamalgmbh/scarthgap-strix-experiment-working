@@ -1,0 +1,25 @@
+From 2aa8525ecbccc7ef9ab66d426da86b1c03306141 Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Sat, 10 Jun 2023 09:29:09 -0700
+Subject: [PATCH 431/458] Fixed build
+
+---
+ src/video/SDL_video.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/video/SDL_video.c b/src/video/SDL_video.c
+index 00de5463a..dbd474065 100644
+--- a/src/video/SDL_video.c
++++ b/src/video/SDL_video.c
+@@ -2765,7 +2765,7 @@ int SDL_DestroyWindowSurface(SDL_Window *window)
+ 
+     if (window->surface) {
+         window->surface->flags &= ~SDL_DONTFREE;
+-        SDL_DestroySurface(window->surface);
++        SDL_FreeSurface(window->surface);
+         window->surface = NULL;
+         window->surface_valid = SDL_FALSE;
+     }
+-- 
+2.17.1
+

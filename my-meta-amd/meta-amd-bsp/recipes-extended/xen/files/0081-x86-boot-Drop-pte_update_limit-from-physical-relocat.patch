@@ -1,0 +1,89 @@
+From 54073350bad16b6045522df40a90be79d970aa0e Mon Sep 17 00:00:00 2001
+From: Andrew Cooper <andrew.cooper3@citrix.com>
+Date: Mon, 6 Dec 2021 13:54:38 +0000
+Subject: [PATCH 081/221] x86/boot: Drop pte_update_limit from physical
+ relocation logic
+
+This check has existed in one form or another since c/s 369bafdb1c1 "xen: Big
+changes to x86 start-of-day" in 2007.
+
+c/s 0d31d1680868 "x86/setup: do not relocate Xen over current Xen image
+placement" demonstrates clearly that the logic was broken.
+
+Without dissecting the myriad changes over the past 14 years, I'm pretty
+certain Xen only booted by accident when l2_xenmap[0] was handled specially
+and skipped the pte_update_limit check which would have left it corrupt.
+
+The old logic was simply not safe, even if implemented as intended.  TLB
+entries can be lost for any reason; architectural (e.g. SMI), or uarch
+(e.g. enough OoO execution to thrash the TLB).  It is never safe to have
+non-pagetable data in your live pagetables, for any period of time.
+
+Either way, since c/s 0d31d1680868 there is not a partial overlap of the Xen
+image, so drop the vestigial remnants.
+
+Signed-off-by: Andrew Cooper <andrew.cooper3@citrix.com>
+Reviewed-by: Jan Beulich <jbeulich@suse.com>
+---
+ xen/arch/x86/setup.c | 18 +++---------------
+ 1 file changed, 3 insertions(+), 15 deletions(-)
+
+diff --git a/xen/arch/x86/setup.c b/xen/arch/x86/setup.c
+index e05189f649..6bb5bc7c84 100644
+--- a/xen/arch/x86/setup.c
++++ b/xen/arch/x86/setup.c
+@@ -1264,21 +1264,12 @@ void __init noreturn __start_xen(unsigned long mbi_p)
+             l3_pgentry_t *pl3e;
+             l2_pgentry_t *pl2e;
+             int i, j, k;
+-            unsigned long pte_update_limit;
+ 
+             /* Select relocation address. */
+             xen_phys_start = end - reloc_size;
+             e = xen_phys_start + XEN_IMG_OFFSET;
+             bootsym(trampoline_xen_phys_start) = xen_phys_start;
+ 
+-            /*
+-             * No PTEs pointing above this address are candidates for relocation.
+-             * Due to possibility of partial overlap of the end of source image
+-             * and the beginning of region for destination image some PTEs may
+-             * point to addresses in range [e, e + XEN_IMG_OFFSET).
+-             */
+-            pte_update_limit = PFN_DOWN(e);
+-
+             /*
+              * Perform relocation to new physical address.
+              * Before doing so we must sync static/global data with main memory
+@@ -1301,8 +1292,7 @@ void __init noreturn __start_xen(unsigned long mbi_p)
+                 {
+                     /* Not present, 1GB mapping, or already relocated? */
+                     if ( !(l3e_get_flags(*pl3e) & _PAGE_PRESENT) ||
+-                         (l3e_get_flags(*pl3e) & _PAGE_PSE) ||
+-                         (l3e_get_pfn(*pl3e) >= pte_update_limit) )
++                         (l3e_get_flags(*pl3e) & _PAGE_PSE) )
+                         continue;
+                     *pl3e = l3e_from_intpte(l3e_get_intpte(*pl3e) +
+                                             xen_phys_start);
+@@ -1311,8 +1301,7 @@ void __init noreturn __start_xen(unsigned long mbi_p)
+                     {
+                         /* Not present, PSE, or already relocated? */
+                         if ( !(l2e_get_flags(*pl2e) & _PAGE_PRESENT) ||
+-                             (l2e_get_flags(*pl2e) & _PAGE_PSE) ||
+-                             (l2e_get_pfn(*pl2e) >= pte_update_limit) )
++                             (l2e_get_flags(*pl2e) & _PAGE_PSE) )
+                             continue;
+                         *pl2e = l2e_from_intpte(l2e_get_intpte(*pl2e) +
+                                                 xen_phys_start);
+@@ -1325,8 +1314,7 @@ void __init noreturn __start_xen(unsigned long mbi_p)
+             for ( i = 0; i < L2_PAGETABLE_ENTRIES; i++, pl2e++ )
+             {
+                 if ( !(l2e_get_flags(*pl2e) & _PAGE_PRESENT) ||
+-                     !(l2e_get_flags(*pl2e) & _PAGE_PSE) ||
+-                     (l2e_get_pfn(*pl2e) >= pte_update_limit) )
++                     !(l2e_get_flags(*pl2e) & _PAGE_PSE) )
+                     continue;
+ 
+                 *pl2e = l2e_from_intpte(l2e_get_intpte(*pl2e) + xen_phys_start);
+-- 
+2.17.1
+

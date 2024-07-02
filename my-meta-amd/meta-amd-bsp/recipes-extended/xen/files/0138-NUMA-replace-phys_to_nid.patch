@@ -1,0 +1,270 @@
+From da5092e7d6ed4714b5dc63ed2cd7f6c93dd6efd4 Mon Sep 17 00:00:00 2001
+From: Jan Beulich <jbeulich@suse.com>
+Date: Mon, 19 Dec 2022 11:35:25 +0100
+Subject: [PATCH 138/221] NUMA: replace phys_to_nid()
+
+All callers convert frame numbers (perhaps in turn derived from struct
+page_info pointers) to an address, just for the function to convert it
+back to a frame number (as the first step of paddr_to_pdx()). Replace
+the function by mfn_to_nid() plus a page_to_nid() wrapper macro. Replace
+call sites by the respectively most suitable one.
+
+While there also
+- introduce a !NUMA stub, eliminating the need for Arm (and potentially
+  other ports) to carry one individually,
+- drop the (strictly speaking wrong) "pure" attribute from the function,
+- extend a condition in dump_numa() to make sure that none of the
+  assertions would trigger for empty or (unlikely) single-page nodes (at
+  the same time this also prevents the warning printk() to be issued for
+  every empty [e.g. CPU-only] node).
+
+Signed-off-by: Jan Beulich <jbeulich@suse.com>
+Acked-by: Andrew Cooper <andrew.cooper3@citrix.com>
+Acked-by: Julien Grall <jgrall@amazon.com>
+---
+ xen/arch/arm/include/asm/numa.h |  5 -----
+ xen/arch/x86/mm/p2m-pod.c       |  2 +-
+ xen/arch/x86/x86_64/mm.c        |  6 +++---
+ xen/common/numa.c               | 12 ++++++------
+ xen/common/page_alloc.c         | 20 ++++++++++----------
+ xen/include/xen/numa.h          | 19 ++++++++++++++++---
+ 6 files changed, 36 insertions(+), 28 deletions(-)
+
+diff --git a/xen/arch/arm/include/asm/numa.h b/xen/arch/arm/include/asm/numa.h
+index 268a9db055..e2bee2bd82 100644
+--- a/xen/arch/arm/include/asm/numa.h
++++ b/xen/arch/arm/include/asm/numa.h
+@@ -11,11 +11,6 @@ typedef u8 nodeid_t;
+ #define cpu_to_node(cpu) 0
+ #define node_to_cpumask(node)   (cpu_online_map)
+ 
+-static inline __attribute__((pure)) nodeid_t phys_to_nid(paddr_t addr)
+-{
+-    return 0;
+-}
+-
+ /*
+  * TODO: make first_valid_mfn static when NUMA is supported on Arm, this
+  * is required because the dummy helpers are using it.
+diff --git a/xen/arch/x86/mm/p2m-pod.c b/xen/arch/x86/mm/p2m-pod.c
+index 2490c841f9..2edab5e5cd 100644
+--- a/xen/arch/x86/mm/p2m-pod.c
++++ b/xen/arch/x86/mm/p2m-pod.c
+@@ -492,7 +492,7 @@ p2m_pod_offline_or_broken_replace(struct page_info *p)
+ {
+     struct domain *d;
+     struct p2m_domain *p2m;
+-    nodeid_t node = phys_to_nid(page_to_maddr(p));
++    nodeid_t node = page_to_nid(p);
+ 
+     if ( !(d = page_get_owner(p)) || !(p2m = p2m_get_hostp2m(d)) )
+         return;
+diff --git a/xen/arch/x86/x86_64/mm.c b/xen/arch/x86/x86_64/mm.c
+index c9ddaaf36f..60db439af3 100644
+--- a/xen/arch/x86/x86_64/mm.c
++++ b/xen/arch/x86/x86_64/mm.c
+@@ -565,7 +565,7 @@ void __init paging_init(void)
+                 if ( n == CNT )
+                     ++holes;
+                 else if ( k == holes )
+-                    memflags = MEMF_node(phys_to_nid(mfn_to_maddr(mfn)));
++                    memflags = MEMF_node(mfn_to_nid(mfn));
+             }
+             if ( k == holes )
+             {
+@@ -600,7 +600,7 @@ void __init paging_init(void)
+             mfn = _mfn(MFN(i) + n * PDX_GROUP_COUNT);
+             if ( mfn_valid(mfn) )
+             {
+-                memflags = MEMF_node(phys_to_nid(mfn_to_maddr(mfn)));
++                memflags = MEMF_node(mfn_to_nid(mfn));
+                 break;
+             }
+         }
+@@ -677,7 +677,7 @@ void __init paging_init(void)
+             mfn = _mfn(MFN(i) + n * PDX_GROUP_COUNT);
+             if ( mfn_valid(mfn) )
+             {
+-                memflags = MEMF_node(phys_to_nid(mfn_to_maddr(mfn)));
++                memflags = MEMF_node(mfn_to_nid(mfn));
+                 break;
+             }
+         }
+diff --git a/xen/common/numa.c b/xen/common/numa.c
+index 4948b21fbe..fc1f7f665b 100644
+--- a/xen/common/numa.c
++++ b/xen/common/numa.c
+@@ -671,15 +671,15 @@ static void cf_check dump_numa(unsigned char key)
+ 
+     for_each_online_node ( i )
+     {
+-        paddr_t pa = pfn_to_paddr(node_start_pfn(i) + 1);
++        mfn_t mfn = _mfn(node_start_pfn(i) + 1);
+ 
+         printk("NODE%u start->%lu size->%lu free->%lu\n",
+                i, node_start_pfn(i), node_spanned_pages(i),
+                avail_node_heap_pages(i));
+-        /* Sanity check phys_to_nid() */
+-        if ( phys_to_nid(pa) != i )
+-            printk("phys_to_nid(%"PRIpaddr") -> %d should be %u\n",
+-                   pa, phys_to_nid(pa), i);
++        /* Sanity check mfn_to_nid() */
++        if ( node_spanned_pages(i) > 1 && mfn_to_nid(mfn) != i )
++            printk("mfn_to_nid(%"PRI_mfn") -> %d should be %u\n",
++                   mfn_x(mfn), mfn_to_nid(mfn), i);
+     }
+ 
+     j = cpumask_first(&cpu_online_map);
+@@ -721,7 +721,7 @@ static void cf_check dump_numa(unsigned char key)
+         spin_lock(&d->page_alloc_lock);
+         page_list_for_each ( page, &d->page_list )
+         {
+-            i = phys_to_nid(page_to_maddr(page));
++            i = page_to_nid(page);
+             page_num_node[i]++;
+         }
+         spin_unlock(&d->page_alloc_lock);
+diff --git a/xen/common/page_alloc.c b/xen/common/page_alloc.c
+index 0c93a10787..2b39a2a42f 100644
+--- a/xen/common/page_alloc.c
++++ b/xen/common/page_alloc.c
+@@ -971,7 +971,7 @@ static struct page_info *alloc_heap_pages(
+         return NULL;
+     }
+ 
+-    node = phys_to_nid(page_to_maddr(pg));
++    node = page_to_nid(pg);
+     zone = page_to_zone(pg);
+     buddy_order = PFN_ORDER(pg);
+ 
+@@ -1078,7 +1078,7 @@ static struct page_info *alloc_heap_pages(
+ /* Remove any offlined page in the buddy pointed to by head. */
+ static int reserve_offlined_page(struct page_info *head)
+ {
+-    unsigned int node = phys_to_nid(page_to_maddr(head));
++    unsigned int node = page_to_nid(head);
+     int zone = page_to_zone(head), i, head_order = PFN_ORDER(head), count = 0;
+     struct page_info *cur_head;
+     unsigned int cur_order, first_dirty;
+@@ -1443,7 +1443,7 @@ static void free_heap_pages(
+ {
+     unsigned long mask;
+     mfn_t mfn = page_to_mfn(pg);
+-    unsigned int i, node = phys_to_nid(mfn_to_maddr(mfn));
++    unsigned int i, node = mfn_to_nid(mfn);
+     unsigned int zone = page_to_zone(pg);
+     bool pg_offlined = false;
+ 
+@@ -1487,7 +1487,7 @@ static void free_heap_pages(
+                  !page_state_is(predecessor, free) ||
+                  (predecessor->count_info & PGC_static) ||
+                  (PFN_ORDER(predecessor) != order) ||
+-                 (phys_to_nid(page_to_maddr(predecessor)) != node) )
++                 (page_to_nid(predecessor) != node) )
+                 break;
+ 
+             check_and_stop_scrub(predecessor);
+@@ -1511,7 +1511,7 @@ static void free_heap_pages(
+                  !page_state_is(successor, free) ||
+                  (successor->count_info & PGC_static) ||
+                  (PFN_ORDER(successor) != order) ||
+-                 (phys_to_nid(page_to_maddr(successor)) != node) )
++                 (page_to_nid(successor) != node) )
+                 break;
+ 
+             check_and_stop_scrub(successor);
+@@ -1574,7 +1574,7 @@ static unsigned long mark_page_offline(struct page_info *pg, int broken)
+ static int reserve_heap_page(struct page_info *pg)
+ {
+     struct page_info *head = NULL;
+-    unsigned int i, node = phys_to_nid(page_to_maddr(pg));
++    unsigned int i, node = page_to_nid(pg);
+     unsigned int zone = page_to_zone(pg);
+ 
+     for ( i = 0; i <= MAX_ORDER; i++ )
+@@ -1794,7 +1794,7 @@ static void _init_heap_pages(const struct page_info *pg,
+                              bool need_scrub)
+ {
+     unsigned long s, e;
+-    unsigned int nid = phys_to_nid(page_to_maddr(pg));
++    unsigned int nid = page_to_nid(pg);
+ 
+     s = mfn_x(page_to_mfn(pg));
+     e = mfn_x(mfn_add(page_to_mfn(pg + nr_pages - 1), 1));
+@@ -1869,7 +1869,7 @@ static void init_heap_pages(
+ #ifdef CONFIG_SEPARATE_XENHEAP
+         unsigned int zone = page_to_zone(pg);
+ #endif
+-        unsigned int nid = phys_to_nid(page_to_maddr(pg));
++        unsigned int nid = page_to_nid(pg);
+         unsigned long left = nr_pages - i;
+         unsigned long contig_pages;
+ 
+@@ -1893,7 +1893,7 @@ static void init_heap_pages(
+                 break;
+ #endif
+ 
+-            if ( nid != (phys_to_nid(page_to_maddr(pg + contig_pages))) )
++            if ( nid != (page_to_nid(pg + contig_pages)) )
+                 break;
+         }
+ 
+@@ -1934,7 +1934,7 @@ void __init end_boot_allocator(void)
+     {
+         struct bootmem_region *r = &bootmem_region_list[i];
+         if ( (r->s < r->e) &&
+-             (phys_to_nid(pfn_to_paddr(r->s)) == cpu_to_node(0)) )
++             (mfn_to_nid(_mfn(r->s)) == cpu_to_node(0)) )
+         {
+             init_heap_pages(mfn_to_page(_mfn(r->s)), r->e - r->s);
+             r->e = r->s;
+diff --git a/xen/include/xen/numa.h b/xen/include/xen/numa.h
+index 71a5f837b3..29b8c2df89 100644
+--- a/xen/include/xen/numa.h
++++ b/xen/include/xen/numa.h
+@@ -1,6 +1,7 @@
+ #ifndef _XEN_NUMA_H
+ #define _XEN_NUMA_H
+ 
++#include <xen/mm-frame.h>
+ #include <asm/numa.h>
+ 
+ #define NUMA_NO_NODE     0xFF
+@@ -68,12 +69,15 @@ struct node_data {
+ 
+ extern struct node_data node_data[];
+ 
+-static inline nodeid_t __attribute_pure__ phys_to_nid(paddr_t addr)
++static inline nodeid_t mfn_to_nid(mfn_t mfn)
+ {
+     nodeid_t nid;
+-    ASSERT((paddr_to_pdx(addr) >> memnode_shift) < memnodemapsize);
+-    nid = memnodemap[paddr_to_pdx(addr) >> memnode_shift];
++    unsigned long pdx = mfn_to_pdx(mfn);
++
++    ASSERT((pdx >> memnode_shift) < memnodemapsize);
++    nid = memnodemap[pdx >> memnode_shift];
+     ASSERT(nid < MAX_NUMNODES && node_data[nid].node_spanned_pages);
++
+     return nid;
+ }
+ 
+@@ -102,6 +106,15 @@ extern bool numa_update_node_memblks(nodeid_t node, unsigned int arch_nid,
+                                      paddr_t start, paddr_t size, bool hotplug);
+ extern void numa_set_processor_nodes_parsed(nodeid_t node);
+ 
++#else
++
++static inline nodeid_t mfn_to_nid(mfn_t mfn)
++{
++    return 0;
++}
++
+ #endif
+ 
++#define page_to_nid(pg) mfn_to_nid(page_to_mfn(pg))
++
+ #endif /* _XEN_NUMA_H */
+-- 
+2.17.1
+

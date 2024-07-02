@@ -1,0 +1,26 @@
+From 7ac66972b7c5f6ceab244088b60fb8335d5b2e76 Mon Sep 17 00:00:00 2001
+From: Max Bachmann <kontakt@maxbachmann.de>
+Date: Sat, 3 Dec 2022 09:45:04 +0100
+Subject: [PATCH 072/458] Detect Logitech PRO Racing Wheel as wheel
+
+(cherry picked from commit 5650046f931e9b1d7d7f4a1867e6e1ed75a5e7c5)
+---
+ src/joystick/SDL_joystick.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/src/joystick/SDL_joystick.c b/src/joystick/SDL_joystick.c
+index a345feebb..398988572 100644
+--- a/src/joystick/SDL_joystick.c
++++ b/src/joystick/SDL_joystick.c
+@@ -2356,6 +2356,8 @@ static SDL_bool SDL_IsJoystickProductWheel(Uint32 vidpid)
+         MAKE_VIDPID(0x046d, 0xc260), /* Logitech G29 (PS4) */
+         MAKE_VIDPID(0x046d, 0xc261), /* Logitech G920 (initial mode) */
+         MAKE_VIDPID(0x046d, 0xc262), /* Logitech G920 (active mode) */
++        MAKE_VIDPID(0x046d, 0xc268), /* Logitech PRO Racing Wheel (PC mode) */
++        MAKE_VIDPID(0x046d, 0xc269), /* Logitech PRO Racing Wheel (PS4/PS5 mode) */
+         MAKE_VIDPID(0x046d, 0xc26d), /* Logitech G923 (Xbox) */
+         MAKE_VIDPID(0x046d, 0xc26e), /* Logitech G923 */
+         MAKE_VIDPID(0x046d, 0xca03), /* Logitech Momo Racing */
+-- 
+2.17.1
+

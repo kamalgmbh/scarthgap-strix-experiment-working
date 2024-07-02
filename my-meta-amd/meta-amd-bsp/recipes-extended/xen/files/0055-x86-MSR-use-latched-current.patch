@@ -1,0 +1,39 @@
+From bad55986f1bd45d736ace030f5f0cfc46b80482b Mon Sep 17 00:00:00 2001
+From: Jan Beulich <jbeulich@suse.com>
+Date: Mon, 5 Dec 2022 13:43:34 +0100
+Subject: [PATCH 055/221] x86/MSR: use latched "current"
+
+There's no need to recalculate / refetch the value from the stack
+(pointer).
+
+Signed-off-by: Jan Beulich <jbeulich@suse.com>
+Acked-by: Andrew Cooper <andrew.cooper3@citrix.com>
+---
+ xen/arch/x86/msr.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/xen/arch/x86/msr.c b/xen/arch/x86/msr.c
+index cf46b18aa6..317b154d24 100644
+--- a/xen/arch/x86/msr.c
++++ b/xen/arch/x86/msr.c
+@@ -417,7 +417,7 @@ int guest_rdmsr(struct vcpu *v, uint32_t msr, uint64_t *val)
+          * out of hardware.
+          */
+ #ifdef CONFIG_HVM
+-        if ( v == current && is_hvm_domain(d) && v->arch.hvm.flag_dr_dirty )
++        if ( v == curr && is_hvm_domain(d) && v->arch.hvm.flag_dr_dirty )
+             rdmsrl(msr, *val);
+         else
+ #endif
+@@ -639,7 +639,7 @@ int guest_wrmsr(struct vcpu *v, uint32_t msr, uint64_t val)
+         {
+             uint64_t xcr0 = get_xcr0();
+ 
+-            if ( v != current ||
++            if ( v != curr ||
+                  handle_xsetbv(XCR_XFEATURE_ENABLED_MASK,
+                                xcr0 | X86_XCR0_BNDREGS | X86_XCR0_BNDCSR) )
+                 goto gp_fault;
+-- 
+2.17.1
+

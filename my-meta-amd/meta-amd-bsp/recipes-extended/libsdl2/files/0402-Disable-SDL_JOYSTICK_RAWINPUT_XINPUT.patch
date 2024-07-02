@@ -1,0 +1,32 @@
+From b2e88ecfeb5e4d7db021e43c1b9bc4c9d14f615c Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Sun, 28 May 2023 18:41:21 -0700
+Subject: [PATCH 402/458] Disable SDL_JOYSTICK_RAWINPUT_XINPUT
+
+Apparently when using the Xbox One Wireless Adapter, using XInput at the same time as raw input will cause the controller to turn off immediately after connecting. This appears to be a bug in the Windows 11 driver stack, but since WGI provides all the extended functionality we need, this can be turned off for now.
+
+Fixes https://github.com/libsdl-org/SDL/issues/3468
+---
+ src/joystick/windows/SDL_rawinputjoystick.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/joystick/windows/SDL_rawinputjoystick.c b/src/joystick/windows/SDL_rawinputjoystick.c
+index c0d951369..baeb3ff37 100644
+--- a/src/joystick/windows/SDL_rawinputjoystick.c
++++ b/src/joystick/windows/SDL_rawinputjoystick.c
+@@ -43,7 +43,11 @@
+ #include "../../core/windows/SDL_hid.h"
+ #include "../hidapi/SDL_hidapijoystick_c.h"
+ 
+-#ifdef HAVE_XINPUT_H
++/* SDL_JOYSTICK_RAWINPUT_XINPUT is disabled because using XInput at the same time as
++   raw input will turn off the Xbox Series X controller when it is connected via the
++   Xbox One Wireless Adapter.
++ */
++#if 0 /*def HAVE_XINPUT_H*/
+ #define SDL_JOYSTICK_RAWINPUT_XINPUT
+ #endif
+ #ifdef HAVE_WINDOWS_GAMING_INPUT_H
+-- 
+2.17.1
+

@@ -1,0 +1,50 @@
+From 00b87f1ded0a4fdb6a0bab611171f37eeb0b2ebb Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Sat, 20 May 2023 10:27:48 -0700
+Subject: [PATCH 380/458] Make sure the sentinel is at the end of the current
+ event pump cycle
+
+If we're waiting, it's possible to not get any events, then add the sentinel, then pump again and then add another sentinel. We want to make sure we only have one sentinel and that it's at the end of the currently pumped events.
+
+Testing:
+* Verified test case in https://github.com/libsdl-org/SDL/issues/6539
+* Verified test case in https://github.com/libsdl-org/SDL/issues/5350
+
+Fixes https://github.com/libsdl-org/SDL/issues/6539
+---
+ src/events/SDL_events.c | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/src/events/SDL_events.c b/src/events/SDL_events.c
+index 5d23fe5eb..05c2bf830 100644
+--- a/src/events/SDL_events.c
++++ b/src/events/SDL_events.c
+@@ -941,6 +941,11 @@ static void SDL_PumpEventsInternal(SDL_bool push_sentinel)
+     if (push_sentinel && SDL_GetEventState(SDL_POLLSENTINEL) == SDL_ENABLE) {
+         SDL_Event sentinel;
+ 
++        /* Make sure we don't already have a sentinel in the queue, and add one to the end */
++        if (SDL_AtomicGet(&SDL_sentinel_pending) > 0) {
++            SDL_PeepEventsInternal(&sentinel, 1, SDL_GETEVENT, SDL_POLLSENTINEL, SDL_POLLSENTINEL, SDL_TRUE);
++        }
++
+         SDL_zero(sentinel);
+         sentinel.type = SDL_POLLSENTINEL;
+         SDL_PushEvent(&sentinel);
+@@ -988,12 +993,8 @@ static int SDL_WaitEventTimeout_Device(_THIS, SDL_Window *wakeup_window, SDL_Eve
+            c) Periodic processing that takes place in some platform PumpEvents() functions happens
+            d) Signals received in WaitEventTimeout() are turned into SDL events
+         */
+-        /* We only want a single sentinel in the queue. We could get more than one if event is NULL,
+-         * since the SDL_PeepEvents() call below won't remove it in that case.
+-         */
+         int status;
+-        SDL_bool add_sentinel = (SDL_AtomicGet(&SDL_sentinel_pending) == 0) ? SDL_TRUE : SDL_FALSE;
+-        SDL_PumpEventsInternal(add_sentinel);
++        SDL_PumpEventsInternal(SDL_TRUE);
+ 
+         SDL_LockMutex(_this->wakeup_lock);
+         {
+-- 
+2.17.1
+

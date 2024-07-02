@@ -1,0 +1,74 @@
+From 7abb74813479d68c92f387154bbe72f42d55ca53 Mon Sep 17 00:00:00 2001
+From: "Ryan C. Gordon" <icculus@icculus.org>
+Date: Fri, 24 Feb 2023 11:47:13 -0500
+Subject: [PATCH 247/458] Sync wiki -> headers.
+
+---
+ include/SDL_mouse.h  |  4 ++--
+ include/SDL_power.h  | 12 ++++++------
+ include/SDL_render.h | 10 +++++-----
+ 3 files changed, 13 insertions(+), 13 deletions(-)
+
+diff --git a/include/SDL_mouse.h b/include/SDL_mouse.h
+index 703cd016e..db3cf853a 100644
+--- a/include/SDL_mouse.h
++++ b/include/SDL_mouse.h
+@@ -389,8 +389,8 @@ extern DECLSPEC SDL_Cursor *SDLCALL SDL_GetCursor(void);
+ /**
+  * Get the default cursor.
+  *
+- * You do not have to call SDL_FreeCursor() on the return value,
+- * but it is safe to do so.
++ * You do not have to call SDL_FreeCursor() on the return value, but it is
++ * safe to do so.
+  *
+  * \returns the default cursor on success or NULL on failure.
+  *
+diff --git a/include/SDL_power.h b/include/SDL_power.h
+index 25e909d3f..1d75704c4 100644
+--- a/include/SDL_power.h
++++ b/include/SDL_power.h
+@@ -64,12 +64,12 @@ typedef enum
+  * It's possible a platform can only report battery percentage or time left
+  * but not both.
+  *
+- * \param seconds seconds of battery life left, you can pass a NULL here if you
+- *             don't care, will return -1 if we can't determine a value, or
+- *             we're not running on a battery
+- * \param percent percentage of battery life left, between 0 and 100, you can pass
+- *            a NULL here if you don't care, will return -1 if we can't
+- *            determine a value, or we're not running on a battery
++ * \param seconds seconds of battery life left, you can pass a NULL here if
++ *                you don't care, will return -1 if we can't determine a
++ *                value, or we're not running on a battery
++ * \param percent percentage of battery life left, between 0 and 100, you can
++ *                pass a NULL here if you don't care, will return -1 if we
++ *                can't determine a value, or we're not running on a battery
+  * \returns an SDL_PowerState enum representing the current battery state.
+  *
+  * \since This function is available since SDL 2.0.0.
+diff --git a/include/SDL_render.h b/include/SDL_render.h
+index 2ef0689fb..d62715a32 100644
+--- a/include/SDL_render.h
++++ b/include/SDL_render.h
+@@ -1731,12 +1731,12 @@ extern DECLSPEC int SDLCALL SDL_RenderReadPixels(SDL_Renderer * renderer,
+  *
+  * \param renderer the rendering context
+  *
+- * \since This function is available since SDL 2.0.0.
++ * \threadsafety You may only call this function on the main thread. If this
++ *               happens to work on a background thread on any given platform
++ *               or backend, it's purely by luck and you should not rely on it
++ *               to work next time.
+  *
+- * \threadsafety You may only call this function on the main thread. If
+- *               this happens to work on a background thread on any given
+- *               platform or backend, it's purely by luck and you should
+- *               not rely on it to work next time.
++ * \since This function is available since SDL 2.0.0.
+  *
+  * \sa SDL_RenderClear
+  * \sa SDL_RenderDrawLine
+-- 
+2.17.1
+

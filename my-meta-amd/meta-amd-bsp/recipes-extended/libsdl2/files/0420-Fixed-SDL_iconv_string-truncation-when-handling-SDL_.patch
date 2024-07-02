@@ -1,0 +1,28 @@
+From 7c86d96e867e69bfc96b82bf33f3608364d4ebd6 Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Sun, 4 Jun 2023 01:01:06 -0700
+Subject: [PATCH 420/458] Fixed SDL_iconv_string() truncation when handling
+ SDL_ICONV_E2BIG
+
+(cherry picked from commit c369b900199f905c51edb372bd7780f67a544a8c)
+---
+ src/stdlib/SDL_iconv.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/stdlib/SDL_iconv.c b/src/stdlib/SDL_iconv.c
+index 3ab535b49..a42f2639d 100644
+--- a/src/stdlib/SDL_iconv.c
++++ b/src/stdlib/SDL_iconv.c
+@@ -837,7 +837,8 @@ char *SDL_iconv_string(const char *tocode, const char *fromcode, const char *inb
+             outbuf = string + (outbuf - oldstring);
+             outbytesleft = stringsize - (outbuf - string);
+             SDL_memset(outbuf, 0, 4);
+-        } break;
++            continue;
++        }
+         case SDL_ICONV_EILSEQ:
+             /* Try skipping some input data - not perfect, but... */
+             ++inbuf;
+-- 
+2.17.1
+

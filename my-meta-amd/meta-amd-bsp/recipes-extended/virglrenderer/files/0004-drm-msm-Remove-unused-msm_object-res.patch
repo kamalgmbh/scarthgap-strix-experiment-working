@@ -1,0 +1,48 @@
+From accf234c96b759bde368bbff029f4ef0cbc8e39b Mon Sep 17 00:00:00 2001
+From: Rob Clark <robdclark@chromium.org>
+Date: Tue, 23 Jan 2024 11:22:32 -0800
+Subject: [PATCH 04/16] drm/msm: Remove unused msm_object::res
+
+This also has the side effect of fixing an obscure guest kernel error
+path condition which could result in ->detach_resource() being called
+without a call to ->attach_resource(), in which case we previously would
+have leaked the GEM obj.
+
+Signed-off-by: Rob Clark <robdclark@chromium.org>
+---
+ src/drm/msm/msm_renderer.c | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/src/drm/msm/msm_renderer.c b/src/drm/msm/msm_renderer.c
+index 8b51fcc8..1b230a9f 100644
+--- a/src/drm/msm/msm_renderer.c
++++ b/src/drm/msm/msm_renderer.c
+@@ -132,7 +132,6 @@ struct msm_object {
+    uint32_t size;
+    bool exported   : 1;
+    bool exportable : 1;
+-   struct virgl_resource *res;
+    uint8_t *map;
+ };
+ 
+@@ -409,8 +408,6 @@ msm_renderer_attach_resource(struct virgl_context *vctx, struct virgl_resource *
+          return;
+       }
+    }
+-
+-   obj->res = res;
+ }
+ 
+ static void
+@@ -421,7 +418,7 @@ msm_renderer_detach_resource(struct virgl_context *vctx, struct virgl_resource *
+ 
+    drm_dbg("obj=%p, res_id=%u", obj, res->res_id);
+ 
+-   if (!obj || (obj->res != res))
++   if (!obj)
+       return;
+ 
+    if (res->fd_type == VIRGL_RESOURCE_FD_SHM) {
+-- 
+2.17.1
+

@@ -1,0 +1,25 @@
+From c5a09ca7a9706bb011c089b244afcdf3c3a89248 Mon Sep 17 00:00:00 2001
+From: Francisco Javier Trujillo Mata <fjtrujy@gmail.com>
+Date: Tue, 10 Jan 2023 23:12:25 +0100
+Subject: [PATCH 146/458] Remove dummy flag
+
+---
+ src/render/SDL_render.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/render/SDL_render.c b/src/render/SDL_render.c
+index 91004e4b3..87d3c4dcc 100644
+--- a/src/render/SDL_render.c
++++ b/src/render/SDL_render.c
+@@ -115,7 +115,7 @@ static const SDL_RenderDriver *render_drivers[] = {
+ #if SDL_VIDEO_RENDER_DIRECTFB
+     &DirectFB_RenderDriver,
+ #endif
+-#if SDL_VIDEO_RENDER_PS2 && !SDL_RENDER_DISABLED
++#if SDL_VIDEO_RENDER_PS2
+     &PS2_RenderDriver,
+ #endif
+ #if SDL_VIDEO_RENDER_PSP
+-- 
+2.17.1
+

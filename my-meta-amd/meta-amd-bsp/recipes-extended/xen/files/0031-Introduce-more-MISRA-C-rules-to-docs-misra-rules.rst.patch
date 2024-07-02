@@ -1,0 +1,80 @@
+From 1527066a7eaabcd18533135e81f9064e00b32428 Mon Sep 17 00:00:00 2001
+From: Stefano Stabellini <stefano.stabellini@amd.com>
+Date: Mon, 28 Nov 2022 16:18:24 -0800
+Subject: [PATCH 031/221] Introduce more MISRA C rules to docs/misra/rules.rst
+
+Add the new MISRA C rules agreed by the MISRA C working group to
+docs/misra/rules.rst.
+
+Add a comment for Rule 19.1 to explain that Eclair's findings are
+"caution" reports, not violations.
+
+Signed-off-by: Stefano Stabellini <stefano.stabellini@amd.com>
+Acked-by: Jan Beulich <jbeulich@suse.com>
+Reviewed-by: Bertrand Marquis <bertrand.marquis@arm.com>
+---
+ docs/misra/rules.rst | 36 ++++++++++++++++++++++++++++++++++++
+ 1 file changed, 36 insertions(+)
+
+diff --git a/docs/misra/rules.rst b/docs/misra/rules.rst
+index 8a659d8d47..dcceab9388 100644
+--- a/docs/misra/rules.rst
++++ b/docs/misra/rules.rst
+@@ -77,11 +77,32 @@ existing codebase are work-in-progress.
+        behaviour
+      -
+ 
++   * - `Rule 2.6 <https://gitlab.com/MISRA/MISRA-C/MISRA-C-2012/Example-Suite/-/blob/master/R_02_06.c>`_
++     - Advisory
++     - A function should not contain unused label declarations
++     -
++
++   * - `Rule 3.1 <https://gitlab.com/MISRA/MISRA-C/MISRA-C-2012/Example-Suite/-/blob/master/R_03_01.c>`_
++     - Required
++     - The character sequences /* and // shall not be used within a
++       comment
++     -
++
+    * - `Rule 3.2 <https://gitlab.com/MISRA/MISRA-C/MISRA-C-2012/Example-Suite/-/blob/master/R_03_02.c>`_
+      - Required
+      - Line-splicing shall not be used in // comments
+      -
+ 
++   * - `Rule 4.1 <https://gitlab.com/MISRA/MISRA-C/MISRA-C-2012/Example-Suite/-/blob/master/R_04_01.c>`_
++     - Required
++     - Octal and hexadecimal escape sequences shall be terminated
++     -
++
++   * - `Rule 4.2 <https://gitlab.com/MISRA/MISRA-C/MISRA-C-2012/Example-Suite/-/blob/master/R_04_02.c>`_
++     - Advisory
++     - Trigraphs should not be used
++     -
++
+    * - `Rule 5.1 <https://gitlab.com/MISRA/MISRA-C/MISRA-C-2012/Example-Suite/-/blob/master/R_05_01_2.c>`_
+      - Required
+      - External identifiers shall be distinct
+@@ -200,6 +221,21 @@ existing codebase are work-in-progress.
+        have an explicit return statement with an expression
+      -
+ 
++   * - `Rule 17.6 <https://gitlab.com/MISRA/MISRA-C/MISRA-C-2012/Example-Suite/-/blob/master/R_17_06.c>`_
++     - Mandatory
++     - The declaration of an array parameter shall not contain the
++       static keyword between the [ ]
++     -
++
++   * - `Rule 19.1 <https://gitlab.com/MISRA/MISRA-C/MISRA-C-2012/Example-Suite/-/blob/master/R_19_01.c>`_
++     - Mandatory
++     - An object shall not be assigned or copied to an overlapping
++       object
++     - Be aware that the static analysis tool Eclair might report
++       several findings for Rule 19.1 of type "caution". These are
++       instances where Eclair is unable to verify that the code is valid
++       in regard to Rule 19.1. Caution reports are not violations.
++
+    * - `Rule 20.7 <https://gitlab.com/MISRA/MISRA-C/MISRA-C-2012/Example-Suite/-/blob/master/R_20_07.c>`_
+      - Required
+      - Expressions resulting from the expansion of macro parameters
+-- 
+2.17.1
+

@@ -1,0 +1,53 @@
+From e937f1cd9751bd5b41e7a1c27d9725cd393d810c Mon Sep 17 00:00:00 2001
+From: Roger Pau Monne <roger.pau@citrix.com>
+Date: Tue, 8 Nov 2022 21:55:16 +0800
+Subject: [PATCH 187/221] x86/pvh: report ACPI VFCT table to dom0 if present
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The VFCT ACPI table is used by AMD GPUs to expose the vbios ROM image
+from the firmware instead of doing it on the PCI ROM on the physical
+device.
+
+As such, this needs to be available for PVH dom0 to access, or else
+the GPU won't work.
+
+Reported-by: Huang Rui <ray.huang@amd.com>
+Signed-off-by: Roger Pau Monné <roger.pau@citrix.com>
+Acked-and-Tested-by: Huang Rui <ray.huang@amd.com>
+Release-acked-by: Henry Wang <Henry.Wang@arm.com>
+Signed-off-by: Huang Rui <ray.huang@amd.com>
+Change-Id: I571851a264c62d686cf4683256b535a36fd85a37
+---
+ xen/arch/x86/hvm/dom0_build.c | 1 +
+ xen/include/acpi/actbl3.h     | 1 +
+ 2 files changed, 2 insertions(+)
+
+diff --git a/xen/arch/x86/hvm/dom0_build.c b/xen/arch/x86/hvm/dom0_build.c
+index 3ac6b7b423..d44de7f2b2 100644
+--- a/xen/arch/x86/hvm/dom0_build.c
++++ b/xen/arch/x86/hvm/dom0_build.c
+@@ -892,6 +892,7 @@ static bool __init pvh_acpi_table_allowed(const char *sig,
+         ACPI_SIG_DSDT, ACPI_SIG_FADT, ACPI_SIG_FACS, ACPI_SIG_PSDT,
+         ACPI_SIG_SSDT, ACPI_SIG_SBST, ACPI_SIG_MCFG, ACPI_SIG_SLIC,
+         ACPI_SIG_MSDM, ACPI_SIG_WDAT, ACPI_SIG_FPDT, ACPI_SIG_S3PT,
++        ACPI_SIG_VFCT,
+     };
+     unsigned int i;
+ 
+diff --git a/xen/include/acpi/actbl3.h b/xen/include/acpi/actbl3.h
+index 0a6778421f..6858d3e60f 100644
+--- a/xen/include/acpi/actbl3.h
++++ b/xen/include/acpi/actbl3.h
+@@ -79,6 +79,7 @@
+ #define ACPI_SIG_MATR           "MATR"	/* Memory Address Translation Table */
+ #define ACPI_SIG_MSDM           "MSDM"	/* Microsoft Data Management Table */
+ #define ACPI_SIG_WPBT           "WPBT"	/* Windows Platform Binary Table */
++#define ACPI_SIG_VFCT           "VFCT"	/* AMD Video BIOS */
+ 
+ /*
+  * All tables must be byte-packed to match the ACPI specification, since
+-- 
+2.17.1
+

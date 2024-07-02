@@ -1,0 +1,61 @@
+From b67625568448480eaa432d9637431ff7b1f62aa0 Mon Sep 17 00:00:00 2001
+From: Andrew Cooper <andrew.cooper3@citrix.com>
+Date: Thu, 29 Dec 2022 20:01:52 +0000
+Subject: [PATCH 169/221] CI: Remove guesswork about which artefacts to
+ preserve
+
+Preserve the artefacts based on the `make` rune we actually ran, rather than
+guesswork about which rune we would have run based on other settings.
+
+Note that the ARM qemu smoke tests depend on finding binaries/xen even from
+full builds.  Also the Jessie-32 containers build tools but not Xen.
+
+This means the x86_32 builds now store relevant artefacts.  No change in other
+configurations.
+
+Signed-off-by: Andrew Cooper <andrew.cooper3@citrix.com>
+Reviewed-by: Stefano Stabellini <sstabellini@kernel.org>
+---
+ automation/scripts/build | 22 ++++++++++++++--------
+ 1 file changed, 14 insertions(+), 8 deletions(-)
+
+diff --git a/automation/scripts/build b/automation/scripts/build
+index 5dafa72ba5..8dee1cbbc2 100755
+--- a/automation/scripts/build
++++ b/automation/scripts/build
+@@ -70,18 +70,24 @@ if [[ "${CC}" == "gcc" && `cc-ver` -lt 0x040600 ]]; then
+     cfgargs+=("--with-system-seabios=/bin/false")
+ fi
+ 
++# Directory for the artefacts to be dumped into
++mkdir binaries
++
+ if [[ "${hypervisor_only}" == "y" ]]; then
++    # Xen-only build
+     make -j$(nproc) xen
++
++    # Preserve artefacts
++    cp xen/xen binaries/xen
+ else
++    # Full build
+     ./configure "${cfgargs[@]}"
+     make -j$(nproc) dist
+-fi
+ 
+-# Extract artifacts to avoid getting rewritten by customised builds
+-mkdir binaries
+-if [[ "${XEN_TARGET_ARCH}" != "x86_32" ]]; then
+-    cp xen/xen binaries/xen
+-    if [[ "${hypervisor_only}" != "y" ]]; then
+-        cp -r dist binaries/
+-    fi
++    # Preserve artefacts
++    # Note: Some smoke tests depending on finding binaries/xen on a full build
++    # even though dist/ contains everything, while some containers don't even
++    # build Xen
++    cp -r dist binaries/
++    if [[ -f xen/xen ]] ; then cp xen/xen binaries/xen; fi
+ fi
+-- 
+2.17.1
+

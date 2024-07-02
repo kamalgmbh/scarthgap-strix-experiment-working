@@ -1,0 +1,45 @@
+From 5b7fdf2f3822b78d528d5607142bc1b650ec0ef6 Mon Sep 17 00:00:00 2001
+From: Michal Orzel <michal.orzel@amd.com>
+Date: Tue, 27 Sep 2022 11:47:19 +0200
+Subject: [PATCH 021/221] automation: Add randconfig build jobs for arm64
+ alpine container
+
+For arm64 we perform builds using debian and alpine containers.
+We are missing the randconfig build jobs for the latter, so add them.
+This way for each container we have 4 fundamental build jobs:
+- defconfig non-debug/debug
+- randconfig non-debug/debug
+
+Signed-off-by: Michal Orzel <michal.orzel@amd.com>
+Reviewed-by: Stefano Stabellini <sstabellini@kernel.org>
+Reviewed-by: Luca Fancellu <luca.fancellu@arm.com>
+---
+ automation/gitlab-ci/build.yaml | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)
+
+diff --git a/automation/gitlab-ci/build.yaml b/automation/gitlab-ci/build.yaml
+index 716ee0b1e4..14328c1895 100644
+--- a/automation/gitlab-ci/build.yaml
++++ b/automation/gitlab-ci/build.yaml
+@@ -568,6 +568,18 @@ alpine-3.12-gcc-debug-arm64:
+   variables:
+     CONTAINER: alpine:3.12-arm64v8
+ 
++alpine-3.12-gcc-arm64-randconfig:
++  extends: .gcc-arm64-build
++  variables:
++    CONTAINER: alpine:3.12-arm64v8
++    RANDCONFIG: y
++
++alpine-3.12-gcc-debug-arm64-randconfig:
++  extends: .gcc-arm64-build-debug
++  variables:
++    CONTAINER: alpine:3.12-arm64v8
++    RANDCONFIG: y
++
+ alpine-3.12-gcc-arm64-staticmem:
+   extends: .gcc-arm64-build
+   variables:
+-- 
+2.17.1
+

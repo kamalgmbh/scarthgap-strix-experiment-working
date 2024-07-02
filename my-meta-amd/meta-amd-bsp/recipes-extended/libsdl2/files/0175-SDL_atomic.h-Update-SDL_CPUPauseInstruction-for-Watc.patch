@@ -1,0 +1,30 @@
+From 507fc462db1ede9f3ca2c581809a7f1492ac1ff5 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Ji=C5=99=C3=AD=20Mal=C3=A1k?= <malak.jiri@gmail.com>
+Date: Thu, 26 Jan 2023 15:00:02 +0100
+Subject: [PATCH 175/458] SDL_atomic.h: Update SDL_CPUPauseInstruction for
+ Watcom. (#7157)
+
+Appropriate CPU directive can be used in #pragma aux so that it is not
+necessary to hardcode instruction bytes.
+---
+ include/SDL_atomic.h | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/include/SDL_atomic.h b/include/SDL_atomic.h
+index 22ea0191a..8273287f9 100644
+--- a/include/SDL_atomic.h
++++ b/include/SDL_atomic.h
+@@ -249,9 +249,8 @@ typedef void (*SDL_KernelMemoryBarrierFunc)();
+ #elif defined(_MSC_VER) && (defined(_M_ARM) || defined(_M_ARM64))
+     #define SDL_CPUPauseInstruction() __yield()
+ #elif defined(__WATCOMC__) && defined(__386__)
+-    /* watcom assembler rejects PAUSE if CPU < i686, and it refuses REP NOP as an invalid combination. Hardcode the bytes.  */
+     extern __inline void SDL_CPUPauseInstruction(void);
+-    #pragma aux SDL_CPUPauseInstruction = "db 0f3h,90h"
++    #pragma aux SDL_CPUPauseInstruction = ".686p" ".xmm2" "pause"
+ #else
+     #define SDL_CPUPauseInstruction()
+ #endif
+-- 
+2.17.1
+

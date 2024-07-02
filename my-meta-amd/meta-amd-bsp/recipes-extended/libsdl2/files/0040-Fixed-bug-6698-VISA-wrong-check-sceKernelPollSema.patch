@@ -1,0 +1,27 @@
+From 8cda5102fc74d1a2d2ce141e0b7d562e7a0ad31d Mon Sep 17 00:00:00 2001
+From: Sylvain <sylvain.becker@gmail.com>
+Date: Tue, 29 Nov 2022 16:14:23 +0100
+Subject: [PATCH 040/458] Fixed bug #6698 - VISA: wrong check sceKernelPollSema
+
+---
+ src/thread/vita/SDL_syssem.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/thread/vita/SDL_syssem.c b/src/thread/vita/SDL_syssem.c
+index 0082e0005..781e9e906 100644
+--- a/src/thread/vita/SDL_syssem.c
++++ b/src/thread/vita/SDL_syssem.c
+@@ -87,8 +87,8 @@ int SDL_SemWaitTimeout(SDL_sem *sem, Uint32 timeout)
+     }
+ 
+     if (timeout == 0) {
+-        res = sceKernelPollSema(sem->semid, 1);
+-        if (res < 0) {
++        int res2 = sceKernelPollSema(sem->semid, 1);
++        if (res2 < 0) {
+             return SDL_MUTEX_TIMEDOUT;
+         }
+         return 0;
+-- 
+2.17.1
+

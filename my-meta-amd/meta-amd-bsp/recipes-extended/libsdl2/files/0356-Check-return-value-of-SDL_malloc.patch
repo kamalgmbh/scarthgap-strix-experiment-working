@@ -1,0 +1,29 @@
+From a688ecd6faa771f4660608dfbc636bb5fd167156 Mon Sep 17 00:00:00 2001
+From: Mingjie Shen <shen497@purdue.edu>
+Date: Sun, 23 Apr 2023 00:26:03 -0400
+Subject: [PATCH 356/458] Check return value of SDL_malloc()
+
+(cherry picked from commit a4604cb0d616db97921a2674a63b45f3fdfb81bc)
+---
+ src/video/SDL_shape.c | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/src/video/SDL_shape.c b/src/video/SDL_shape.c
+index 018588d5a..509f029a5 100644
+--- a/src/video/SDL_shape.c
++++ b/src/video/SDL_shape.c
+@@ -138,6 +138,11 @@ static SDL_ShapeTree *RecursivelyCalculateShapeTree(SDL_WindowShapeMode mode, SD
+     SDL_ShapeTree *result = (SDL_ShapeTree *)SDL_malloc(sizeof(SDL_ShapeTree));
+     SDL_Rect next = { 0, 0, 0, 0 };
+ 
++    if (result == NULL) {
++        SDL_OutOfMemory();
++        return NULL;
++    }
++
+     for (y = dimensions.y; y < dimensions.y + dimensions.h; y++) {
+         for (x = dimensions.x; x < dimensions.x + dimensions.w; x++) {
+             pixel_value = 0;
+-- 
+2.17.1
+

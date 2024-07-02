@@ -1,0 +1,155 @@
+From ec677a5137bd68624593f17a3f8ab986b45de7c9 Mon Sep 17 00:00:00 2001
+From: jiqichen <Jiqian.Chen@amd.com>
+Date: Mon, 19 Dec 2022 16:39:16 +0800
+Subject: [PATCH 12/49] pci: xen: acpi register gsi for xen pvh
+
+Add acpi_register_gsi_xen_pvh() to register gsi for PVH mode.
+In addition to call acpi_register_gsi_ioapic(), it also setup
+a map between gsi and vector in hypervisor side. So that,
+when dgpu create an interrupt, hypervisor can correctly find
+which guest domain to process interrupt by vector.
+
+Change-Id: I92348453f1aaab81724f416a1908321945c68ec2
+Signed-off-by: Chen Jiqian <Jiqian.Chen@amd.com>
+---
+ arch/x86/include/asm/apic.h      |  7 ++++++
+ arch/x86/include/asm/xen/pci.h   |  5 ++++
+ arch/x86/kernel/acpi/boot.c      |  2 +-
+ arch/x86/pci/xen.c               | 39 ++++++++++++++++++++++++++++++++
+ drivers/xen/events/events_base.c |  2 ++
+ 5 files changed, 54 insertions(+), 1 deletion(-)
+
+diff --git a/arch/x86/include/asm/apic.h b/arch/x86/include/asm/apic.h
+index 9d159b771dc8..ce3cee1fa7b1 100644
+--- a/arch/x86/include/asm/apic.h
++++ b/arch/x86/include/asm/apic.h
+@@ -169,6 +169,8 @@ extern bool apic_needs_pit(void);
+ 
+ extern void apic_send_IPI_allbutself(unsigned int vector);
+ 
++extern int acpi_register_gsi_ioapic(struct device *dev, u32 gsi,
++				    int trigger, int polarity);
+ #else /* !CONFIG_X86_LOCAL_APIC */
+ static inline void lapic_shutdown(void) { }
+ #define local_apic_timer_c2_ok		1
+@@ -183,6 +185,11 @@ static inline void apic_intr_mode_init(void) { }
+ static inline void lapic_assign_system_vectors(void) { }
+ static inline void lapic_assign_legacy_vector(unsigned int i, bool r) { }
+ static inline bool apic_needs_pit(void) { return true; }
++static inline int acpi_register_gsi_ioapic(struct device *dev, u32 gsi,
++				    int trigger, int polarity)
++{
++	return (int)gsi;
++}
+ #endif /* !CONFIG_X86_LOCAL_APIC */
+ 
+ #ifdef CONFIG_X86_X2APIC
+diff --git a/arch/x86/include/asm/xen/pci.h b/arch/x86/include/asm/xen/pci.h
+index 9015b888edd6..aa8ded61fc2d 100644
+--- a/arch/x86/include/asm/xen/pci.h
++++ b/arch/x86/include/asm/xen/pci.h
+@@ -5,6 +5,7 @@
+ #if defined(CONFIG_PCI_XEN)
+ extern int __init pci_xen_init(void);
+ extern int __init pci_xen_hvm_init(void);
++extern int __init pci_xen_pvh_init(void);
+ #define pci_xen 1
+ #else
+ #define pci_xen 0
+@@ -13,6 +14,10 @@ static inline int pci_xen_hvm_init(void)
+ {
+ 	return -1;
+ }
++static inline int pci_xen_pvh_init(void)
++{
++	return -1;
++}
+ #endif
+ #ifdef CONFIG_XEN_PV_DOM0
+ int __init pci_xen_initial_domain(void);
+diff --git a/arch/x86/kernel/acpi/boot.c b/arch/x86/kernel/acpi/boot.c
+index 85a3ce2a3666..72c73458c083 100644
+--- a/arch/x86/kernel/acpi/boot.c
++++ b/arch/x86/kernel/acpi/boot.c
+@@ -749,7 +749,7 @@ static int acpi_register_gsi_pic(struct device *dev, u32 gsi,
+ }
+ 
+ #ifdef CONFIG_X86_LOCAL_APIC
+-static int acpi_register_gsi_ioapic(struct device *dev, u32 gsi,
++int acpi_register_gsi_ioapic(struct device *dev, u32 gsi,
+ 				    int trigger, int polarity)
+ {
+ 	int irq = gsi;
+diff --git a/arch/x86/pci/xen.c b/arch/x86/pci/xen.c
+index 652cd53e77f6..97f9dc64ad54 100644
+--- a/arch/x86/pci/xen.c
++++ b/arch/x86/pci/xen.c
+@@ -114,6 +114,38 @@ static int acpi_register_gsi_xen_hvm(struct device *dev, u32 gsi,
+ 				 false /* no mapping of GSI to PIRQ */);
+ }
+ 
++static int acpi_register_gsi_xen_pvh(struct device *dev, u32 gsi,
++				    int trigger, int polarity)
++{
++	int irq;
++	int rc;
++	struct physdev_map_pirq map_irq;
++	struct physdev_setup_gsi setup_gsi;
++
++	irq = acpi_register_gsi_ioapic(dev, gsi, trigger, polarity);
++
++	map_irq.domid = DOMID_SELF;
++	map_irq.type = MAP_PIRQ_TYPE_GSI;
++	map_irq.index = gsi;
++	map_irq.pirq = gsi;
++
++	rc = HYPERVISOR_physdev_op(PHYSDEVOP_map_pirq, &map_irq);
++	if (rc)
++		printk(KERN_ERR "xen map GSI: %u failed %d\n", gsi, rc);
++
++	setup_gsi.gsi = gsi;
++	setup_gsi.triggering = (trigger == ACPI_EDGE_SENSITIVE ? 0 : 1);
++	setup_gsi.polarity = (polarity == ACPI_ACTIVE_HIGH ? 0 : 1);
++
++	rc = HYPERVISOR_physdev_op(PHYSDEVOP_setup_gsi, &setup_gsi);
++	if (rc == -EEXIST)
++		printk(KERN_INFO "Already setup the GSI :%u\n", gsi);
++	else if (rc)
++		printk(KERN_ERR "Failed to setup GSI :%u, err_code:%d\n", gsi, rc);
++
++	return irq;
++}
++
+ #ifdef CONFIG_XEN_PV_DOM0
+ static int xen_register_gsi(u32 gsi, int triggering, int polarity)
+ {
+@@ -558,6 +590,13 @@ int __init pci_xen_hvm_init(void)
+ 	return 0;
+ }
+ 
++int __init pci_xen_pvh_init(void)
++{
++	__acpi_register_gsi = acpi_register_gsi_xen_pvh;
++	__acpi_unregister_gsi = NULL;
++	return 0;
++}
++
+ #ifdef CONFIG_XEN_PV_DOM0
+ int __init pci_xen_initial_domain(void)
+ {
+diff --git a/drivers/xen/events/events_base.c b/drivers/xen/events/events_base.c
+index 3b9f080109d7..4d018ef52563 100644
+--- a/drivers/xen/events/events_base.c
++++ b/drivers/xen/events/events_base.c
+@@ -2291,6 +2291,8 @@ void __init xen_init_IRQ(void)
+ 	xen_init_setup_upcall_vector();
+ 	xen_alloc_callback_vector();
+ 
++	if (xen_pvh_domain())
++		pci_xen_pvh_init();
+ 
+ 	if (xen_hvm_domain()) {
+ 		native_init_IRQ();
+-- 
+2.17.1
+

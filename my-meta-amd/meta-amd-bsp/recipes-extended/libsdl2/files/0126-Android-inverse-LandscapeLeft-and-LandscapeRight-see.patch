@@ -1,0 +1,30 @@
+From 874ebed14d5b24f88678b3a3d9b92300d609bbdd Mon Sep 17 00:00:00 2001
+From: Sylvain <sylvain.becker@gmail.com>
+Date: Sun, 1 Jan 2023 18:41:55 +0100
+Subject: [PATCH 126/458] Android: inverse LandscapeLeft and LandscapeRight
+ (see #6959)
+
+LandscapeLeft has now been set to ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE and LandscapeRight to ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE in order to reflect the docs: https://wiki.libsdl.org/SDL2/SDL_HINT_ORIENTATIONS
+---
+ .../app/src/main/java/org/libsdl/app/SDLActivity.java         | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/android-project/app/src/main/java/org/libsdl/app/SDLActivity.java b/android-project/app/src/main/java/org/libsdl/app/SDLActivity.java
+index 535e16395..a57f04cd0 100644
+--- a/android-project/app/src/main/java/org/libsdl/app/SDLActivity.java
++++ b/android-project/app/src/main/java/org/libsdl/app/SDLActivity.java
+@@ -971,9 +971,9 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
+         /* If set, hint "explicitly controls which UI orientations are allowed". */
+         if (hint.contains("LandscapeRight") && hint.contains("LandscapeLeft")) {
+             orientation_landscape = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE;
+-        } else if (hint.contains("LandscapeRight")) {
+-            orientation_landscape = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE;
+         } else if (hint.contains("LandscapeLeft")) {
++            orientation_landscape = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE;
++        } else if (hint.contains("LandscapeRight")) {
+             orientation_landscape = ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE;
+         }
+ 
+-- 
+2.17.1
+

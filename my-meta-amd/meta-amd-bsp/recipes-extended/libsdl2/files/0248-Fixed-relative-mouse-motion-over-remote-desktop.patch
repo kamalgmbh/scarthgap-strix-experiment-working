@@ -1,0 +1,38 @@
+From ad09976eca7c931ef468119b4a4716ec7e07560e Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Fri, 24 Feb 2023 09:20:38 -0800
+Subject: [PATCH 248/458] Fixed relative mouse motion over remote desktop
+
+Setting the cursor clip area to a single pixel prevents the relative mouse motion remote desktop warping from working, so the mouse is never recentered.
+
+(cherry picked from commit daffe02b117ccd484763eadc716e4d4453c89868)
+---
+ src/video/windows/SDL_windowswindow.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/video/windows/SDL_windowswindow.c b/src/video/windows/SDL_windowswindow.c
+index d53caef6c..12f3c0094 100644
+--- a/src/video/windows/SDL_windowswindow.c
++++ b/src/video/windows/SDL_windowswindow.c
+@@ -1294,14 +1294,16 @@ void WIN_UpdateClipCursor(SDL_Window *window)
+         (window->flags & SDL_WINDOW_INPUT_FOCUS)) {
+         if (mouse->relative_mode && !mouse->relative_mode_warp && data->mouse_relative_mode_center) {
+             if (GetWindowRect(data->hwnd, &rect)) {
++                /* WIN_WarpCursor() jitters by +1, and remote desktop warp wobble is +/- 1 */
++                LONG remote_desktop_adjustment = GetSystemMetrics(SM_REMOTESESSION) ? 2 : 0;
+                 LONG cx, cy;
+ 
+                 cx = (rect.left + rect.right) / 2;
+                 cy = (rect.top + rect.bottom) / 2;
+ 
+                 /* Make an absurdly small clip rect */
+-                rect.left = cx;
+-                rect.right = cx + 1;
++                rect.left = cx - remote_desktop_adjustment;
++                rect.right = cx + 1 + remote_desktop_adjustment;
+                 rect.top = cy;
+                 rect.bottom = cy + 1;
+ 
+-- 
+2.17.1
+

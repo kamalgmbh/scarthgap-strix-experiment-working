@@ -1,0 +1,49 @@
+From 3ea18e9e263778e0ef5c654d5a0a69c272b476b8 Mon Sep 17 00:00:00 2001
+From: Jan Beulich <jbeulich@suse.com>
+Date: Mon, 5 Dec 2022 13:44:15 +0100
+Subject: [PATCH 056/221] x86/p2m: don't calculate page owner twice in
+ p2m_add_page()
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Neither page_get_owner() nor mfn_to_page() are entirely trivial
+operations - don't do the same thing twice in close succession. Instead
+help CSE (when MEM_SHARING=y) by introducing a local variable holding
+the page owner.
+
+Signed-off-by: Jan Beulich <jbeulich@suse.com>
+Acked-by: Roger Pau Monné <roger.pau@citrix.com>
+---
+ xen/arch/x86/mm/p2m.c | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/xen/arch/x86/mm/p2m.c b/xen/arch/x86/mm/p2m.c
+index a405ee5fde..c5561fe221 100644
+--- a/xen/arch/x86/mm/p2m.c
++++ b/xen/arch/x86/mm/p2m.c
+@@ -691,8 +691,10 @@ p2m_add_page(struct domain *d, gfn_t gfn, mfn_t mfn,
+     /* Then, look for m->p mappings for this range and deal with them */
+     for ( i = 0; i < (1UL << page_order); i++ )
+     {
+-        if ( dom_cow &&
+-             page_get_owner(mfn_to_page(mfn_add(mfn, i))) == dom_cow )
++        const struct domain *owner =
++            page_get_owner(mfn_to_page(mfn_add(mfn, i)));
++
++        if ( dom_cow && owner == dom_cow )
+         {
+             /* This is no way to add a shared page to your physmap! */
+             gdprintk(XENLOG_ERR, "Adding shared mfn %lx directly to dom%d physmap not allowed.\n",
+@@ -700,7 +702,7 @@ p2m_add_page(struct domain *d, gfn_t gfn, mfn_t mfn,
+             p2m_unlock(p2m);
+             return -EINVAL;
+         }
+-        if ( page_get_owner(mfn_to_page(mfn_add(mfn, i))) != d )
++        if ( owner != d )
+             continue;
+         ogfn = mfn_to_gfn(d, mfn_add(mfn, i));
+         if ( !gfn_eq(ogfn, _gfn(INVALID_M2P_ENTRY)) &&
+-- 
+2.17.1
+

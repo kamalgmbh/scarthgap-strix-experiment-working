@@ -1,0 +1,78 @@
+From bc19af0bd4b8d0bb817defa4470873c80f67b6c2 Mon Sep 17 00:00:00 2001
+From: Luca Fancellu <luca.fancellu@arm.com>
+Date: Wed, 7 Dec 2022 13:07:04 +0000
+Subject: [PATCH 105/221] xen: Justify linker script defined symbols in
+ include/xen/kernel.h
+
+Eclair and Coverity found violation of the MISRA rule 8.6 for the
+symbols _start, _end, start, _stext, _etext, _srodata, _erodata,
+_sinittext, _einittext which are declared in
+xen/include/xen/kernel.h.
+All those symbols are defined by the liker script so we can deviate
+from the rule 8.6 for these cases.
+
+Signed-off-by: Luca Fancellu <luca.fancellu@arm.com>
+Reviewed-by: Stefano Stabellini <sstabellini@kernel.org>
+Acked-by: Jan Beulich <jbeulich@suse.com>
+Tested-by: Stefano Stabellini <sstabellini@kernel.org>
+---
+ docs/misra/safe.json     | 9 +++++++++
+ xen/include/xen/kernel.h | 4 ++++
+ 2 files changed, 13 insertions(+)
+
+diff --git a/docs/misra/safe.json b/docs/misra/safe.json
+index e079d30381..e3c8a1d8eb 100644
+--- a/docs/misra/safe.json
++++ b/docs/misra/safe.json
+@@ -3,6 +3,15 @@
+     "content": [
+         {
+             "id": "SAF-0-safe",
++            "analyser": {
++                "eclair": "MC3R1.R8.6",
++                "coverity": "misra_c_2012_rule_8_6_violation"
++            },
++            "name": "Rule 8.6: linker script defined symbols",
++            "text": "It is safe to declare this symbol because it is defined in the linker script."
++        },
++        {
++            "id": "SAF-1-safe",
+             "analyser": {},
+             "name": "Sentinel",
+             "text": "Next ID to be used"
+diff --git a/xen/include/xen/kernel.h b/xen/include/xen/kernel.h
+index 8cd142032d..f1a7713784 100644
+--- a/xen/include/xen/kernel.h
++++ b/xen/include/xen/kernel.h
+@@ -65,24 +65,28 @@
+ 	1;                                      \
+ })
+ 
++/* SAF-0-safe */
+ extern char _start[], _end[], start[];
+ #define is_kernel(p) ({                         \
+     char *__p = (char *)(unsigned long)(p);     \
+     (__p >= _start) && (__p < _end);            \
+ })
+ 
++/* SAF-0-safe */
+ extern char _stext[], _etext[];
+ #define is_kernel_text(p) ({                    \
+     char *__p = (char *)(unsigned long)(p);     \
+     (__p >= _stext) && (__p < _etext);          \
+ })
+ 
++/* SAF-0-safe */
+ extern const char _srodata[], _erodata[];
+ #define is_kernel_rodata(p) ({                  \
+     const char *__p = (const char *)(unsigned long)(p);     \
+     (__p >= _srodata) && (__p < _erodata);      \
+ })
+ 
++/* SAF-0-safe */
+ extern char _sinittext[], _einittext[];
+ #define is_kernel_inittext(p) ({                \
+     char *__p = (char *)(unsigned long)(p);     \
+-- 
+2.17.1
+

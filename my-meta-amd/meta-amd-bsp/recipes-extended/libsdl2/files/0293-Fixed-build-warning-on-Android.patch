@@ -1,0 +1,34 @@
+From e9f9cb29fcc2a259fff0ca919720e34a23ad6435 Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Fri, 10 Mar 2023 08:09:44 -0800
+Subject: [PATCH 293/458] Fixed build warning on Android
+
+(cherry picked from commit 2af6f4a3e4f0a82ccbb7ce142c914b5aa5df2000)
+---
+ src/audio/SDL_audiocvt.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/audio/SDL_audiocvt.c b/src/audio/SDL_audiocvt.c
+index 653c7ecc7..99cb7ce39 100644
+--- a/src/audio/SDL_audiocvt.c
++++ b/src/audio/SDL_audiocvt.c
+@@ -212,14 +212,14 @@ static int SDL_ResampleAudio(const int chans, const int inrate, const int outrat
+     const int framelen = chans * (int)sizeof(float);
+     const int inframes = inbuflen / framelen;
+     /* outbuflen isn't total to write, it's total available. */
+-    const int wantedoutframes = ((Sint64)inframes) * outrate / inrate;
++    const int wantedoutframes = (int)((Sint64)inframes * outrate / inrate);
+     const int maxoutframes = outbuflen / framelen;
+     const int outframes = SDL_min(wantedoutframes, maxoutframes);
+     float *dst = outbuf;
+     int i, j, chan;
+ 
+     for (i = 0; i < outframes; i++) {
+-        const int srcindex = ((Sint64)i) * inrate / outrate;
++        const int srcindex = (int)((Sint64)i * inrate / outrate);
+         /* Calculating the following way avoids subtraction or modulo of large
+          * floats which have low result precision.
+          *   interpolation1
+-- 
+2.17.1
+

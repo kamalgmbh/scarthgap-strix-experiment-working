@@ -1,0 +1,30 @@
+From 7eef80e06ed2282bbcec3619d860c6aacb0515d8 Mon Sep 17 00:00:00 2001
+From: Alistair Francis <alistair.francis@wdc.com>
+Date: Wed, 28 Dec 2022 15:20:18 +1000
+Subject: [PATCH 167/221] xen/riscv: Introduce asm/page-bits.h
+
+Define PADDR_BITS and PAGE_SHIFT for the RISC-V 64-bit architecture.
+
+Signed-off-by: Alistair Francis <alistair.francis@wdc.com>
+Acked-by: Andrew Cooper <andrew.cooper3@citrix.com>
+---
+ xen/arch/riscv/include/asm/page-bits.h | 7 +++++++
+ 1 file changed, 7 insertions(+)
+ create mode 100644 xen/arch/riscv/include/asm/page-bits.h
+
+diff --git a/xen/arch/riscv/include/asm/page-bits.h b/xen/arch/riscv/include/asm/page-bits.h
+new file mode 100644
+index 0000000000..1801820294
+--- /dev/null
++++ b/xen/arch/riscv/include/asm/page-bits.h
+@@ -0,0 +1,7 @@
++#ifndef __RISCV_PAGE_BITS_H__
++#define __RISCV_PAGE_BITS_H__
++
++#define PAGE_SHIFT              12 /* 4 KiB Pages */
++#define PADDR_BITS              56 /* 44-bit PPN */
++
++#endif /* __RISCV_PAGE_BITS_H__ */
+-- 
+2.17.1
+

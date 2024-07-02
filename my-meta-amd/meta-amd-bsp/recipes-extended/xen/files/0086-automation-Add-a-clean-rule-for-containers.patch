@@ -1,0 +1,38 @@
+From 4755d10e9c57808c7e7128e9d9c4615d0eba5cda Mon Sep 17 00:00:00 2001
+From: Bertrand Marquis <bertrand.marquis@arm.com>
+Date: Thu, 1 Dec 2022 14:25:31 +0000
+Subject: [PATCH 086/221] automation: Add a clean rule for containers
+
+Add make clean support to remove the containers from the local docker
+registry.
+make clean-<image_name> must be called to remove an image:
+make clean-yocto/kirkstone-qemuarm: remove yocto kirkstone for qemuarm
+image
+
+Signed-off-by: Bertrand Marquis <bertrand.marquis@arm.com>
+Acked-by: Stefano Stabellini <sstabellini@kernel.org>
+---
+ automation/build/Makefile | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
+
+diff --git a/automation/build/Makefile b/automation/build/Makefile
+index c4aaa747ff..f1d56ce532 100644
+--- a/automation/build/Makefile
++++ b/automation/build/Makefile
+@@ -28,3 +28,13 @@ all: $(CONTAINERS)
+ clean:
+ 	rm -f yocto/*.dockerfile
+ 
++define CLEAN_RULE
++.PHONY: clean-$(1)
++clean-$(1):
++	if [ -n "$$$$(docker image ls -q $(REGISTRY)/$(subst /,:,$(1)))" ]; then \
++		docker image rm $(REGISTRY)/$(subst /,:,$(1)); \
++	fi
++
++endef
++
++$(eval $(foreach img,$(CONTAINERS) $(CONTAINERS_EXTRA),$(call CLEAN_RULE,$(img))))
+-- 
+2.17.1
+

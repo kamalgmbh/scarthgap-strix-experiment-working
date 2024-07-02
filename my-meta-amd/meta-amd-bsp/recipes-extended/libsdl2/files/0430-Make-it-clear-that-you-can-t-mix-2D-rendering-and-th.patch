@@ -1,0 +1,209 @@
+From 36033e3832633506a01c9da3d08a0c0844761965 Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Sat, 10 Jun 2023 08:54:36 -0700
+Subject: [PATCH 430/458] Make it clear that you can't mix 2D rendering and the
+ window surface API
+
+Also added functions to query and destroy the window surface so you can switch between modes if you want.
+
+See https://github.com/pygame-community/pygame-ce/issues/2190 for more details.
+---
+ WhatsNew.txt                      |  1 +
+ include/SDL_video.h               | 27 +++++++++++++++++++++
+ src/dynapi/SDL2.exports           |  2 ++
+ src/dynapi/SDL_dynapi_overrides.h |  2 ++
+ src/dynapi/SDL_dynapi_procs.h     |  2 ++
+ src/render/SDL_render.c           |  5 ++++
+ src/video/SDL_video.c             | 40 ++++++++++++++++++-------------
+ 7 files changed, 62 insertions(+), 17 deletions(-)
+
+diff --git a/WhatsNew.txt b/WhatsNew.txt
+index e93ddca74..a5636ed83 100644
+--- a/WhatsNew.txt
++++ b/WhatsNew.txt
+@@ -6,6 +6,7 @@ This is a list of major changes in SDL's version history.
+ ---------------------------------------------------------------------------
+ 
+ General:
++* Added SDL_HasWindowSurface() and SDL_DestroyWindowSurface() to switch between the window surface and rendering APIs
+ * Added a display event SDL_DISPLAYEVENT_MOVED which is sent when the primary monitor changes or displays change position relative to each other
+ * Added the hint SDL_HINT_ENABLE_SCREEN_KEYBOARD to control whether the on-screen keyboard should be shown when text input is active
+ 
+diff --git a/include/SDL_video.h b/include/SDL_video.h
+index 599b563f7..99637f7f5 100644
+--- a/include/SDL_video.h
++++ b/include/SDL_video.h
+@@ -1275,6 +1275,17 @@ extern DECLSPEC void SDLCALL SDL_RestoreWindow(SDL_Window * window);
+ extern DECLSPEC int SDLCALL SDL_SetWindowFullscreen(SDL_Window * window,
+                                                     Uint32 flags);
+ 
++/**
++ * Return whether the window has a surface associated with it.
++ *
++ * \returns SDL_TRUE if there is a surface associated with the window, or SDL_FALSE otherwise.
++ *
++ * \since This function is available since SDL 2.28.0.
++ *
++ * \sa SDL_GetWindowSurface
++ */
++extern DECLSPEC SDL_bool SDLCALL SDL_HasWindowSurface(SDL_Window *window);
++
+ /**
+  * Get the SDL surface associated with the window.
+  *
+@@ -1295,6 +1306,8 @@ extern DECLSPEC int SDLCALL SDL_SetWindowFullscreen(SDL_Window * window,
+  *
+  * \since This function is available since SDL 2.0.0.
+  *
++ * \sa SDL_DestroyWindowSurface
++ * \sa SDL_HasWindowSurface
+  * \sa SDL_UpdateWindowSurface
+  * \sa SDL_UpdateWindowSurfaceRects
+  */
+@@ -1343,6 +1356,20 @@ extern DECLSPEC int SDLCALL SDL_UpdateWindowSurfaceRects(SDL_Window * window,
+                                                          const SDL_Rect * rects,
+                                                          int numrects);
+ 
++/**
++ * Destroy the surface associated with the window.
++ *
++ * \param window the window to update
++ * \returns 0 on success or a negative error code on failure; call
++ *          SDL_GetError() for more information.
++ *
++ * \since This function is available since SDL 2.28.0.
++ *
++ * \sa SDL_GetWindowSurface
++ * \sa SDL_HasWindowSurface
++ */
++extern DECLSPEC int SDLCALL SDL_DestroyWindowSurface(SDL_Window *window);
++
+ /**
+  * Set a window's input grab mode.
+  *
+diff --git a/src/dynapi/SDL2.exports b/src/dynapi/SDL2.exports
+index 0a509838c..696e2be9d 100644
+--- a/src/dynapi/SDL2.exports
++++ b/src/dynapi/SDL2.exports
+@@ -868,3 +868,5 @@
+ ++'_SDL_ResetHints'.'SDL2.dll'.'SDL_ResetHints'
+ ++'_SDL_strcasestr'.'SDL2.dll'.'SDL_strcasestr'
+ # ++'_SDL_GDKSuspendComplete'.'SDL2.dll'.'SDL_GDKSuspendComplete'
++++'_SDL_HasWindowSurface'.'SDL2.dll'.'SDL_HasWindowSurface'
++++'_SDL_DestroyWindowSurface'.'SDL2.dll'.'SDL_DestroyWindowSurface'
+diff --git a/src/dynapi/SDL_dynapi_overrides.h b/src/dynapi/SDL_dynapi_overrides.h
+index 0ee320b5c..0b59a2174 100644
+--- a/src/dynapi/SDL_dynapi_overrides.h
++++ b/src/dynapi/SDL_dynapi_overrides.h
+@@ -894,3 +894,5 @@
+ #define SDL_ResetHints SDL_ResetHints_REAL
+ #define SDL_strcasestr SDL_strcasestr_REAL
+ #define SDL_GDKSuspendComplete SDL_GDKSuspendComplete_REAL
++#define SDL_HasWindowSurface SDL_HasWindowSurface_REAL
++#define SDL_DestroyWindowSurface SDL_DestroyWindowSurface_REAL
+diff --git a/src/dynapi/SDL_dynapi_procs.h b/src/dynapi/SDL_dynapi_procs.h
+index ebc9fc39b..8e1d36d06 100644
+--- a/src/dynapi/SDL_dynapi_procs.h
++++ b/src/dynapi/SDL_dynapi_procs.h
+@@ -979,3 +979,5 @@ SDL_DYNAPI_PROC(char*,SDL_strcasestr,(const char *a, const char *b),(a,b),return
+ #if defined(__GDK__)
+ SDL_DYNAPI_PROC(void,SDL_GDKSuspendComplete,(void),(),)
+ #endif
++SDL_DYNAPI_PROC(SDL_bool,SDL_HasWindowSurface,(SDL_Window *a),(a),return)
++SDL_DYNAPI_PROC(int,SDL_DestroyWindowSurface,(SDL_Window *a),(a),return)
+diff --git a/src/render/SDL_render.c b/src/render/SDL_render.c
+index 5831b1014..21d6324cb 100644
+--- a/src/render/SDL_render.c
++++ b/src/render/SDL_render.c
+@@ -950,6 +950,11 @@ SDL_Renderer *SDL_CreateRenderer(SDL_Window *window, int index, Uint32 flags)
+         goto error;
+     }
+ 
++    if (SDL_HasWindowSurface(window)) {
++        SDL_SetError("Surface already associated with window");
++        goto error;
++    }
++
+     if (SDL_GetRenderer(window)) {
+         SDL_SetError("Renderer already associated with window");
+         goto error;
+diff --git a/src/video/SDL_video.c b/src/video/SDL_video.c
+index 73a4d2c0d..00de5463a 100644
+--- a/src/video/SDL_video.c
++++ b/src/video/SDL_video.c
+@@ -1884,12 +1884,7 @@ int SDL_RecreateWindow(SDL_Window *window, Uint32 flags)
+     }
+ 
+     /* Tear down the old native window */
+-    if (window->surface) {
+-        window->surface->flags &= ~SDL_DONTFREE;
+-        SDL_FreeSurface(window->surface);
+-        window->surface = NULL;
+-        window->surface_valid = SDL_FALSE;
+-    }
++    SDL_DestroyWindowSurface(window);
+ 
+     if (_this->checked_texture_framebuffer) { /* never checked? No framebuffer to destroy. Don't risk calling the wrong implementation. */
+         if (_this->DestroyWindowFramebuffer) {
+@@ -2670,16 +2665,19 @@ static SDL_Surface *SDL_CreateWindowFramebuffer(SDL_Window *window)
+     return SDL_CreateRGBSurfaceFrom(pixels, window->w, window->h, bpp, pitch, Rmask, Gmask, Bmask, Amask);
+ }
+ 
++SDL_bool SDL_HasWindowSurface(SDL_Window *window)
++{
++    CHECK_WINDOW_MAGIC(window, SDL_FALSE);
++
++    return window->surface ? SDL_TRUE : SDL_FALSE;
++}
++
+ SDL_Surface *SDL_GetWindowSurface(SDL_Window *window)
+ {
+     CHECK_WINDOW_MAGIC(window, NULL);
+ 
+     if (!window->surface_valid) {
+-        if (window->surface) {
+-            window->surface->flags &= ~SDL_DONTFREE;
+-            SDL_FreeSurface(window->surface);
+-            window->surface = NULL;
+-        }
++        SDL_DestroyWindowSurface(window);
+         window->surface = SDL_CreateWindowFramebuffer(window);
+         if (window->surface) {
+             window->surface_valid = SDL_TRUE;
+@@ -2761,6 +2759,19 @@ int SDL_SetWindowOpacity(SDL_Window * window, float opacity)
+     return retval;
+ }
+ 
++int SDL_DestroyWindowSurface(SDL_Window *window)
++{
++    CHECK_WINDOW_MAGIC(window, -1);
++
++    if (window->surface) {
++        window->surface->flags &= ~SDL_DONTFREE;
++        SDL_DestroySurface(window->surface);
++        window->surface = NULL;
++        window->surface_valid = SDL_FALSE;
++    }
++    return 0;
++}
++
+ int SDL_GetWindowOpacity(SDL_Window *window, float *out_opacity)
+ {
+     CHECK_WINDOW_MAGIC(window, -1);
+@@ -3206,12 +3217,7 @@ void SDL_DestroyWindow(SDL_Window *window)
+         }
+     }
+ 
+-    if (window->surface) {
+-        window->surface->flags &= ~SDL_DONTFREE;
+-        SDL_FreeSurface(window->surface);
+-        window->surface = NULL;
+-        window->surface_valid = SDL_FALSE;
+-    }
++    SDL_DestroyWindowSurface(window);
+     if (_this->checked_texture_framebuffer) { /* never checked? No framebuffer to destroy. Don't risk calling the wrong implementation. */
+         if (_this->DestroyWindowFramebuffer) {
+             _this->DestroyWindowFramebuffer(_this, window);
+-- 
+2.17.1
+

@@ -1,0 +1,35 @@
+From e986c7984b60d96c13c9e29225233922808f91a1 Mon Sep 17 00:00:00 2001
+From: "Ryan C. Gordon" <icculus@icculus.org>
+Date: Mon, 12 Dec 2022 16:07:48 -0500
+Subject: [PATCH 094/458] wasapi: Fixed incorrect assertions.
+
+Fixes #6795.
+
+(cherry picked from commit 12486e144be0e7a37abd87b8bf90547a992ff66b)
+---
+ src/audio/wasapi/SDL_wasapi_winrt.cpp | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/audio/wasapi/SDL_wasapi_winrt.cpp b/src/audio/wasapi/SDL_wasapi_winrt.cpp
+index 7615b3f68..744e42126 100644
+--- a/src/audio/wasapi/SDL_wasapi_winrt.cpp
++++ b/src/audio/wasapi/SDL_wasapi_winrt.cpp
+@@ -182,13 +182,13 @@ void SDL_WasapiDeviceEventHandler::OnEnumerationCompleted(DeviceWatcher ^ sender
+ 
+ void SDL_WasapiDeviceEventHandler::OnDefaultRenderDeviceChanged(Platform::Object ^ sender, DefaultAudioRenderDeviceChangedEventArgs ^ args)
+ {
+-    SDL_assert(this->iscapture);
++    SDL_assert(!this->iscapture);
+     SDL_AtomicAdd(&SDL_IMMDevice_DefaultPlaybackGeneration, 1);
+ }
+ 
+ void SDL_WasapiDeviceEventHandler::OnDefaultCaptureDeviceChanged(Platform::Object ^ sender, DefaultAudioCaptureDeviceChangedEventArgs ^ args)
+ {
+-    SDL_assert(!this->iscapture);
++    SDL_assert(this->iscapture);
+     SDL_AtomicAdd(&SDL_IMMDevice_DefaultCaptureGeneration, 1);
+ }
+ 
+-- 
+2.17.1
+

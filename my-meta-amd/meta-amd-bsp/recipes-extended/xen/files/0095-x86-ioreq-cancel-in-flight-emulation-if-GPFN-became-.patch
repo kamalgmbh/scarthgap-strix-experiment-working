@@ -1,0 +1,57 @@
+From 5097389a7728810ffd76bb4fb18da5e89d2a64ea Mon Sep 17 00:00:00 2001
+From: Xenia Ragiadakou <xenia.ragiadakou@amd.com>
+Date: Mon, 29 Jan 2024 21:45:52 +0200
+Subject: [PATCH 095/106] x86/ioreq: cancel in-flight emulation if GPFN became
+ special
+
+Signed-off-by: Xenia Ragiadakou <xenia.ragiadakou@amd.com>
+Change-Id: If2c8628d3e2cb9c819a6e9dc4ee1dd336ba9bc91
+---
+ xen/arch/x86/hvm/emulate.c |  7 +++++++
+ xen/arch/x86/hvm/ioreq.c   | 12 ++++++++++++
+ 2 files changed, 19 insertions(+)
+
+diff --git a/xen/arch/x86/hvm/emulate.c b/xen/arch/x86/hvm/emulate.c
+index 865aa08bbc..dd09fa2149 100644
+--- a/xen/arch/x86/hvm/emulate.c
++++ b/xen/arch/x86/hvm/emulate.c
+@@ -936,6 +936,13 @@ static int hvmemul_phys_mmio_access(
+         return X86EMUL_UNHANDLEABLE;
+     }
+ 
++    {
++        p2m_type_t p2mt;
++        get_gfn_query_unlocked(current->domain, PFN_DOWN(gpa), &p2mt);
++        if ( p2m_is_special(p2mt) )
++            return X86EMUL_OKAY;
++    }
++
+     /* Accesses must not overflow the cache's buffer. */
+     if ( size > sizeof(cache->buffer) )
+     {
+diff --git a/xen/arch/x86/hvm/ioreq.c b/xen/arch/x86/hvm/ioreq.c
+index 4eb7a70182..4f10de03bd 100644
+--- a/xen/arch/x86/hvm/ioreq.c
++++ b/xen/arch/x86/hvm/ioreq.c
+@@ -26,6 +26,18 @@
+ 
+ bool arch_ioreq_complete_mmio(void)
+ {
++    {
++        struct hvm_vcpu_io *hvio = &current->arch.hvm.hvm_io;
++        p2m_type_t p2mt;
++
++        get_gfn_query_unlocked(current->domain, hvio->mmio_gpfn, &p2mt);
++        if ( p2m_is_special(p2mt) )
++        {
++            hvmemul_cancel(current);
++            return true;
++        }
++    }
++
+     return handle_mmio();
+ }
+ 
+-- 
+2.25.1
+

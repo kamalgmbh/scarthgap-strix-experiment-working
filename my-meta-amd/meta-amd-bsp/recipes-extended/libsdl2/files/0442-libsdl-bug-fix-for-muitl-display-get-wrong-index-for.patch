@@ -1,0 +1,84 @@
+From d9ab9dc57e445b7a0144b012ed30325760dafe37 Mon Sep 17 00:00:00 2001
+From: Lei Huang <Lei.Huang@amd.com>
+Date: Thu, 8 Jun 2023 10:57:28 +0800
+Subject: [PATCH 442/458] libsdl: bug fix for muitl display get wrong index for
+ output
+
+[Why]
+not realization wayland GetWindowDisplayIndex
+
+[How]
+realization wayland GetWindowDisplayIndex
+
+Jira ID: SWDEV-340261
+
+Change-Id: I2b4a8c8a75215c3878d46e868d2da7ab7a696819
+Signed-off-by: Lei Huang <Lei.Huang@amd.com>
+---
+ src/video/SDL_video.c                 |  1 -
+ src/video/wayland/SDL_waylandvideo.c  |  1 +
+ src/video/wayland/SDL_waylandwindow.c | 11 +++++++++++
+ src/video/wayland/SDL_waylandwindow.h |  1 +
+ 4 files changed, 13 insertions(+), 1 deletion(-)
+
+diff --git a/src/video/SDL_video.c b/src/video/SDL_video.c
+index dbd474065..45dcd26a7 100644
+--- a/src/video/SDL_video.c
++++ b/src/video/SDL_video.c
+@@ -1488,7 +1488,6 @@ static int SDL_UpdateFullscreenMode(SDL_Window *window, SDL_bool fullscreen)
+     if (_this->SetWindowFullscreen) {
+         _this->SetWindowFullscreen(_this, window, display, SDL_FALSE);
+     }
+-    display->fullscreen_window = NULL;
+ 
+     /* Generate a mode change event here */
+     SDL_OnWindowResized(window);
+diff --git a/src/video/wayland/SDL_waylandvideo.c b/src/video/wayland/SDL_waylandvideo.c
+index 8fd65813a..c10c186e0 100644
+--- a/src/video/wayland/SDL_waylandvideo.c
++++ b/src/video/wayland/SDL_waylandvideo.c
+@@ -249,6 +249,7 @@ static SDL_VideoDevice *Wayland_CreateDevice(void)
+     device->SetWindowMaximumSize = Wayland_SetWindowMaximumSize;
+     device->SetWindowModalFor = Wayland_SetWindowModalFor;
+     device->SetWindowTitle = Wayland_SetWindowTitle;
++    device->GetWindowDisplayIndex = Wayland_GetWindowDisplayIndex;
+     device->GetWindowSizeInPixels = Wayland_GetWindowSizeInPixels;
+     device->DestroyWindow = Wayland_DestroyWindow;
+     device->SetWindowHitTest = Wayland_SetWindowHitTest;
+diff --git a/src/video/wayland/SDL_waylandwindow.c b/src/video/wayland/SDL_waylandwindow.c
+index ce54ffe82..ea73622f0 100644
+--- a/src/video/wayland/SDL_waylandwindow.c
++++ b/src/video/wayland/SDL_waylandwindow.c
+@@ -2274,6 +2274,17 @@ void Wayland_SuspendScreenSaver(_THIS)
+     }
+ }
+ 
++int Wayland_GetWindowDisplayIndex(_THIS, SDL_Window * window)
++{
++       for (int i = 0; i < _this->num_displays; i++) {
++               SDL_VideoDisplay *display = &_this->displays[i];
++               if (display && (display->fullscreen_window == window)){
++                       return i;
++               }
++       }
++       return -1;
++}
++
+ void Wayland_DestroyWindow(_THIS, SDL_Window *window)
+ {
+     SDL_VideoData *data = _this->driverdata;
+diff --git a/src/video/wayland/SDL_waylandwindow.h b/src/video/wayland/SDL_waylandwindow.h
+index 89f0d7766..f52c55a04 100644
+--- a/src/video/wayland/SDL_waylandwindow.h
++++ b/src/video/wayland/SDL_waylandwindow.h
+@@ -139,6 +139,7 @@ extern void Wayland_SetWindowMaximumSize(_THIS, SDL_Window *window);
+ extern void Wayland_GetWindowSizeInPixels(_THIS, SDL_Window *window, int *w, int *h);
+ extern int Wayland_SetWindowModalFor(_THIS, SDL_Window *modal_window, SDL_Window *parent_window);
+ extern void Wayland_SetWindowTitle(_THIS, SDL_Window *window);
++extern int Wayland_GetWindowDisplayIndex(_THIS, SDL_Window * window);
+ extern void Wayland_DestroyWindow(_THIS, SDL_Window *window);
+ extern void Wayland_SuspendScreenSaver(_THIS);
+ 
+-- 
+2.17.1
+

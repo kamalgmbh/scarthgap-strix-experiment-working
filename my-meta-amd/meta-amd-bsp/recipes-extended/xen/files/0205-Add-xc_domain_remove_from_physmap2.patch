@@ -1,0 +1,102 @@
+From 66465e036712ca25989bd15ba9653371ada47c47 Mon Sep 17 00:00:00 2001
+From: Pierre-Eric Pelloux-Prayer <pierre-eric.pelloux-prayer@amd.com>
+Date: Tue, 25 Jul 2023 12:06:21 +0200
+Subject: [PATCH 205/221] Add xc_domain_remove_from_physmap2
+
+This allows qemu to request to not invalidate mapcache.
+
+xen_mapcache isn't used with host blob mapping because mapcache is
+only used for guest RAM -> host mapping.
+
+But when we're removing a mapping this triggers a mapcache invalidation,
+which takes time on thread-1 (thus blocks everything else) and is useless:
+
+xc_domain_remove_from_physmap
+    -> guest_physmap_remove_page
+        -> p2m_remove_page
+            -> p2m_remove_entry
+                -> ioreq_request_mapcache_invalidate(p2m->domain);
+
+So this adds a function to allow qemu to bypass this invalidation.
+
+This fixes SWDEV-406692.
+
+Change-Id: I13acd6f12b9658b6c47d2816c3ef457cc03c13d3
+---
+ tools/include/xenctrl.h     |  5 +++++
+ tools/libs/ctrl/xc_domain.c | 14 ++++++++++++++
+ xen/common/memory.c         |  3 ++-
+ xen/include/public/memory.h |  2 ++
+ 4 files changed, 23 insertions(+), 1 deletion(-)
+
+diff --git a/tools/include/xenctrl.h b/tools/include/xenctrl.h
+index 3918be9e53..2bdcac4c67 100644
+--- a/tools/include/xenctrl.h
++++ b/tools/include/xenctrl.h
+@@ -1342,6 +1342,11 @@ int xc_domain_remove_from_physmap(xc_interface *xch,
+                                   uint32_t domid,
+                                   xen_pfn_t gpfn);
+ 
++int xc_domain_remove_from_physmap2(xc_interface *xch,
++                                   uint32_t domid,
++                                   xen_pfn_t gpfn,
++                                   bool skip_map_cache_inv);
++
+ int xc_domain_populate_physmap(xc_interface *xch,
+                                uint32_t domid,
+                                unsigned long nr_extents,
+diff --git a/tools/libs/ctrl/xc_domain.c b/tools/libs/ctrl/xc_domain.c
+index e939d07157..9e69ad197d 100644
+--- a/tools/libs/ctrl/xc_domain.c
++++ b/tools/libs/ctrl/xc_domain.c
+@@ -1115,6 +1115,20 @@ int xc_domain_remove_from_physmap(xc_interface *xch,
+     struct xen_remove_from_physmap xrfp = {
+         .domid = domid,
+         .gpfn = gpfn,
++        .skip_mapcache_invalidation = false,
++    };
++    return xc_memory_op(xch, XENMEM_remove_from_physmap, &xrfp, sizeof(xrfp));
++}
++
++int xc_domain_remove_from_physmap2(xc_interface *xch,
++                                   uint32_t domid,
++                                   xen_pfn_t gpfn,
++                                   bool skip_mc_inv)
++{
++    struct xen_remove_from_physmap xrfp = {
++        .domid = domid,
++        .gpfn = gpfn,
++        .skip_mapcache_invalidation = skip_mc_inv,
+     };
+     return xc_memory_op(xch, XENMEM_remove_from_physmap, &xrfp, sizeof(xrfp));
+ }
+diff --git a/xen/common/memory.c b/xen/common/memory.c
+index 9db9d44e25..1c5eb19ad2 100644
+--- a/xen/common/memory.c
++++ b/xen/common/memory.c
+@@ -1638,7 +1638,8 @@ long do_memory_op(unsigned long cmd, XEN_GUEST_HANDLE_PARAM(void) arg)
+         if ( page )
+         {
+             rc = guest_physmap_remove_page(d, _gfn(xrfp.gpfn),
+-                                           page_to_mfn(page), 0);
++                                           page_to_mfn(page), 0,
++                                           xrfp.skip_mapcache_invalidation);
+             put_page(page);
+         }
+         else
+diff --git a/xen/include/public/memory.h b/xen/include/public/memory.h
+index c5f0d31e23..9cc0ade812 100644
+--- a/xen/include/public/memory.h
++++ b/xen/include/public/memory.h
+@@ -298,6 +298,8 @@ struct xen_remove_from_physmap {
+ 
+     /* GPFN of the current mapping of the page. */
+     xen_pfn_t     gpfn;
++
++    int skip_mapcache_invalidation; /* WIP */
+ };
+ typedef struct xen_remove_from_physmap xen_remove_from_physmap_t;
+ DEFINE_XEN_GUEST_HANDLE(xen_remove_from_physmap_t);
+-- 
+2.17.1
+

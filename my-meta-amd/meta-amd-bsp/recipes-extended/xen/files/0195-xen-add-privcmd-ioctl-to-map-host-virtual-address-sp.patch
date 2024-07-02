@@ -1,0 +1,205 @@
+From bf075fc5989a9be3ba9a49ce28d3f25cca895192 Mon Sep 17 00:00:00 2001
+From: Huang Rui <ray.huang@amd.com>
+Date: Thu, 30 Mar 2023 05:48:06 +0800
+Subject: [PATCH 195/221] xen: add privcmd ioctl to map host virtual address
+ space to guest
+
+Signed-off-by: Huang Rui <ray.huang@amd.com>
+Change-Id: Iedf34e1f502f664bf31b3ab661618ffbeff5bef6
+(cherry picked from commit 748631370c0e55148b77f6c4aab5bd7c77b6924b)
+---
+ tools/include/xen-sys/Linux/privcmd.h         | 12 +++++++++++
+ tools/include/xenforeignmemory.h              |  4 ++++
+ tools/libs/foreignmemory/core.c               | 11 ++++++++++
+ .../foreignmemory/libxenforeignmemory.map     |  1 +
+ tools/libs/foreignmemory/linux.c              | 21 +++++++++++++++++++
+ tools/libs/foreignmemory/private.h            |  7 +++++++
+ xen/arch/x86/include/asm/p2m.h                |  3 ++-
+ xen/arch/x86/mm/p2m.c                         | 12 ++++++++---
+ 8 files changed, 67 insertions(+), 4 deletions(-)
+
+diff --git a/tools/include/xen-sys/Linux/privcmd.h b/tools/include/xen-sys/Linux/privcmd.h
+index d72e785b5d..6a1fa323fd 100644
+--- a/tools/include/xen-sys/Linux/privcmd.h
++++ b/tools/include/xen-sys/Linux/privcmd.h
+@@ -100,6 +100,16 @@ typedef struct privcmd_gsi_from_irq {
+ 	__u32 gsi;
+ } privcmd_gsi_from_irq_t;
+ 
++typedef struct privcmd_map_hva_to_gpfns {
++	int nr_pages;
++	domid_t hdom;
++	domid_t gdom;
++	__u64 __user hva;
++	const xen_pfn_t __user *gpfns;
++	xen_pfn_t __user *hpfns;
++	int add_mapping;
++} privcmd_map_hva_to_gpfns_t;
++
+ /*
+  * @cmd: IOCTL_PRIVCMD_HYPERCALL
+  * @arg: &privcmd_hypercall_t
+@@ -121,6 +131,8 @@ typedef struct privcmd_gsi_from_irq {
+ 	_IOC(_IOC_NONE, 'P', 7, sizeof(privcmd_mmap_resource_t))
+ #define IOCTL_PRIVCMD_GSI_FROM_IRQ				\
+ 	_IOC(_IOC_NONE, 'P', 8, sizeof(privcmd_gsi_from_irq_t))
++#define IOCTL_PRIVCMD_MAP_HVA_TO_GPFNS				\
++	_IOC(_IOC_NONE, 'P', 13, sizeof(privcmd_map_hva_to_gpfns_t))
+ #define IOCTL_PRIVCMD_UNIMPLEMENTED				\
+ 	_IOC(_IOC_NONE, 'P', 0xFF, 0)
+ 
+diff --git a/tools/include/xenforeignmemory.h b/tools/include/xenforeignmemory.h
+index 0ab1dd19d3..8e2cff608b 100644
+--- a/tools/include/xenforeignmemory.h
++++ b/tools/include/xenforeignmemory.h
+@@ -107,6 +107,10 @@ void *xenforeignmemory_map(xenforeignmemory_handle *fmem, uint32_t dom,
+                            int prot, size_t pages,
+                            const xen_pfn_t arr[/*pages*/], int err[/*pages*/]);
+ 
++int map_hva_to_gpfns(xenforeignmemory_handle *fmem, domid_t hdom, domid_t gdom,
++                     size_t nr_pages, void *hva, const xen_pfn_t gpfns[],
++                     xen_pfn_t hpfns[], int add_mapping);
++
+ /*
+  * Almost like the previous one but also accepts two additional parameters:
+  *
+diff --git a/tools/libs/foreignmemory/core.c b/tools/libs/foreignmemory/core.c
+index 7edc6f0dbf..01a6f23dfd 100644
+--- a/tools/libs/foreignmemory/core.c
++++ b/tools/libs/foreignmemory/core.c
+@@ -80,6 +80,17 @@ int xenforeignmemory_close(xenforeignmemory_handle *fmem)
+     return rc;
+ }
+ 
++#if defined(__linux__)
++int map_hva_to_gpfns(xenforeignmemory_handle *fmem, domid_t hdom,
++                     domid_t gdom, size_t nr_pages, void *hva,
++                     const xen_pfn_t gpfns[], xen_pfn_t hpfns[],
++                     int add_mapping)
++{
++    return osdep_map_hva_to_gpfns(fmem, hdom, gdom, nr_pages,
++                                  hva, gpfns, hpfns, add_mapping);
++}
++#endif
++
+ void *xenforeignmemory_map2(xenforeignmemory_handle *fmem,
+                             uint32_t dom, void *addr,
+                             int prot, int flags, size_t num,
+diff --git a/tools/libs/foreignmemory/libxenforeignmemory.map b/tools/libs/foreignmemory/libxenforeignmemory.map
+index 8aca341b99..36dfdf9856 100644
+--- a/tools/libs/foreignmemory/libxenforeignmemory.map
++++ b/tools/libs/foreignmemory/libxenforeignmemory.map
+@@ -13,6 +13,7 @@ VERS_1.1 {
+ VERS_1.2 {
+ 	global:
+ 		xenforeignmemory_map2;
++		map_hva_to_gpfns;
+ } VERS_1.1;
+ VERS_1.3 {
+ 	global:
+diff --git a/tools/libs/foreignmemory/linux.c b/tools/libs/foreignmemory/linux.c
+index 9062117407..4bdf33ac41 100644
+--- a/tools/libs/foreignmemory/linux.c
++++ b/tools/libs/foreignmemory/linux.c
+@@ -158,6 +158,27 @@ out:
+     return rc;
+ }
+ 
++int osdep_map_hva_to_gpfns(xenforeignmemory_handle *fmem, domid_t hdom,
++                           domid_t gdom, size_t nr_pages, void *hva,
++                           const xen_pfn_t gpfns[], xen_pfn_t hpfns[],
++                           int add_mapping)
++{
++    int rc, fd = fmem->fd;
++    struct privcmd_map_hva_to_gpfns ioctlx;
++
++    ioctlx.nr_pages = nr_pages;
++    ioctlx.hdom = hdom;
++    ioctlx.gdom = gdom;
++    ioctlx.hva = (unsigned long) hva;
++    ioctlx.gpfns = gpfns;
++    ioctlx.hpfns = hpfns;
++    ioctlx.add_mapping = add_mapping;
++
++    rc = ioctl(fd, IOCTL_PRIVCMD_MAP_HVA_TO_GPFNS, &ioctlx);
++
++    return rc;
++}
++
+ void *osdep_xenforeignmemory_map(xenforeignmemory_handle *fmem,
+                                  uint32_t dom, void *addr,
+                                  int prot, int flags, size_t num,
+diff --git a/tools/libs/foreignmemory/private.h b/tools/libs/foreignmemory/private.h
+index 8540303adc..6d0272fe52 100644
+--- a/tools/libs/foreignmemory/private.h
++++ b/tools/libs/foreignmemory/private.h
+@@ -19,6 +19,13 @@ struct xenforeignmemory_handle {
+     int unimpl_errno;
+ };
+ 
++#if defined (__linux__)
++int osdep_map_hva_to_gpfns(xenforeignmemory_handle *fmem, domid_t hdom,
++                           domid_t gdom, size_t nr_pages, void *hva,
++                           const xen_pfn_t gpfns[], xen_pfn_t hpfns[],
++                           int add_mapping);
++#endif
++
+ int osdep_xenforeignmemory_open(xenforeignmemory_handle *fmem);
+ int osdep_xenforeignmemory_close(xenforeignmemory_handle *fmem);
+ 
+diff --git a/xen/arch/x86/include/asm/p2m.h b/xen/arch/x86/include/asm/p2m.h
+index bd684d02f3..9f8f9b2f77 100644
+--- a/xen/arch/x86/include/asm/p2m.h
++++ b/xen/arch/x86/include/asm/p2m.h
+@@ -408,7 +408,8 @@ static inline bool arch_acquire_resource_check(struct domain *d)
+      * resource pages unless the caller is the hardware domain
+      * (see set_foreign_p2m_entry()).
+      */
+-    return !paging_mode_translate(d) || is_hardware_domain(d);
++    return !paging_mode_translate(d) || is_hardware_domain(d) ||
++           is_hardware_domain(current->domain);
+ }
+ 
+ /*
+diff --git a/xen/arch/x86/mm/p2m.c b/xen/arch/x86/mm/p2m.c
+index c5561fe221..0e63f737c6 100644
+--- a/xen/arch/x86/mm/p2m.c
++++ b/xen/arch/x86/mm/p2m.c
+@@ -547,6 +547,7 @@ p2m_remove_entry(struct p2m_domain *p2m, gfn_t gfn, mfn_t mfn,
+         }
+     }
+ 
++    //TODO fix for dma
+     ioreq_request_mapcache_invalidate(p2m->domain);
+ 
+     rc = p2m_set_entry(p2m, gfn, INVALID_MFN, page_order, p2m_invalid,
+@@ -2357,18 +2358,23 @@ static int p2m_add_foreign(struct domain *tdom, unsigned long fgfn,
+         fdom = rcu_lock_domain(dom_xen);
+     else
+     {
+-        rc = rcu_lock_remote_domain_by_id(foreigndom, &fdom);
+-        if ( rc )
+-            return rc;
++        fdom = rcu_lock_domain_by_id(foreigndom);
++        if ( !fdom ) {
++            rc = -EINVAL;
++            printk("%s: failed to rcu_lock_domain_by_id domid=%d\n", __func__, foreigndom);
++             return rc;
++        }
+ 
+         rc = -EINVAL;
+         if ( tdom == fdom )
+             goto out;
+     }
+ 
++    if (0) { //FIXME
+     rc = xsm_map_gmfn_foreign(XSM_TARGET, tdom, fdom);
+     if ( rc )
+         goto out;
++    }
+ 
+     /*
+      * Take a refcnt on the mfn. NB: following supported for foreign mapping:
+-- 
+2.17.1
+

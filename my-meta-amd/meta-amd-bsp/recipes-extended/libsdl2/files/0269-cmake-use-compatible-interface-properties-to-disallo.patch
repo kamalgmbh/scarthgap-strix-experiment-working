@@ -1,0 +1,155 @@
+From 6c495a92f0bbc5637d565b5339afa943a78108f7 Mon Sep 17 00:00:00 2001
+From: Anonymous Maarten <anonymous.maarten@gmail.com>
+Date: Wed, 1 Mar 2023 04:33:43 +0100
+Subject: [PATCH 269/458] cmake: use compatible interface properties to
+ disallow linking to a different version of SDL
+
+---
+ CMakeLists.txt                                       | 12 ++++++++++--
+ VisualC/pkg-support/cmake/sdl2-config.cmake          |  6 ++++++
+ .../pkg-support/resources/CMake/sdl2-config.cmake    |  2 ++
+ sdl2-config.cmake.in                                 | 10 ++++++++++
+ 4 files changed, 28 insertions(+), 2 deletions(-)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 7970eacb1..bb43fbbee 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -3278,6 +3278,8 @@ if(NOT WINDOWS_STORE AND NOT SDL2_DISABLE_SDL2MAIN)
+   if (NOT ANDROID)
+     set_target_properties(SDL2main PROPERTIES DEBUG_POSTFIX "${SDL_CMAKE_DEBUG_POSTFIX}")
+   endif()
++  set_property(TARGET SDL2main APPEND PROPERTY COMPATIBLE_INTERFACE_STRING "SDL_VERSION")
++  set_property(TARGET SDL2main PROPERTY INTERFACE_SDL_VERSION "SDL2")
+ endif()
+ 
+ if(ANDROID)
+@@ -3365,8 +3367,10 @@ if(SDL_SHARED)
+     set_target_properties(SDL2 PROPERTIES DEBUG_POSTFIX "${SDL_CMAKE_DEBUG_POSTFIX}")
+   endif()
+   # Use `Compatible Interface Properties` to allow consumers to enforce a shared/static library
+-  set_property(TARGET SDL2 PROPERTY INTERFACE_SDL2_SHARED TRUE)
+   set_property(TARGET SDL2 APPEND PROPERTY COMPATIBLE_INTERFACE_BOOL SDL2_SHARED)
++  set_property(TARGET SDL2 PROPERTY INTERFACE_SDL2_SHARED TRUE)
++  set_property(TARGET SDL2 APPEND PROPERTY COMPATIBLE_INTERFACE_STRING "SDL_VERSION")
++  set_property(TARGET SDL2 PROPERTY INTERFACE_SDL_VERSION "SDL2")
+ endif()
+ 
+ if(SDL_STATIC)
+@@ -3393,8 +3397,10 @@ if(SDL_STATIC)
+     set_target_properties(SDL2-static PROPERTIES DEBUG_POSTFIX "${SDL_CMAKE_DEBUG_POSTFIX}")
+   endif()
+   # Use `Compatible Interface Properties` to allow consumers to enforce a shared/static library
+-  set_property(TARGET SDL2-static PROPERTY INTERFACE_SDL2_SHARED FALSE)
+   set_property(TARGET SDL2-static APPEND PROPERTY COMPATIBLE_INTERFACE_BOOL SDL2_SHARED)
++  set_property(TARGET SDL2-static PROPERTY INTERFACE_SDL2_SHARED FALSE)
++  set_property(TARGET SDL2-static APPEND PROPERTY  COMPATIBLE_INTERFACE_STRING "SDL_VERSION")
++  set_property(TARGET SDL2-static PROPERTY INTERFACE_SDL_VERSION "SDL2")
+ endif()
+ 
+ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DSDL_BUILD_MAJOR_VERSION=${SDL_MAJOR_VERSION}")
+@@ -3416,6 +3422,8 @@ if(SDL_TEST)
+       "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>"
+       "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/SDL2>")
+   target_link_libraries(SDL2_test PRIVATE ${EXTRA_TEST_LIBS})
++  set_property(TARGET SDL2_test APPEND PROPERTY COMPATIBLE_INTERFACE_STRING "SDL_VERSION")
++  set_property(TARGET SDL2_test PROPERTY INTERFACE_SDL_VERSION "SDL2")
+ endif()
+ 
+ ##### Installation targets #####
+diff --git a/VisualC/pkg-support/cmake/sdl2-config.cmake b/VisualC/pkg-support/cmake/sdl2-config.cmake
+index 1a25259c0..0f03a6305 100644
+--- a/VisualC/pkg-support/cmake/sdl2-config.cmake
++++ b/VisualC/pkg-support/cmake/sdl2-config.cmake
+@@ -68,6 +68,8 @@ if(EXISTS "${_sdl2_library}" AND EXISTS "${_sdl2_dll_library}")
+                 IMPORTED_LOCATION "${_sdl2_dll_library}"
+                 COMPATIBLE_INTERFACE_BOOL "SDL2_SHARED"
+                 INTERFACE_SDL2_SHARED "ON"
++                COMPATIBLE_INTERFACE_STRING "SDL_VERSION"
++                INTERFACE_SDL_VERSION "SDL2"
+         )
+     endif()
+     set(SDL2_SDL2_FOUND TRUE)
+@@ -84,6 +86,8 @@ if(EXISTS "${_sdl2main_library}")
+         set_target_properties(SDL2::SDL2main
+         PROPERTIES
+             IMPORTED_LOCATION "${_sdl2main_library}"
++            COMPATIBLE_INTERFACE_STRING "SDL_VERSION"
++            INTERFACE_SDL_VERSION "SDL2"
+         )
+     endif()
+     set(SDL2_SDL2main_FOUND TRUE)
+@@ -100,6 +104,8 @@ if(EXISTS "${_sdl2test_library}")
+             PROPERTIES
+                 INTERFACE_INCLUDE_DIRECTORIES "${SDL2_INCLUDE_DIRS}"
+                 IMPORTED_LOCATION "${_sdl2test_library}"
++                COMPATIBLE_INTERFACE_STRING "SDL_VERSION"
++                INTERFACE_SDL_VERSION "SDL2"
+         )
+     endif()
+     set(SDL2_SDL2test_FOUND TRUE)
+diff --git a/Xcode/SDL/pkg-support/resources/CMake/sdl2-config.cmake b/Xcode/SDL/pkg-support/resources/CMake/sdl2-config.cmake
+index 28c34bc70..e1b77133b 100644
+--- a/Xcode/SDL/pkg-support/resources/CMake/sdl2-config.cmake
++++ b/Xcode/SDL/pkg-support/resources/CMake/sdl2-config.cmake
+@@ -57,6 +57,8 @@ if(NOT TARGET SDL2::SDL2)
+             INTERFACE_LINK_OPTIONS "SHELL:-F \"${SDL2_FRAMEWORK_PARENT_PATH}\";SHELL:-framework SDL2"
+             COMPATIBLE_INTERFACE_BOOL "SDL2_SHARED"
+             INTERFACE_SDL2_SHARED "ON"
++            COMPATIBLE_INTERFACE_STRING "SDL_VERSION"
++            INTERFACE_SDL_VERSION "SDL2"
+     )
+ endif()
+ set(SDL2_SDL2_FOUND TRUE)
+diff --git a/sdl2-config.cmake.in b/sdl2-config.cmake.in
+index ea2639c74..d75f8b470 100644
+--- a/sdl2-config.cmake.in
++++ b/sdl2-config.cmake.in
+@@ -73,6 +73,8 @@ if(EXISTS "${_sdl2main_library}")
+     set_target_properties(SDL2::SDL2main
+       PROPERTIES
+         IMPORTED_LOCATION "${_sdl2main_library}"
++        COMPATIBLE_INTERFACE_STRING "SDL_VERSION"
++        INTERFACE_SDL_VERSION "SDL2"
+     )
+     if(WIN32)
+       # INTERFACE_LINK_OPTIONS needs CMake 3.13
+@@ -116,6 +118,8 @@ if(WIN32)
+         IMPORTED_LINK_INTERFACE_LANGUAGES "C"
+         IMPORTED_IMPLIB "${_sdl2_implib}"
+         IMPORTED_LOCATION "${_sdl2_dll}"
++        COMPATIBLE_INTERFACE_STRING "SDL_VERSION"
++        INTERFACE_SDL_VERSION "SDL2"
+       )
+     endif()
+     set(SDL2_SDL2_FOUND TRUE)
+@@ -135,6 +139,8 @@ else()
+         INTERFACE_LINK_DIRECTORIES "${_sdl2_libdirs}"
+         IMPORTED_LINK_INTERFACE_LANGUAGES "C"
+         IMPORTED_LOCATION "${_sdl2_shared}"
++        COMPATIBLE_INTERFACE_STRING "SDL_VERSION"
++        INTERFACE_SDL_VERSION "SDL2"
+       )
+     endif()
+     set(SDL2_SDL2_FOUND TRUE)
+@@ -155,6 +161,8 @@ if(EXISTS "${_sdl2_static}")
+         INTERFACE_LINK_LIBRARIES "${_sdl2_link_libraries};${_sdl2_static_private_libs}"
+         INTERFACE_LINK_DIRECTORIES "${_sdl2_libdirs};${_sdl2_static_private_libdirs}"
+         IMPORTED_LINK_INTERFACE_LANGUAGES "C"
++        COMPATIBLE_INTERFACE_STRING "SDL_VERSION"
++        INTERFACE_SDL_VERSION "SDL2"
+     )
+   endif()
+   set(SDL2_SDL2-static_FOUND TRUE)
+@@ -174,6 +182,8 @@ if(EXISTS "${_sdl2test_library}")
+         IMPORTED_LOCATION "${_sdl2test_library}"
+         INTERFACE_INCLUDE_DIRECTORIES "${SDL2_INCLUDE_DIR}"
+         IMPORTED_LINK_INTERFACE_LANGUAGES "C"
++        COMPATIBLE_INTERFACE_STRING "SDL_VERSION"
++        INTERFACE_SDL_VERSION "SDL2"
+     )
+   endif()
+   set(SDL2_SDL2test_FOUND TRUE)
+-- 
+2.17.1
+

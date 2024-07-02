@@ -1,0 +1,122 @@
+From 78247a0fe4196fdf97121abc280ec342ade91964 Mon Sep 17 00:00:00 2001
+From: Stefano Stabellini <stefano.stabellini@amd.com>
+Date: Fri, 21 Apr 2023 15:55:52 -0700
+Subject: [PATCH 085/106] libxl: use maxmem as max memory upper allocation
+ limit
+
+Use target_memkb ("memory") as the initial memory allocation amount
+(plus/minus offsets such as videoram) *and* also e820 limit.
+
+Starting a guest pre-ballooned doesn't work today. The guest always
+starts with the amount of memory specified in the e820.
+
+Clarify the meaning of maxmem to be the max allocation limit in Xen,
+potentially higher than the max memory specified in the e820.
+
+Signed-off-by: Stefano Stabellini <stefano.stabellini@amd.com>
+---
+ tools/libs/light/libxl_create.c |  3 +--
+ tools/libs/light/libxl_dm.c     |  2 +-
+ tools/libs/light/libxl_dom.c    |  6 +++---
+ tools/libs/light/libxl_mem.c    | 14 --------------
+ tools/libs/light/libxl_x86.c    |  1 -
+ 5 files changed, 5 insertions(+), 21 deletions(-)
+
+diff --git a/tools/libs/light/libxl_create.c b/tools/libs/light/libxl_create.c
+index 0008fac607..29a3f72b88 100644
+--- a/tools/libs/light/libxl_create.c
++++ b/tools/libs/light/libxl_create.c
+@@ -1185,8 +1185,7 @@ int libxl__domain_config_setdefault(libxl__gc *gc,
+     /* If target_memkb is smaller than max_memkb, the subsequent call
+      * to libxc when building HVM domain will enable PoD mode.
+      */
+-    pod_enabled = (d_config->c_info.type != LIBXL_DOMAIN_TYPE_PV) &&
+-        (d_config->b_info.target_memkb < d_config->b_info.max_memkb);
++    pod_enabled = false;
+ 
+     /* We don't support having PoD and an IOMMU at the same time for HVM
+      * guests. An active IOMMU cannot work with PoD because it needs a fully
+diff --git a/tools/libs/light/libxl_dm.c b/tools/libs/light/libxl_dm.c
+index 29b43ed20a..df7ce673ab 100644
+--- a/tools/libs/light/libxl_dm.c
++++ b/tools/libs/light/libxl_dm.c
+@@ -1855,7 +1855,7 @@ static int libxl__build_device_model_args_new(libxl__gc *gc,
+         abort();
+     }
+ 
+-    ram_size = libxl__sizekb_to_mb(b_info->max_memkb - b_info->video_memkb);
++    ram_size = libxl__sizekb_to_mb(b_info->target_memkb - b_info->video_memkb);
+     flexarray_append(dm_args, "-m");
+     flexarray_append(dm_args, GCSPRINTF("%"PRId64, ram_size));
+ 
+diff --git a/tools/libs/light/libxl_dom.c b/tools/libs/light/libxl_dom.c
+index 94fef37401..b0c64bc7aa 100644
+--- a/tools/libs/light/libxl_dom.c
++++ b/tools/libs/light/libxl_dom.c
+@@ -355,7 +355,7 @@ int libxl__build_pre(libxl__gc *gc, uint32_t domid,
+         return ERROR_FAIL;
+     }
+ 
+-    if (xc_domain_setmaxmem(ctx->xch, domid, info->target_memkb + size) < 0) {
++    if (xc_domain_setmaxmem(ctx->xch, domid, info->max_memkb + size) < 0) {
+         LOGE(ERROR, "Couldn't set max memory");
+         return ERROR_FAIL;
+     }
+@@ -572,7 +572,7 @@ static int libxl__build_dom(libxl__gc *gc, uint32_t domid,
+     }
+ 
+     mem_kb = dom->container_type == XC_DOM_HVM_CONTAINER ?
+-             (info->max_memkb - info->video_memkb) : info->target_memkb;
++             (info->target_memkb - info->video_memkb) : info->target_memkb;
+     if ( (ret = xc_dom_mem_init(dom, mem_kb / 1024)) != 0 ) {
+         LOGE(ERROR, "xc_dom_mem_init failed");
+         goto out;
+@@ -1087,7 +1087,7 @@ int libxl__build_hvm(libxl__gc *gc, uint32_t domid,
+      * the old xc_hvm_build_target_mem() which then turned them to bytes.
+      * Do all this in one step here...
+      */
+-    mem_size = (uint64_t)(info->max_memkb - info->video_memkb) << 10;
++    mem_size = (uint64_t)(info->target_memkb - info->video_memkb) << 10;
+     dom->target_pages = (uint64_t)(info->target_memkb - info->video_memkb) >> 2;
+     dom->claim_enabled = libxl_defbool_val(info->claim_mode);
+     if (info->u.hvm.mmio_hole_memkb) {
+diff --git a/tools/libs/light/libxl_mem.c b/tools/libs/light/libxl_mem.c
+index 44e554adba..e8cf0710f2 100644
+--- a/tools/libs/light/libxl_mem.c
++++ b/tools/libs/light/libxl_mem.c
+@@ -292,20 +292,6 @@ retry_transaction:
+         goto out;
+     }
+ 
+-    if (enforce) {
+-        memorykb = new_target_memkb + videoram;
+-        r = xc_domain_setmaxmem(ctx->xch, domid, memorykb + size);
+-        if (r != 0) {
+-            LOGED(ERROR, domid,
+-                  "xc_domain_setmaxmem memkb=%"PRIu64" failed ""rc=%d\n",
+-                  memorykb + size,
+-                  r);
+-            abort_transaction = 1;
+-            rc = ERROR_FAIL;
+-            goto out;
+-        }
+-    }
+-
+     if (d_config.c_info.type != LIBXL_DOMAIN_TYPE_PV) {
+         r = xc_domain_set_pod_target(ctx->xch, domid,
+                 (new_target_memkb + size) / 4, NULL, NULL, NULL);
+diff --git a/tools/libs/light/libxl_x86.c b/tools/libs/light/libxl_x86.c
+index a50ec37eb3..2067d3f8b2 100644
+--- a/tools/libs/light/libxl_x86.c
++++ b/tools/libs/light/libxl_x86.c
+@@ -256,7 +256,6 @@ static int e820_host_sanitize(libxl__gc *gc,
+     *nr = rc;
+ 
+     rc = e820_sanitize(gc, map, nr, b_info->target_memkb,
+-                       (b_info->max_memkb - b_info->target_memkb) +
+                        b_info->u.pv.slack_memkb);
+     return rc;
+ }
+-- 
+2.25.1
+

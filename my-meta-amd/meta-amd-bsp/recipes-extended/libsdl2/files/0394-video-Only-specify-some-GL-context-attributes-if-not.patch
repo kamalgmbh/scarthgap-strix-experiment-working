@@ -1,0 +1,83 @@
+From a535cc62a0c747a417554b41ff09cf9d6d4ca675 Mon Sep 17 00:00:00 2001
+From: "Ryan C. Gordon" <icculus@icculus.org>
+Date: Thu, 25 May 2023 10:04:44 -0400
+Subject: [PATCH 394/458] video: Only specify some GL context attributes if not
+ the explicit default.
+
+Just in case it upsets some OpenGL drivers unnecessarily.
+
+Fixes #7730.
+
+(cherry picked from commit d4bc393efebdd45a95430397df106b69b1c26df3)
+---
+ src/video/windows/SDL_windowsopengl.c | 12 ++++++------
+ src/video/x11/SDL_x11opengl.c         | 12 ++++++------
+ 2 files changed, 12 insertions(+), 12 deletions(-)
+
+diff --git a/src/video/windows/SDL_windowsopengl.c b/src/video/windows/SDL_windowsopengl.c
+index 70dac8eae..947e30946 100644
+--- a/src/video/windows/SDL_windowsopengl.c
++++ b/src/video/windows/SDL_windowsopengl.c
+@@ -780,20 +780,20 @@ SDL_GLContext WIN_GL_CreateContext(_THIS, SDL_Window *window)
+                 attribs[iattr++] = _this->gl_config.flags;
+             }
+ 
+-            /* only set if wgl extension is available */
+-            if (_this->gl_data->HAS_WGL_ARB_context_flush_control) {
++            /* only set if wgl extension is available and not the default setting */
++            if ((_this->gl_data->HAS_WGL_ARB_context_flush_control) && (_this->gl_config.release_behavior == 0)) {
+                 attribs[iattr++] = WGL_CONTEXT_RELEASE_BEHAVIOR_ARB;
+                 attribs[iattr++] = _this->gl_config.release_behavior ? WGL_CONTEXT_RELEASE_BEHAVIOR_FLUSH_ARB : WGL_CONTEXT_RELEASE_BEHAVIOR_NONE_ARB;
+             }
+ 
+-            /* only set if wgl extension is available */
+-            if (_this->gl_data->HAS_WGL_ARB_create_context_robustness) {
++            /* only set if wgl extension is available and not the default setting */
++            if ((_this->gl_data->HAS_WGL_ARB_create_context_robustness) && (_this->gl_config.reset_notification != 0)) {
+                 attribs[iattr++] = WGL_CONTEXT_RESET_NOTIFICATION_STRATEGY_ARB;
+                 attribs[iattr++] = _this->gl_config.reset_notification ? WGL_LOSE_CONTEXT_ON_RESET_ARB : WGL_NO_RESET_NOTIFICATION_ARB;
+             }
+ 
+-            /* only set if wgl extension is available */
+-            if (_this->gl_data->HAS_WGL_ARB_create_context_no_error) {
++            /* only set if wgl extension is available and not the default setting */
++            if ((_this->gl_data->HAS_WGL_ARB_create_context_no_error) && (_this->gl_config.no_error != 0)) {
+                 attribs[iattr++] = WGL_CONTEXT_OPENGL_NO_ERROR_ARB;
+                 attribs[iattr++] = _this->gl_config.no_error;
+             }
+diff --git a/src/video/x11/SDL_x11opengl.c b/src/video/x11/SDL_x11opengl.c
+index d71527721..3e95d8d85 100644
+--- a/src/video/x11/SDL_x11opengl.c
++++ b/src/video/x11/SDL_x11opengl.c
+@@ -749,22 +749,22 @@ SDL_GLContext X11_GL_CreateContext(_THIS, SDL_Window *window)
+                 attribs[iattr++] = _this->gl_config.flags;
+             }
+ 
+-            /* only set if glx extension is available */
+-            if (_this->gl_data->HAS_GLX_ARB_context_flush_control) {
++            /* only set if glx extension is available and not the default setting */
++            if ((_this->gl_data->HAS_GLX_ARB_context_flush_control) && (_this->gl_config.release_behavior == 0)) {
+                 attribs[iattr++] = GLX_CONTEXT_RELEASE_BEHAVIOR_ARB;
+                 attribs[iattr++] =
+                     _this->gl_config.release_behavior ? GLX_CONTEXT_RELEASE_BEHAVIOR_FLUSH_ARB : GLX_CONTEXT_RELEASE_BEHAVIOR_NONE_ARB;
+             }
+ 
+-            /* only set if glx extension is available */
+-            if (_this->gl_data->HAS_GLX_ARB_create_context_robustness) {
++            /* only set if glx extension is available and not the default setting */
++            if ((_this->gl_data->HAS_GLX_ARB_create_context_robustness) && (_this->gl_config.reset_notification != 0)) {
+                 attribs[iattr++] = GLX_CONTEXT_RESET_NOTIFICATION_STRATEGY_ARB;
+                 attribs[iattr++] =
+                     _this->gl_config.reset_notification ? GLX_LOSE_CONTEXT_ON_RESET_ARB : GLX_NO_RESET_NOTIFICATION_ARB;
+             }
+ 
+-            /* only set if glx extension is available */
+-            if (_this->gl_data->HAS_GLX_ARB_create_context_no_error) {
++            /* only set if glx extension is available and not the default setting */
++            if ((_this->gl_data->HAS_GLX_ARB_create_context_no_error) && (_this->gl_config.no_error != 0)) {
+                 attribs[iattr++] = GLX_CONTEXT_OPENGL_NO_ERROR_ARB;
+                 attribs[iattr++] = _this->gl_config.no_error;
+             }
+-- 
+2.17.1
+

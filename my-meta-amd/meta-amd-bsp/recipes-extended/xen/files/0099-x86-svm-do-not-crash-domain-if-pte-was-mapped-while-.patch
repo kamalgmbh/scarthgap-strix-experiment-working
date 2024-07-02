@@ -1,0 +1,67 @@
+From ac9fac8ad243517294a313016a0633fd25f17b16 Mon Sep 17 00:00:00 2001
+From: Xenia Ragiadakou <xenia.ragiadakou@amd.com>
+Date: Tue, 26 Mar 2024 12:09:25 +0200
+Subject: [PATCH 099/106] x86/svm: do not crash domain if pte was mapped while
+ in npt fault handler (WA)
+
+Signed-off-by: Xenia Ragiadakou <xenia.ragiadakou@amd.com>
+Change-Id: I9fcd1d17cfc8e22b75174755ff958452661f41e3
+---
+ xen/arch/x86/hvm/svm/svm.c | 24 ++++++++++++++++++++----
+ 1 file changed, 20 insertions(+), 4 deletions(-)
+
+diff --git a/xen/arch/x86/hvm/svm/svm.c b/xen/arch/x86/hvm/svm/svm.c
+index ff991c82cf..7749fcb186 100644
+--- a/xen/arch/x86/hvm/svm/svm.c
++++ b/xen/arch/x86/hvm/svm/svm.c
+@@ -1641,8 +1641,8 @@ static void svm_do_nested_pgfault(struct vcpu *v,
+ {
+     int ret;
+     unsigned long gfn = gpa >> PAGE_SHIFT;
+-    mfn_t mfn = INVALID_MFN;
+-    p2m_type_t p2mt = p2m_invalid;
++    mfn_t mfn = INVALID_MFN, prev_mfn = INVALID_MFN;
++    p2m_type_t p2mt = p2m_invalid, prev_p2mt = p2m_invalid;
+     p2m_access_t p2ma;
+     struct p2m_domain *p2m = NULL;
+ 
+@@ -1658,6 +1658,12 @@ static void svm_do_nested_pgfault(struct vcpu *v,
+         .present = !!(pfec & PFEC_page_present),
+     };
+ 
++    {
++        p2m = p2m_get_p2m(v);
++        prev_mfn = p2m_get_gfn_type_access(p2m, _gfn(gfn), &prev_p2mt,
++                                           &p2ma, 0, NULL, 0);
++    }
++
+     /* These bits are mutually exclusive */
+     if ( pfec & NPT_PFEC_with_gla )
+         npfec.kind = npfec_kind_with_gla;
+@@ -1698,11 +1704,21 @@ static void svm_do_nested_pgfault(struct vcpu *v,
+     }
+ 
+     /* Everything else is an error. */
+-    if ( p2m == NULL )
++    //if ( p2m == NULL )
+     {
+-        p2m = p2m_get_p2m(v);
++        //p2m = p2m_get_p2m(v);
+         mfn = p2m_get_gfn_type_access(p2m, _gfn(gfn), &p2mt, &p2ma, 0, NULL, 0);
+     }
++
++    if ( p2mt == p2m_map_foreign || p2mt == p2m_mmio_direct )
++    {
++        gdprintk(XENLOG_INFO,
++                 "PTE changed while in NPT handler: gpa %#"PRIpaddr
++                 ", mfn %#lx, p2mt %i (prev_p2mt %i prev_mfn %#lx)\n",
++                 gpa, mfn_x(mfn), p2mt, prev_p2mt, mfn_x(prev_mfn));
++        return;
++    }
++
+     gdprintk(XENLOG_ERR,
+          "SVM violation gpa %#"PRIpaddr", mfn %#lx, type %i\n",
+          gpa, mfn_x(mfn), p2mt);
+-- 
+2.25.1
+

@@ -1,0 +1,51 @@
+From 49dd24671569641d832804de550032b6f136abeb Mon Sep 17 00:00:00 2001
+From: Ayan Kumar Halder <ayan.kumar.halder@amd.com>
+Date: Mon, 5 Dec 2022 13:26:27 +0000
+Subject: [PATCH 115/221] xen/Arm: vGICv3: Sysreg emulation is applicable for
+ AArch64 only
+
+Sysreg emulation is 64-bit specific, so guard the calls to
+vgic_v3_emulate_sysreg() as well as the function itself with
+"#ifdef CONFIG_ARM_64".
+
+Signed-off-by: Ayan Kumar Halder <ayan.kumar.halder@amd.com>
+Reviewed-by: Michal Orzel <michal.orzel@amd.com>
+Acked-by: Julien Grall <julien@xen.org>
+---
+ xen/arch/arm/vgic-v3.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/xen/arch/arm/vgic-v3.c b/xen/arch/arm/vgic-v3.c
+index 76b69a7a50..1b0118673c 100644
+--- a/xen/arch/arm/vgic-v3.c
++++ b/xen/arch/arm/vgic-v3.c
+@@ -1510,6 +1510,7 @@ static bool vgic_v3_emulate_sgi1r(struct cpu_user_regs *regs, uint64_t *r,
+     }
+ }
+ 
++#ifdef CONFIG_ARM_64
+ static bool vgic_v3_emulate_sysreg(struct cpu_user_regs *regs, union hsr hsr)
+ {
+     struct hsr_sysreg sysreg = hsr.sysreg;
+@@ -1530,6 +1531,7 @@ static bool vgic_v3_emulate_sysreg(struct cpu_user_regs *regs, union hsr hsr)
+         return false;
+     }
+ }
++#endif
+ 
+ static bool vgic_v3_emulate_cp64(struct cpu_user_regs *regs, union hsr hsr)
+ {
+@@ -1553,8 +1555,10 @@ static bool vgic_v3_emulate_reg(struct cpu_user_regs *regs, union hsr hsr)
+ {
+     switch (hsr.ec)
+     {
++#ifdef CONFIG_ARM_64
+     case HSR_EC_SYSREG:
+         return vgic_v3_emulate_sysreg(regs, hsr);
++#endif
+     case HSR_EC_CP15_64:
+         return vgic_v3_emulate_cp64(regs, hsr);
+     default:
+-- 
+2.17.1
+

@@ -1,0 +1,40 @@
+From a143142682c9f083fbb63c2d62c3f8410ba40ba7 Mon Sep 17 00:00:00 2001
+From: Michal Orzel <michal.orzel@amd.com>
+Date: Tue, 27 Sep 2022 11:47:22 +0200
+Subject: [PATCH 024/221] automation: Add Arm containers to containerize script
+
+Script automation/scripts/containerize makes it easy to build Xen within
+predefined containers from gitlab container registry. This script is
+currently missing the helpers to select Arm containers, so populate the
+necessary entries.
+
+Signed-off-by: Michal Orzel <michal.orzel@amd.com>
+Acked-by: Stefano Stabellini <sstabellini@kernel.org>
+---
+ automation/scripts/containerize | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/automation/scripts/containerize b/automation/scripts/containerize
+index 9d4beca4fa..0f4645c4cc 100755
+--- a/automation/scripts/containerize
++++ b/automation/scripts/containerize
+@@ -25,6 +25,7 @@ die() {
+ BASE="registry.gitlab.com/xen-project/xen"
+ case "_${CONTAINER}" in
+     _alpine) CONTAINER="${BASE}/alpine:3.12" ;;
++    _alpine-arm64v8) CONTAINER="${BASE}/alpine:3.12-arm64v8" ;;
+     _archlinux|_arch) CONTAINER="${BASE}/archlinux:current" ;;
+     _riscv64) CONTAINER="${BASE}/archlinux:riscv64" ;;
+     _centos7) CONTAINER="${BASE}/centos:7" ;;
+@@ -35,6 +36,8 @@ case "_${CONTAINER}" in
+     _stretch|_) CONTAINER="${BASE}/debian:stretch" ;;
+     _buster-gcc-ibt) CONTAINER="${BASE}/debian:buster-gcc-ibt" ;;
+     _unstable|_) CONTAINER="${BASE}/debian:unstable" ;;
++    _unstable-arm32-gcc) CONTAINER="${BASE}/debian:unstable-arm32-gcc" ;;
++    _unstable-arm64v8) CONTAINER="${BASE}/debian:unstable-arm64v8" ;;
+     _trusty) CONTAINER="${BASE}/ubuntu:trusty" ;;
+     _xenial) CONTAINER="${BASE}/ubuntu:xenial" ;;
+     _opensuse-leap|_leap) CONTAINER="${BASE}/suse:opensuse-leap" ;;
+-- 
+2.17.1
+

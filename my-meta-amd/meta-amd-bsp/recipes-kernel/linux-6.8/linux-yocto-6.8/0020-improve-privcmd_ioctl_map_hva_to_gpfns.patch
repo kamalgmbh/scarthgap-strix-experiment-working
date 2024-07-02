@@ -1,0 +1,207 @@
+From 393acb385894e3f7365d08e84ec4cee08c04fad9 Mon Sep 17 00:00:00 2001
+From: Pierre-Eric Pelloux-Prayer <pierre-eric.pelloux-prayer@amd.com>
+Date: Mon, 22 May 2023 17:40:11 +0200
+Subject: [PATCH 20/49] improve privcmd_ioctl_map_hva_to_gpfns
+
+---
+ drivers/xen/privcmd.c | 160 +++++++++++++++++++++++++++++-------------
+ 1 file changed, 110 insertions(+), 50 deletions(-)
+
+diff --git a/drivers/xen/privcmd.c b/drivers/xen/privcmd.c
+index a8b613304c99..20a6c711ed3c 100644
+--- a/drivers/xen/privcmd.c
++++ b/drivers/xen/privcmd.c
+@@ -1509,7 +1509,7 @@ static long privcmd_ioctl_map_hva_to_gpfns(struct file *file, void __user *udata
+ 	struct privcmd_map_hva_to_gpfns data;
+ 	unsigned long hva;
+ 	unsigned long *hpfns;
+-	int i, ret=0;
++	int i, ret=0, hpfns_count = 0;
+ 	bool is_userspace;
+ 
+ 	if (copy_from_user(&data, udata, sizeof(data))) {
+@@ -1520,72 +1520,132 @@ static long privcmd_ioctl_map_hva_to_gpfns(struct file *file, void __user *udata
+ 	hpfns = kmalloc(data.nr_pages * sizeof(*hpfns), GFP_KERNEL);
+ 	if (!hpfns)
+ 		return -ENOMEM;
+-	hva = data.hva;
+ 
+-	mmap_read_lock(mm);
+-	vma = find_vma(mm, hva);
+-	if (!vma) {
+-		mmap_read_unlock(mm);
+-		kfree(hpfns);
+-		printk(KERN_WARNING "%s: vma for hva=0x%lx not found\n", __func__, hva);
++	if (data.hva & ~PAGE_MASK) {
++		printk(KERN_WARNING "%s: 0x%llx & PAGE_MASK = 0x%llx\n",
++			   __func__, data.hva, data.hva & ~PAGE_MASK);
+ 		return -EINVAL;
+ 	}
+ 
+-	is_userspace = !(vma->vm_flags & (VM_IO | VM_PFNMAP));
+-	if (is_userspace) {
+-		struct page **pages;
++	hva = data.hva;
+ 
+-		pages = kmalloc(data.nr_pages * sizeof(*pages), GFP_KERNEL);
+-		if (!pages) {
+-			ret = -ENOMEM;
+-			goto out;
++	mmap_read_lock(mm);
++
++#if 0
++	printk(KERN_WARNING "%s: hva range=0x%lx:0x%lx [nr_pages: %d]\n",
++			__func__, hva, hva + data.nr_pages * PAGE_SIZE - 1, data.nr_pages);
++#endif
++
++	while (hpfns_count < data.nr_pages) {
++		#if 0
++		printk(KERN_WARNING "hva: 0x%lx nr_pages: %d / %d\n",
++			hva, hpfns_count, data.nr_pages);
++		#endif
++
++		int num_pages_in_vma_from_hva, num_pages;
++
++		/* Lookup vma for the current hva */
++		vma = vma_lookup(mm, hva);
++		if (!vma) {
++			mmap_read_unlock(mm);
++			kfree(hpfns);
++			printk(KERN_WARNING "%s: vma for hva=0x%lx not found\n", __func__, hva);
++			return -EINVAL;
+ 		}
+-		if (1/*data.add_mapping*/) {
+-			ret = pin_user_pages(hva, data.nr_pages, FOLL_WRITE, pages);
+-			if (ret != data.nr_pages) {
+-				printk(KERN_WARNING "failed to pin!!\n");
++
++		/* Is this a userspace memory allocation (malloc or similar)? */
++		is_userspace = !(vma->vm_flags & (VM_IO | VM_PFNMAP));
++
++		/* How many pages in this vma (might be smaller than data.nr_pages) */
++		num_pages_in_vma_from_hva = (vma->vm_end - hva) / PAGE_SIZE;
++		num_pages = min(num_pages_in_vma_from_hva, data.nr_pages - hpfns_count);
++
++#if 0
++		printk(KERN_WARNING "found vma [0x%lx:0x%lx] n_pages_from_hva: %d num_pages: %d | is_userspace: %d\n",
++			vma->vm_start, vma->vm_end, num_pages_in_vma_from_hva, num_pages, is_userspace);
++#endif
++
++		if (is_userspace) {
++			struct page **pages;
++			pages = kmalloc(num_pages * sizeof(*pages), GFP_KERNEL);
++			if (!pages) {
++				ret = -ENOMEM;
+ 				goto out;
+ 			}
+-			for (i = 0; i < data.nr_pages; i++)
+-				hpfns[i] = page_to_pfn(pages[i]);
+-		}
+-		kfree(pages);
+-		ret = 0;
+-		goto out;
+-	}
+ 
+-	for (i = 0; i < data.nr_pages; i++) {
+-		unsigned long start = hva + i * PAGE_SIZE;
+-		pte_t *ptep;
+-		spinlock_t *ptl;
++			if (1/*data.add_mapping*/) {
++				ret = pin_user_pages(hva, num_pages, FOLL_WRITE, pages);
+ 
+-		ret = follow_pte(vma->vm_mm, start, &ptep, &ptl);
+-		if (ret) {
+-			bool unlocked = false;
+-			ret = fixup_user_fault(mm, start, 0, &unlocked);
+-			/*
+-			TODO: returning -EAGAIN isn't correct here.
+-			      The right thing to do would be to retry as hva_to_pfn
+-			      is doing.
+-			if (unlocked)
+-				ret = -EAGAIN;
+-			*/
+-			if (ret) {
+-				printk(KERN_WARNING "@@@ fixup_user_fault failed\n");
+-				break;;
++				if (ret != num_pages) {
++					printk(KERN_WARNING "failed to pin [%d:%d[/%d\n", hpfns_count, hpfns_count + num_pages, data.nr_pages);
++					break;
++				}
++
++				/* Store pfns */
++				for (i = 0; i < ret; i++)
++					hpfns[hpfns_count + i] = page_to_pfn(pages[i]);
++				hpfns_count += ret;
++
++				/* Update hva */
++				hva += num_pages * PAGE_SIZE;
++
++				/* Signal success */
++				ret = 0;
+ 			}
+-			ret = follow_pte(vma->vm_mm, start, &ptep, &ptl);
+-			if (ret) {
+-				printk(KERN_WARNING "@@@ follow_pte not again!!!\n");
+-				break;
++			kfree(pages);
++		} else {
++			for (i = 0; i < num_pages; i++) {
++				pte_t *ptep;
++				spinlock_t *ptl;
++
++				ret = follow_pte(vma->vm_mm, hva, &ptep, &ptl);
++				if (ret) {
++					bool unlocked = false;
++					ret = fixup_user_fault(mm, hva, FAULT_FLAG_WRITE /* or 0? */, &unlocked);
++
++					if (unlocked) {
++#if 0
++						printk("retry 0x%lx\n", hva);
++#endif
++						/* Retry the same hva (based on hva_to_pfn / hva_to_pfn_remapped) */
++						ret = 0;
++						break;
++					}
++
++					if (ret) {
++						printk(KERN_WARNING "@@@ fixup_user_fault %d/%d failed [%d]\n", hpfns_count, data.nr_pages, ret);
++						break;
++					}
++					ret = follow_pte(vma->vm_mm, hva, &ptep, &ptl);
++					if (ret) {
++						printk(KERN_WARNING "@@@ follow_pte %d/%d failed [%d]\n", hpfns_count, data.nr_pages, ret);
++						break;
++					}
++				}
++				hpfns[hpfns_count] = pte_pfn(*ptep);
++				pte_unmap_unlock(ptep, ptl);
++
++				/* Increase the out counter */
++				hpfns_count += 1;
++				/* Process the next page. */
++				hva += PAGE_SIZE;
+ 			}
+ 		}
+-		hpfns[i] = pte_pfn(*ptep);
+-		pte_unmap_unlock(ptep, ptl);
++		if (ret) {
++			printk(KERN_WARNING "Error %d for hva 0x%lx\n", ret, hva);
++			break;
++		}
+ 	}
+  out:
+ 	mmap_read_unlock(mm);
+ 
++	WARN_ON(hpfns_count > data.nr_pages);
++
++	if (hpfns_count != data.nr_pages) {
++		printk(KERN_WARNING "%s: only %d out of %d\n", __func__, hpfns_count, data.nr_pages);
++		ret = -EFAULT;
++	}
++
+ 	if (copy_to_user(data.hpfns, hpfns, data.nr_pages * sizeof(*hpfns))) {
+ 		printk(KERN_WARNING "%s: failed to copy to user hfns\n", __func__);
+ 		ret = -EFAULT;
+-- 
+2.17.1
+

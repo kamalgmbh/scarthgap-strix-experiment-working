@@ -1,0 +1,109 @@
+From e8ec8ba1d4626ac0c697eb7cbd9dae95c48e74d0 Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Thu, 27 Apr 2023 17:10:44 -0700
+Subject: [PATCH 377/458] Added support for the Astro C40 in Xbox 360 mode
+
+(cherry picked from commit a4b4dff4a2998699757f12d29fdd4c632db884fe)
+---
+ .../app/src/main/java/org/libsdl/app/HIDDeviceManager.java    | 1 +
+ src/hidapi/libusb/hid.c                                       | 1 +
+ src/joystick/controller_type.c                                | 2 +-
+ src/joystick/hidapi/SDL_hidapi_xbox360.c                      | 4 ++++
+ src/joystick/hidapi/SDL_hidapijoystick.c                      | 1 +
+ src/joystick/usb_ids.h                                        | 2 ++
+ 6 files changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/android-project/app/src/main/java/org/libsdl/app/HIDDeviceManager.java b/android-project/app/src/main/java/org/libsdl/app/HIDDeviceManager.java
+index 30e9416a4..2a60fb46d 100644
+--- a/android-project/app/src/main/java/org/libsdl/app/HIDDeviceManager.java
++++ b/android-project/app/src/main/java/org/libsdl/app/HIDDeviceManager.java
+@@ -252,6 +252,7 @@ public class HIDDeviceManager {
+             0x24c6, // PowerA
+             0x2c22, // Qanba
+             0x2dc8, // 8BitDo
++            0x9886, // ASTRO Gaming
+         };
+ 
+         if (usbInterface.getInterfaceClass() == UsbConstants.USB_CLASS_VENDOR_SPEC &&
+diff --git a/src/hidapi/libusb/hid.c b/src/hidapi/libusb/hid.c
+index a93d1ef1b..98eaa0e69 100644
+--- a/src/hidapi/libusb/hid.c
++++ b/src/hidapi/libusb/hid.c
+@@ -689,6 +689,7 @@ static int is_xbox360(unsigned short vendor_id, const struct libusb_interface_de
+ 		0x24c6, /* PowerA */
+ 		0x2c22, /* Qanba */
+ 		0x2dc8, /* 8BitDo */
++        0x9886, /* ASTRO Gaming */
+ 	};
+ 
+ 	if (intf_desc->bInterfaceClass == LIBUSB_CLASS_VENDOR_SPEC &&
+diff --git a/src/joystick/controller_type.c b/src/joystick/controller_type.c
+index 6e06326d4..1944200cb 100644
+--- a/src/joystick/controller_type.c
++++ b/src/joystick/controller_type.c
+@@ -149,6 +149,7 @@ static const ControllerDescription_t arrControllers[] = {
+ 	{ MAKE_CONTROLLER_ID( 0x2c22, 0x2500 ), k_eControllerType_PS4Controller, NULL },	// Qanba Dragon
+ 	{ MAKE_CONTROLLER_ID( 0x2c22, 0x2503 ), k_eControllerType_XInputPS4Controller, NULL },	// Qanba Dragon Arcade Joystick
+ 	{ MAKE_CONTROLLER_ID( 0x7545, 0x0104 ), k_eControllerType_PS4Controller, NULL },	// Armor 3 or Level Up Cobra - At least one variant has gyro
++    { MAKE_CONTROLLER_ID (0x9886, 0x0024 ), k_eControllerType_XInputPS4Controller, NULL },  // Astro C40 in Xbox 360 mode
+ 	{ MAKE_CONTROLLER_ID( 0x9886, 0x0025 ), k_eControllerType_PS4Controller, NULL },	// Astro C40
+ 	// Removing the Giotek because there were a bunch of help tickets from users w/ issues including from non-PS4 controller users. This VID/PID is probably used in different FW's
+ //	{ MAKE_CONTROLLER_ID( 0x7545, 0x1122 ), k_eControllerType_PS4Controller, NULL },	// Giotek VX4 - trackpad/gyro don't work. Had to not filter on interface info. Light bar is flaky, but works.
+@@ -469,7 +470,6 @@ static const ControllerDescription_t arrControllers[] = {
+ 
+ 	{ MAKE_CONTROLLER_ID( 0x2f24, 0x0050 ), k_eControllerType_XBoxOneController, NULL },	// Unknown Controller
+ 	{ MAKE_CONTROLLER_ID( 0x2f24, 0x2e ), k_eControllerType_XBoxOneController, NULL },	// Unknown Controller
+-	{ MAKE_CONTROLLER_ID( 0x9886, 0x24 ), k_eControllerType_XBoxOneController, NULL },	// Unknown Controller
+ 	{ MAKE_CONTROLLER_ID( 0x2f24, 0x91 ), k_eControllerType_XBoxOneController, NULL },	// Unknown Controller
+ 	{ MAKE_CONTROLLER_ID( 0x1430, 0x719 ), k_eControllerType_XBoxOneController, NULL },	// Unknown Controller
+ 	{ MAKE_CONTROLLER_ID( 0xf0d, 0xed ), k_eControllerType_XBoxOneController, NULL },	// Unknown Controller
+diff --git a/src/joystick/hidapi/SDL_hidapi_xbox360.c b/src/joystick/hidapi/SDL_hidapi_xbox360.c
+index 1d684b09f..63e8f9191 100644
+--- a/src/joystick/hidapi/SDL_hidapi_xbox360.c
++++ b/src/joystick/hidapi/SDL_hidapi_xbox360.c
+@@ -67,6 +67,10 @@ static SDL_bool HIDAPI_DriverXbox360_IsSupportedDevice(SDL_HIDAPI_Device *device
+ {
+     const int XB360W_IFACE_PROTOCOL = 129; /* Wireless */
+ 
++    if (vendor_id == USB_VENDOR_ASTRO && product_id == USB_PRODUCT_ASTRO_C40_XBOX360) {
++        /* This is the ASTRO C40 in Xbox 360 mode */
++        return SDL_TRUE;
++    }
+     if (vendor_id == USB_VENDOR_NVIDIA) {
+         /* This is the NVIDIA Shield controller which doesn't talk Xbox controller protocol */
+         return SDL_FALSE;
+diff --git a/src/joystick/hidapi/SDL_hidapijoystick.c b/src/joystick/hidapi/SDL_hidapijoystick.c
+index 1b286b848..6364930ce 100644
+--- a/src/joystick/hidapi/SDL_hidapijoystick.c
++++ b/src/joystick/hidapi/SDL_hidapijoystick.c
+@@ -247,6 +247,7 @@ static SDL_GameControllerType SDL_GetJoystickGameControllerProtocol(const char *
+             0x24c6, /* PowerA */
+             0x2c22, /* Qanba */
+             0x2dc8, /* 8BitDo */
++            0x9886, /* ASTRO Gaming */
+         };
+ 
+         int i;
+diff --git a/src/joystick/usb_ids.h b/src/joystick/usb_ids.h
+index fa705a062..bc9e319e4 100644
+--- a/src/joystick/usb_ids.h
++++ b/src/joystick/usb_ids.h
+@@ -27,6 +27,7 @@
+ #define USB_VENDOR_8BITDO       0x2dc8
+ #define USB_VENDOR_AMAZON       0x1949
+ #define USB_VENDOR_APPLE        0x05ac
++#define USB_VENDOR_ASTRO        0x9886
+ #define USB_VENDOR_BACKBONE     0x358a
+ #define USB_VENDOR_DRAGONRISE   0x0079
+ #define USB_VENDOR_GOOGLE       0x18d1
+@@ -53,6 +54,7 @@
+ 
+ #define USB_PRODUCT_8BITDO_XBOX_CONTROLLER                0x2002
+ #define USB_PRODUCT_AMAZON_LUNA_CONTROLLER                0x0419
++#define USB_PRODUCT_ASTRO_C40_XBOX360                     0x0024
+ #define USB_PRODUCT_BACKBONE_ONE_IOS                      0x0103
+ #define USB_PRODUCT_BACKBONE_ONE_IOS_PS5                  0x0104
+ #define USB_PRODUCT_GOOGLE_STADIA_CONTROLLER              0x9400
+-- 
+2.17.1
+

@@ -1,0 +1,129 @@
+From 63b8af3558ffe7dad6982ccc76076ffbab00e528 Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Tue, 23 May 2023 17:23:30 -0700
+Subject: [PATCH 393/458] Disable unused local typedefs warning
+
+This triggers on gcc 4.8.4 for compile time asserts inside of functions
+
+Fixes https://github.com/libsdl-org/SDL/issues/7732
+
+Co-authored-by: Ozkan Sezer <sezeroz@gmail.com>
+---
+ CMakeLists.txt |  5 +++++
+ configure      | 36 ++++++++++++++++++++++++++++++++++++
+ configure.ac   | 22 ++++++++++++++++++++++
+ 3 files changed, 63 insertions(+)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 376748b38..8ec3f3b97 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -641,6 +641,11 @@ if(USE_GCC OR USE_CLANG OR USE_INTELCC)
+     list(APPEND EXTRA_CFLAGS "-Wshadow")
+   endif()
+ 
++  check_c_compiler_flag(-Wunused-local-typedefs HAVE_GCC_WUNUSED_LOCAL_TYPEDEFS)
++  if(HAVE_GCC_WUNUSED_LOCAL_TYPEDEFS)
++    list(APPEND EXTRA_CFLAGS "-Wno-unused-local-typedefs")
++  endif()
++
+   if(APPLE)
+     cmake_push_check_state(RESET)
+     # FIXME: don't use deprecated declarations
+diff --git a/configure b/configure
+index 21878a5f7..d7bf36ecd 100755
+--- a/configure
++++ b/configure
+@@ -23225,6 +23225,41 @@ printf "%s\n" "$need_gcc_Wno_multichar" >&6; }
+     fi
+ }
+ 
++CheckUnusedLocalTypedefs()
++{
++    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for GCC -Wunused-local-typedefs option" >&5
++printf %s "checking for GCC -Wunused-local-typedefs option... " >&6; }
++    have_gcc_unused_local_typedefs=no
++
++    save_CFLAGS="$CFLAGS"
++    CFLAGS="$save_CFLAGS -Wunused-local-typedefs"
++    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
++/* end confdefs.h.  */
++
++    int x = 0;
++
++int
++main (void)
++{
++
++  ;
++  return 0;
++}
++_ACEOF
++if ac_fn_c_try_compile "$LINENO"
++then :
++  have_gcc_unused_local_typedefs=yes
++fi
++rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
++    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $have_gcc_unused_local_typedefs" >&5
++printf "%s\n" "$have_gcc_unused_local_typedefs" >&6; }
++    CFLAGS="$save_CFLAGS"
++
++    if test x$have_gcc_unused_local_typedefs = xyes; then
++        EXTRA_CFLAGS="$EXTRA_CFLAGS -Wno-unused-local-typedefs"
++    fi
++}
++
+ CheckWayland()
+ {
+     # Check whether --enable-video-wayland was given.
+@@ -28571,6 +28606,7 @@ printf "%s\n" "#define SDL_JOYSTICK_VIRTUAL 1" >>confdefs.h
+ }
+ 
+ CheckWarnAll
++CheckUnusedLocalTypedefs
+ CheckNoStrictAliasing
+ 
+ CheckEventSignals
+diff --git a/configure.ac b/configure.ac
+index 4f41b3aaa..dc24859b2 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -1674,6 +1674,27 @@ dnl Haiku headers use multicharacter constants all over the place. Ignore these
+     fi
+ }
+ 
++dnl See if GCC's -Wunused-local-typedefs is supported and disable it
++dnl  because it triggers on gcc 4.8.4 for compile time asserts inside
++dnl  of functions.
++CheckUnusedLocalTypedefs()
++{
++    AC_MSG_CHECKING(for GCC -Wunused-local-typedefs option)
++    have_gcc_unused_local_typedefs=no
++
++    save_CFLAGS="$CFLAGS"
++    CFLAGS="$save_CFLAGS -Wunused-local-typedefs"
++    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
++    int x = 0;
++    ]],[])], [have_gcc_unused_local_typedefs=yes],[])
++    AC_MSG_RESULT($have_gcc_unused_local_typedefs)
++    CFLAGS="$save_CFLAGS"
++
++    if test x$have_gcc_unused_local_typedefs = xyes; then
++        EXTRA_CFLAGS="$EXTRA_CFLAGS -Wno-unused-local-typedefs"
++    fi
++}
++
+ dnl Check for Wayland
+ CheckWayland()
+ {
+@@ -3746,6 +3767,7 @@ CheckVirtualJoystick()
+ 
+ dnl Do this on all platforms, before everything else (other things might want to override it).
+ CheckWarnAll
++CheckUnusedLocalTypedefs
+ CheckNoStrictAliasing
+ 
+ dnl Do this for every platform, but for some it doesn't mean anything, but better to catch it here anyhow.
+-- 
+2.17.1
+

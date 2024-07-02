@@ -1,0 +1,122 @@
+From ea7103088fde8c427353cd97d2a5f4e698ea2299 Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Thu, 23 Feb 2023 11:57:48 -0800
+Subject: [PATCH 242/458] Added support for the Backbone One PlayStation
+ Edition
+
+(cherry picked from commit 59bf1c2853d5b06295c939099f6cf5f1611f70b5)
+---
+ src/joystick/SDL_gamecontrollerdb.h     |  2 ++
+ src/joystick/controller_type.c          |  3 ++-
+ src/joystick/iphoneos/SDL_mfijoystick.m | 20 ++++++++++++++++++--
+ src/joystick/usb_ids.h                  |  3 +++
+ 4 files changed, 25 insertions(+), 3 deletions(-)
+
+diff --git a/src/joystick/SDL_gamecontrollerdb.h b/src/joystick/SDL_gamecontrollerdb.h
+index 03d1bc1fb..6362af562 100644
+--- a/src/joystick/SDL_gamecontrollerdb.h
++++ b/src/joystick/SDL_gamecontrollerdb.h
+@@ -954,6 +954,8 @@ static const char *s_ControllerMappings[] = {
+     "05000000ac05000001000000df076d01,*,a:b0,b:b1,back:b8,dpdown:h0.4,dpleft:h0.8,dpright:h0.2,dpup:h0.1,leftshoulder:b4,leftstick:b6,lefttrigger:a2,leftx:a0,lefty:a1,rightshoulder:b5,rightstick:b7,righttrigger:a5,rightx:a3,righty:a4,start:b9,x:b2,y:b3,",
+     "05000000ac05000001000000ff076d01,*,a:b0,b:b1,back:b8,dpdown:h0.4,dpleft:h0.8,dpright:h0.2,dpup:h0.1,guide:b9,leftshoulder:b4,leftstick:b6,lefttrigger:a2,leftx:a0,lefty:a1,rightshoulder:b5,rightstick:b7,righttrigger:a5,rightx:a3,righty:a4,start:b10,x:b2,y:b3,",
+     "05000000ac050000020000004f066d02,*,a:b0,b:b1,dpdown:h0.4,dpleft:h0.8,dpright:h0.2,dpup:h0.1,guide:b6,leftshoulder:b4,rightshoulder:b5,x:b2,y:b3,",
++    "050000008a35000001010000ff070000,Backbone One,a:b0,b:b1,back:b8,dpdown:h0.4,dpleft:h0.8,dpright:h0.2,dpup:h0.1,leftshoulder:b4,leftstick:b6,lefttrigger:a2,leftx:a0,lefty:a1,rightshoulder:b5,rightstick:b7,righttrigger:a5,rightx:a3,righty:a4,start:b10,x:b2,y:b3,",
++    "050000008a35000002010000ff070000,Backbone One,a:b0,b:b1,back:b8,dpdown:h0.4,dpleft:h0.8,dpright:h0.2,dpup:h0.1,leftshoulder:b4,leftstick:b6,lefttrigger:a2,leftx:a0,lefty:a1,rightshoulder:b5,rightstick:b7,righttrigger:a5,rightx:a3,righty:a4,start:b10,x:b2,y:b3,",
+     "050000007e050000062000000f060000,Nintendo Switch Joy-Con (L),+leftx:h0.2,+lefty:h0.4,-leftx:h0.8,-lefty:h0.1,a:b2,b:b0,leftshoulder:b4,rightshoulder:b5,x:b3,y:b1,hint:SDL_GAMECONTROLLER_USE_BUTTON_LABELS:=1,",
+     "050000007e050000062000000f060000,Nintendo Switch Joy-Con (L),+leftx:h0.2,+lefty:h0.4,-leftx:h0.8,-lefty:h0.1,a:b0,b:b2,leftshoulder:b4,rightshoulder:b5,x:b1,y:b3,hint:!SDL_GAMECONTROLLER_USE_BUTTON_LABELS:=1,",
+     "050000007e050000062000004f060000,Nintendo Switch Joy-Con (L),+leftx:h0.2,+lefty:h0.4,-leftx:h0.8,-lefty:h0.1,a:b2,b:b0,guide:b6,leftshoulder:b4,rightshoulder:b5,x:b3,y:b1,hint:SDL_GAMECONTROLLER_USE_BUTTON_LABELS:=1,",
+diff --git a/src/joystick/controller_type.c b/src/joystick/controller_type.c
+index b288b51ac..d4c1e98b9 100644
+--- a/src/joystick/controller_type.c
++++ b/src/joystick/controller_type.c
+@@ -153,12 +153,13 @@ static const ControllerDescription_t arrControllers[] = {
+ 	// Removing the Giotek because there were a bunch of help tickets from users w/ issues including from non-PS4 controller users. This VID/PID is probably used in different FW's
+ //	{ MAKE_CONTROLLER_ID( 0x7545, 0x1122 ), k_eControllerType_PS4Controller, NULL },	// Giotek VX4 - trackpad/gyro don't work. Had to not filter on interface info. Light bar is flaky, but works.
+ 
+-	{ MAKE_CONTROLLER_ID( 0x054c, 0x0ce6 ), k_eControllerType_PS5Controller, NULL },	// Sony PS5 Controller
++	{ MAKE_CONTROLLER_ID( 0x054c, 0x0ce6 ), k_eControllerType_PS5Controller, NULL },	// Sony DualSense Controller
+ 	{ MAKE_CONTROLLER_ID( 0x054c, 0x0df2 ), k_eControllerType_PS5Controller, NULL },	// Sony DualSense Edge Controller
+ 	{ MAKE_CONTROLLER_ID( 0x0f0d, 0x0163 ), k_eControllerType_PS5Controller, NULL },	// HORI Fighting Commander OCTA
+ 	{ MAKE_CONTROLLER_ID( 0x0f0d, 0x0184 ), k_eControllerType_PS5Controller, NULL },	// Hori Fighting Stick α
+ 	{ MAKE_CONTROLLER_ID( 0x1532, 0x100b ), k_eControllerType_PS5Controller, NULL },	// Razer Wolverine V2 Pro (Wired)
+ 	{ MAKE_CONTROLLER_ID( 0x1532, 0x100c ), k_eControllerType_PS5Controller, NULL },	// Razer Wolverine V2 Pro (Wireless)
++	{ MAKE_CONTROLLER_ID( 0x358a, 0x0102 ), k_eControllerType_PS5Controller, NULL },	// Backbone One DualSense style controller for iOS
+ 
+ 	{ MAKE_CONTROLLER_ID( 0x0079, 0x0006 ), k_eControllerType_UnknownNonSteamController, NULL },	// DragonRise Generic USB PCB, sometimes configured as a PC Twin Shock Controller - looks like a DS3 but the face buttons are 1-4 instead of symbols
+ 
+diff --git a/src/joystick/iphoneos/SDL_mfijoystick.m b/src/joystick/iphoneos/SDL_mfijoystick.m
+index 3954ea35e..17de0182d 100644
+--- a/src/joystick/iphoneos/SDL_mfijoystick.m
++++ b/src/joystick/iphoneos/SDL_mfijoystick.m
+@@ -216,6 +216,13 @@ static BOOL IsControllerStadia(GCController *controller)
+     }
+     return FALSE;
+ }
++static BOOL IsControllerBackboneOne(GCController *controller)
++{
++    if ([controller.vendorName hasPrefix:@"Backbone One"]) {
++        return TRUE;
++    }
++    return FALSE;
++}
+ static BOOL IOS_AddMFIJoystickDevice(SDL_JoystickDeviceItem *device, GCController *controller)
+ {
+     Uint16 vendor = 0;
+@@ -264,6 +271,7 @@ static BOOL IOS_AddMFIJoystickDevice(SDL_JoystickDeviceItem *device, GCControlle
+         BOOL is_switch_pro = IsControllerSwitchPro(controller);
+         BOOL is_switch_joycon_pair = IsControllerSwitchJoyConPair(controller);
+         BOOL is_stadia = IsControllerStadia(controller);
++        BOOL is_backbone_one = IsControllerBackboneOne(controller);
+         int nbuttons = 0;
+         BOOL has_direct_menu;
+ 
+@@ -357,7 +365,15 @@ static BOOL IOS_AddMFIJoystickDevice(SDL_JoystickDeviceItem *device, GCControlle
+ #endif
+ #pragma clang diagnostic pop
+ 
+-        if (is_xbox) {
++        if (is_backbone_one) {
++            vendor = USB_VENDOR_BACKBONE;
++            if (is_ps5) {
++                product = USB_PRODUCT_BACKBONE_ONE_IOS_PS5;
++            } else {
++                product = USB_PRODUCT_BACKBONE_ONE_IOS;
++            }
++            subtype = 0;
++        } else if (is_xbox) {
+             vendor = USB_VENDOR_MICROSOFT;
+             if (device->has_xbox_paddles) {
+                 /* Assume Xbox One Elite Series 2 Controller unless/until GCController flows VID/PID */
+@@ -399,7 +415,7 @@ static BOOL IOS_AddMFIJoystickDevice(SDL_JoystickDeviceItem *device, GCControlle
+             subtype = 1;
+         }
+ 
+-        if (SDL_strcmp(name, "Backbone One") == 0) {
++        if (is_backbone_one) {
+             /* The Backbone app uses share button */
+             if ((device->button_mask & (1 << SDL_CONTROLLER_BUTTON_MISC1)) != 0) {
+                 device->button_mask &= ~(1 << SDL_CONTROLLER_BUTTON_MISC1);
+diff --git a/src/joystick/usb_ids.h b/src/joystick/usb_ids.h
+index 0520d92b5..fa8718538 100644
+--- a/src/joystick/usb_ids.h
++++ b/src/joystick/usb_ids.h
+@@ -27,6 +27,7 @@
+ #define USB_VENDOR_8BITDO       0x2dc8
+ #define USB_VENDOR_AMAZON       0x1949
+ #define USB_VENDOR_APPLE        0x05ac
++#define USB_VENDOR_BACKBONE     0x358a
+ #define USB_VENDOR_DRAGONRISE   0x0079
+ #define USB_VENDOR_GOOGLE       0x18d1
+ #define USB_VENDOR_HORI         0x0f0d
+@@ -73,6 +74,8 @@
+ 
+ #define USB_PRODUCT_8BITDO_XBOX_CONTROLLER                0x2002
+ #define USB_PRODUCT_AMAZON_LUNA_CONTROLLER                0x0419
++#define USB_PRODUCT_BACKBONE_ONE_IOS                      0x0101
++#define USB_PRODUCT_BACKBONE_ONE_IOS_PS5                  0x0102
+ #define USB_PRODUCT_GOOGLE_STADIA_CONTROLLER              0x9400
+ #define USB_PRODUCT_EVORETRO_GAMECUBE_ADAPTER             0x1846
+ #define USB_PRODUCT_HORI_FIGHTING_COMMANDER_OCTA_SERIES_X 0x0150
+-- 
+2.17.1
+

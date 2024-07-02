@@ -1,0 +1,24 @@
+From 7ac43cfb6be0559f54a2f4c1b26fe536c10de544 Mon Sep 17 00:00:00 2001
+From: "Ryan C. Gordon" <icculus@icculus.org>
+Date: Sun, 29 Jan 2023 11:43:59 -0500
+Subject: [PATCH 180/458] Note that version.rc is public domain.
+
+This avoids potential concerns that customizing would qualify a build
+of SDL as an "altered source version" under the zlib license.
+---
+ src/main/windows/version.rc | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/main/windows/version.rc b/src/main/windows/version.rc
+index 4ba8782de..ba0553de8 100644
+--- a/src/main/windows/version.rc
++++ b/src/main/windows/version.rc
+@@ -1,4 +1,4 @@
+-
++// This file is public domain. Do what you like with it.
+ #include "winresrc.h"
+ 
+ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+-- 
+2.17.1
+

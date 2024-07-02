@@ -1,0 +1,31 @@
+From 285c65fa171725bee749433c4498475f8d9faa90 Mon Sep 17 00:00:00 2001
+From: saravanakumar <Saravanakumar.S@amd.com>
+Date: Wed, 22 Nov 2023 16:30:37 +0530
+Subject: [PATCH 2/4] Added query device close in hw param query call
+
+Hw param query call only opens the query device and close is happening
+on pcm open which causes the device resource busy if only query call
+called from VMs. Added query device close in hw param query call to fix
+this.
+
+Change-Id: Iffb7b129410c61619cbe18a6f828f3436df2eb01
+---
+ snd_be/src/AlsaPcm.cpp | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/snd_be/src/AlsaPcm.cpp b/snd_be/src/AlsaPcm.cpp
+index a53eced..5150194 100644
+--- a/snd_be/src/AlsaPcm.cpp
++++ b/snd_be/src/AlsaPcm.cpp
+@@ -83,6 +83,8 @@ void AlsaPcm::queryHwRanges(SoundItf::PcmParamRanges& req, SoundItf::PcmParamRan
+ 	queryHwParamChannels(hwParams, req, resp);
+ 	queryHwParamBuffer(hwParams, req, resp);
+ 	queryHwParamPeriod(hwParams, req, resp);
++
++	queryClose();
+ }
+ 
+ void AlsaPcm::open(const PcmParams& params)
+-- 
+2.17.1
+

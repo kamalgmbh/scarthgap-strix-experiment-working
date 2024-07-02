@@ -1,0 +1,109 @@
+From 45a6ad8e578f0b575734b73b895d21e69bacb455 Mon Sep 17 00:00:00 2001
+From: Ozkan Sezer <sezeroz@gmail.com>
+Date: Fri, 24 Mar 2023 11:56:40 +0300
+Subject: [PATCH 307/458] wikiheaders.pl: make it work with older perl
+ versions, e.g. 5.10.
+
+---
+ build-scripts/wikiheaders.pl | 50 ++++++++++++++++++------------------
+ 1 file changed, 25 insertions(+), 25 deletions(-)
+
+diff --git a/build-scripts/wikiheaders.pl b/build-scripts/wikiheaders.pl
+index a20b20802..bf26d6433 100755
+--- a/build-scripts/wikiheaders.pl
++++ b/build-scripts/wikiheaders.pl
+@@ -520,8 +520,8 @@ if (defined $readmesubdir) {
+ }
+ 
+ opendir(DH, $incpath) or die("Can't opendir '$incpath': $!\n");
+-while (readdir(DH)) {
+-    my $dent = $_;
++while (my $d = readdir(DH)) {
++    my $dent = $d;
+     next if not $dent =~ /$selectheaderregex/;  # just selected headers.
+     open(FH, '<', "$incpath/$dent") or die("Can't open '$incpath/$dent': $!\n");
+ 
+@@ -669,8 +669,8 @@ my %wikitypes = ();  # contains string of wiki page extension, like $wikitypes{"
+ my %wikifuncs = ();  # contains references to hash of strings, each string being the full contents of a section of a wiki page, like $wikifuncs{"SDL_OpenAudio"}{"Remarks"}.
+ my %wikisectionorder = ();   # contains references to array, each array item being a key to a wikipage section in the correct order, like $wikisectionorder{"SDL_OpenAudio"}[2] == 'Remarks'
+ opendir(DH, $wikipath) or die("Can't opendir '$wikipath': $!\n");
+-while (readdir(DH)) {
+-    my $dent = $_;
++while (my $d = readdir(DH)) {
++    my $dent = $d;
+     my $type = '';
+     if ($dent =~ /\.(md|mediawiki)\Z/) {
+         $type = $1;
+@@ -807,14 +807,14 @@ if ($copy_direction == 1) {  # --copy-to-headers
+         next if not defined $wikifuncs{$fn};  # don't have a page for that function, skip it.
+         my $wikitype = $wikitypes{$fn};
+         my $sectionsref = $wikifuncs{$fn};
+-        my $remarks = %$sectionsref{'Remarks'};
+-        my $params = %$sectionsref{'Function Parameters'};
+-        my $returns = %$sectionsref{'Return Value'};
+-        my $threadsafety = %$sectionsref{'Thread Safety'};
+-        my $version = %$sectionsref{'Version'};
+-        my $related = %$sectionsref{'Related Functions'};
+-        my $deprecated = %$sectionsref{'Deprecated'};
+-        my $brief = %$sectionsref{'[Brief]'};
++        my $remarks = $sectionsref->{'Remarks'};
++        my $params = $sectionsref->{'Function Parameters'};
++        my $returns = $sectionsref->{'Return Value'};
++        my $threadsafety = $sectionsref->{'Thread Safety'};
++        my $version = $sectionsref->{'Version'};
++        my $related = $sectionsref->{'Related Functions'};
++        my $deprecated = $sectionsref->{'Deprecated'};
++        my $brief = $sectionsref->{'[Brief]'};
+         my $addblank = 0;
+         my $str = '';
+ 
+@@ -1377,8 +1377,8 @@ if ($copy_direction == 1) {  # --copy-to-headers
+         if ( -d $readmepath ) {
+             mkdir($wikireadmepath);  # just in case
+             opendir(DH, $readmepath) or die("Can't opendir '$readmepath': $!\n");
+-            while (readdir(DH)) {
+-                my $dent = $_;
++            while (my $d = readdir(DH)) {
++                my $dent = $d;
+                 if ($dent =~ /\AREADME\-(.*?\.md)\Z/) {  # we only bridge Markdown files here.
+                     my $wikifname = $1;
+                     next if $wikifname eq 'FrontPage.md';
+@@ -1389,8 +1389,8 @@ if ($copy_direction == 1) {  # --copy-to-headers
+ 
+             my @pages = ();
+             opendir(DH, $wikireadmepath) or die("Can't opendir '$wikireadmepath': $!\n");
+-            while (readdir(DH)) {
+-                my $dent = $_;
++            while (my $d = readdir(DH)) {
++                my $dent = $d;
+                 if ($dent =~ /\A(.*?)\.(mediawiki|md)\Z/) {
+                     my $wikiname = $1;
+                     next if $wikiname eq 'FrontPage';
+@@ -1456,15 +1456,15 @@ if ($copy_direction == 1) {  # --copy-to-headers
+         next if not defined $wikifuncs{$fn};  # don't have a page for that function, skip it.
+         my $wikitype = $wikitypes{$fn};
+         my $sectionsref = $wikifuncs{$fn};
+-        my $remarks = %$sectionsref{'Remarks'};
+-        my $params = %$sectionsref{'Function Parameters'};
+-        my $returns = %$sectionsref{'Return Value'};
+-        my $version = %$sectionsref{'Version'};
+-        my $threadsafety = %$sectionsref{'Thread Safety'};
+-        my $related = %$sectionsref{'Related Functions'};
+-        my $examples = %$sectionsref{'Code Examples'};
+-        my $deprecated = %$sectionsref{'Deprecated'};
+-        my $brief = %$sectionsref{'[Brief]'};
++        my $remarks = $sectionsref->{'Remarks'};
++        my $params = $sectionsref->{'Function Parameters'};
++        my $returns = $sectionsref->{'Return Value'};
++        my $version = $sectionsref->{'Version'};
++        my $threadsafety = $sectionsref->{'Thread Safety'};
++        my $related = $sectionsref->{'Related Functions'};
++        my $examples = $sectionsref->{'Code Examples'};
++        my $deprecated = $sectionsref->{'Deprecated'};
++        my $brief = $sectionsref->{'[Brief]'};
+         my $decl = $headerdecls{$fn};
+         my $str = '';
+ 
+-- 
+2.17.1
+

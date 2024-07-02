@@ -1,0 +1,91 @@
+From 2b21cbbb339fb14414f357a6683b1df74c36fda2 Mon Sep 17 00:00:00 2001
+From: Oleksii Kurochko <oleksii.kurochko@gmail.com>
+Date: Thu, 5 Jan 2023 14:01:46 +0200
+Subject: [PATCH 177/221] automation: Add RISC-V 64 cross-build tests for Xen
+
+Add build jobs to cross-compile Xen-only for RISC-V 64.
+
+Signed-off-by: Oleksii Kurochko <oleksii.kurochko@gmail.com>
+Acked-by: Alistair Francis <alistair.francis@wdc.com>
+Reviewed-by: Andrew Cooper <andrew.cooper3@citrix.com>
+---
+ automation/gitlab-ci/build.yaml | 56 +++++++++++++++++++++++++++++++++
+ 1 file changed, 56 insertions(+)
+
+diff --git a/automation/gitlab-ci/build.yaml b/automation/gitlab-ci/build.yaml
+index 43dbef8aba..6784974619 100644
+--- a/automation/gitlab-ci/build.yaml
++++ b/automation/gitlab-ci/build.yaml
+@@ -172,6 +172,33 @@
+   variables:
+     <<: *gcc
+ 
++.riscv64-cross-build-tmpl:
++  <<: *build
++  variables:
++    XEN_TARGET_ARCH: riscv64
++  tags:
++    - x86_64
++
++.riscv64-cross-build:
++  extends: .riscv64-cross-build-tmpl
++  variables:
++    debug: n
++
++.riscv64-cross-build-debug:
++  extends: .riscv64-cross-build-tmpl
++  variables:
++    debug: y
++
++.gcc-riscv64-cross-build:
++  extends: .riscv64-cross-build
++  variables:
++    <<: *gcc
++
++.gcc-riscv64-cross-build-debug:
++  extends: .riscv64-cross-build-debug
++  variables:
++    <<: *gcc
++
+ # Jobs below this line
+ 
+ archlinux-gcc:
+@@ -619,6 +646,35 @@ alpine-3.12-gcc-debug-arm64-boot-cpupools:
+     EXTRA_XEN_CONFIG: |
+       CONFIG_BOOT_TIME_CPUPOOLS=y
+ 
++# RISC-V 64 cross-build
++riscv64-cross-gcc:
++  extends: .gcc-riscv64-cross-build
++  variables:
++    CONTAINER: archlinux:riscv64
++    KBUILD_DEFCONFIG: tiny64_defconfig
++    HYPERVISOR_ONLY: y
++
++riscv64-cross-gcc-debug:
++  extends: .gcc-riscv64-cross-build-debug
++  variables:
++    CONTAINER: archlinux:riscv64
++    KBUILD_DEFCONFIG: tiny64_defconfig
++    HYPERVISOR_ONLY: y
++
++riscv64-cross-gcc-randconfig:
++  extends: .gcc-riscv64-cross-build
++  variables:
++    CONTAINER: archlinux:riscv64
++    KBUILD_DEFCONFIG: tiny64_defconfig
++    RANDCONFIG: y
++
++riscv64-cross-gcc-debug-randconfig:
++  extends: .gcc-riscv64-cross-build-debug
++  variables:
++    CONTAINER: archlinux:riscv64
++    KBUILD_DEFCONFIG: tiny64_defconfig
++    RANDCONFIG: y
++
+ ## Test artifacts common
+ 
+ .test-jobs-artifact-common:
+-- 
+2.17.1
+

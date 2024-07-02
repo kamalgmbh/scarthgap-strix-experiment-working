@@ -1,0 +1,35 @@
+From a44b6461050760a84cd4c0807aff78a363f9cec8 Mon Sep 17 00:00:00 2001
+From: PARTY MAN X <4970541+PARTYMANX@users.noreply.github.com>
+Date: Sat, 21 Jan 2023 19:37:22 -0600
+Subject: [PATCH 165/458] Blacklist Konami Amusement Controllers From HIDAPI.
+
+Fixes issue #7118 by adding all Konami Amusement controllers to the
+blacklist.  Additionally, the blacklist is changed to exclude a whole
+vendor when the PID 0x0000 is used.
+---
+ src/hidapi/windows/hid.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/hidapi/windows/hid.c b/src/hidapi/windows/hid.c
+index 27c09e52e..3d8a2302e 100644
+--- a/src/hidapi/windows/hid.c
++++ b/src/hidapi/windows/hid.c
+@@ -346,13 +346,14 @@ int hid_blacklist(unsigned short vendor_id, unsigned short product_id)
+         { 0x1532, 0x010B },  /* Razer Arctosa Gaming keyboard */
+         { 0x045E, 0x0822 },  /* Microsoft Precision Mouse */
+         { 0x0D8C, 0x0014 },  /* Sharkoon Skiller SGH2 headset */
++        { 0x1CCF, 0x0000 },  /* All Konami Amusement Devices */
+ 
+         /* Turns into an Android controller when enumerated... */
+         { 0x0738, 0x2217 }   /* SPEEDLINK COMPETITION PRO */
+     };
+ 
+     for (i = 0; i < (sizeof(known_bad)/sizeof(known_bad[0])); i++) {
+-        if ((vendor_id == known_bad[i].vid) && (product_id == known_bad[i].pid)) {
++        if ((vendor_id == known_bad[i].vid) && (product_id == known_bad[i].pid || known_bad[i].pid == 0x0000)) {
+             return 1;
+         }
+     }
+-- 
+2.17.1
+

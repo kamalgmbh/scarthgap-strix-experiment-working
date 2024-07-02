@@ -1,0 +1,41 @@
+From 5d1e6b28d9c97e5223281c0f0189f6c99a564b70 Mon Sep 17 00:00:00 2001
+From: Sylvain <sylvain.becker@gmail.com>
+Date: Mon, 16 Jan 2023 10:28:16 +0100
+Subject: [PATCH 159/458] SDL_test_harness: fix memory leak when generated seed
+
+---
+ src/test/SDL_test_harness.c | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/test/SDL_test_harness.c b/src/test/SDL_test_harness.c
+index 7c8201f6e..e6ae3ce43 100644
+--- a/src/test/SDL_test_harness.c
++++ b/src/test/SDL_test_harness.c
+@@ -395,6 +395,7 @@ int SDLTest_RunSuites(SDLTest_TestSuiteReference *testSuites[], const char *user
+     int testSkippedCount = 0;
+     int countSum = 0;
+     const SDLTest_TestCaseReference **failedTests;
++    char generatedSeed[16 + 1];
+ 
+     /* Sanitize test iterations */
+     if (testIterations < 1) {
+@@ -403,11 +404,14 @@ int SDLTest_RunSuites(SDLTest_TestSuiteReference *testSuites[], const char *user
+ 
+     /* Generate run see if we don't have one already */
+     if (userRunSeed == NULL || userRunSeed[0] == '\0') {
+-        runSeed = SDLTest_GenerateRunSeed(16);
+-        if (runSeed == NULL) {
++        char *tmp = SDLTest_GenerateRunSeed(16);
++        if (tmp == NULL) {
+             SDLTest_LogError("Generating a random seed failed");
+             return 2;
+         }
++        SDL_memcpy(generatedSeed, tmp, 16 + 1);
++        SDL_free(tmp);
++        runSeed = generatedSeed;
+     } else {
+         runSeed = userRunSeed;
+     }
+-- 
+2.17.1
+

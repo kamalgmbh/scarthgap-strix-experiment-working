@@ -1,0 +1,64 @@
+From e9c72d524fbdb109c45f24acce998f0bd552fb6f Mon Sep 17 00:00:00 2001
+From: Wei Chen <wei.chen@arm.com>
+Date: Mon, 12 Dec 2022 12:13:26 +0100
+Subject: [PATCH 091/221] xen/x86: Use ASSERT instead of VIRTUAL_BUG_ON for
+ phys_to_nid
+
+VIRTUAL_BUG_ON is an empty macro used in phys_to_nid. This
+results in two lines of error-checking code in phys_to_nid
+that is not actually working and causing two compilation
+errors:
+1. error: "MAX_NUMNODES" undeclared (first use in this function).
+   This is because in the common header file, "MAX_NUMNODES" is
+   defined after the common header file includes the ARCH header
+   file, where phys_to_nid has attempted to use "MAX_NUMNODES".
+   This error was resolved after we moved the phys_to_nid from
+   x86 ARCH header file to common header file.
+2. error: wrong type argument to unary exclamation mark.
+   This is because, the error-checking code contains !node_data[nid].
+   But node_data is a data structure variable, it's not a pointer.
+
+So, in this patch, we use ASSERT instead of VIRTUAL_BUG_ON to
+enable the two lines of error-checking code. And fix the left
+compilation errors by replacing !node_data[nid] to
+!node_data[nid].node_spanned_pages. Although NUMA allows one node
+can only have CPUs but without any memory. And node with 0 bytes
+of memory might have an entry in memnodemap[] theoretically. But
+that doesn't mean phys_to_nid can find any valid address from a
+node with 0 bytes memory.
+
+Signed-off-by: Wei Chen <wei.chen@arm.com>
+Tested-by: Jiamei Xie <jiamei.xie@arm.com>
+Acked-by: Jan Beulich <jbeulich@suse.com>
+---
+ xen/include/xen/numa.h | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/xen/include/xen/numa.h b/xen/include/xen/numa.h
+index 5b3877344b..04556f3a6f 100644
+--- a/xen/include/xen/numa.h
++++ b/xen/include/xen/numa.h
+@@ -35,8 +35,6 @@ struct node {
+ extern int compute_hash_shift(const struct node *nodes,
+                               unsigned int numnodes, const nodeid_t *nodeids);
+ 
+-#define VIRTUAL_BUG_ON(x)
+-
+ extern bool numa_off;
+ 
+ extern void numa_add_cpu(unsigned int cpu);
+@@ -69,9 +67,9 @@ extern struct node_data node_data[];
+ static inline nodeid_t __attribute_pure__ phys_to_nid(paddr_t addr)
+ {
+     nodeid_t nid;
+-    VIRTUAL_BUG_ON((paddr_to_pdx(addr) >> memnode_shift) >= memnodemapsize);
++    ASSERT((paddr_to_pdx(addr) >> memnode_shift) < memnodemapsize);
+     nid = memnodemap[paddr_to_pdx(addr) >> memnode_shift];
+-    VIRTUAL_BUG_ON(nid >= MAX_NUMNODES || !node_data[nid]);
++    ASSERT(nid < MAX_NUMNODES && node_data[nid].node_spanned_pages);
+     return nid;
+ }
+ 
+-- 
+2.17.1
+

@@ -1,0 +1,25 @@
+From 76e9d64b36d2e46aa7e8ea702ccb814a51f9c4d4 Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Fri, 10 Mar 2023 08:13:51 -0800
+Subject: [PATCH 294/458] Removed space between sizeof and parentheses
+
+---
+ src/audio/SDL_audiocvt.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/audio/SDL_audiocvt.c b/src/audio/SDL_audiocvt.c
+index 99cb7ce39..01f3a5575 100644
+--- a/src/audio/SDL_audiocvt.c
++++ b/src/audio/SDL_audiocvt.c
+@@ -196,7 +196,7 @@ static Sint32 ResamplerPadding(const Sint32 inrate, const Sint32 outrate)
+     return RESAMPLER_SAMPLES_PER_ZERO_CROSSING;
+ }
+ 
+-/* lpadding and rpadding are expected to be buffers of (ResamplePadding(inrate, outrate) * chans * sizeof (float)) bytes. */
++/* lpadding and rpadding are expected to be buffers of (ResamplePadding(inrate, outrate) * chans * sizeof(float)) bytes. */
+ static int SDL_ResampleAudio(const int chans, const int inrate, const int outrate,
+                              const float *lpadding, const float *rpadding,
+                              const float *inbuf, const int inbuflen,
+-- 
+2.17.1
+

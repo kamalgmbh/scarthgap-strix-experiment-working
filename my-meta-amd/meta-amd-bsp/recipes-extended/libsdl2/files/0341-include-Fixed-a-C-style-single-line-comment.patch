@@ -1,0 +1,26 @@
+From 2aeac8de5137697266a7e80b9ed6c44b883348eb Mon Sep 17 00:00:00 2001
+From: Wohlstand <admin@wohlnet.ru>
+Date: Thu, 30 Mar 2023 00:40:46 +0300
+Subject: [PATCH 341/458] include: Fixed a C++-style single line comment.
+
+https://github.com/libsdl-org/SDL/commit/78725dc0cd8502a91d2565af44ff9e6e65f0f30d
+---
+ include/SDL_mutex.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/include/SDL_mutex.h b/include/SDL_mutex.h
+index 8fc237a17..343824b7b 100644
+--- a/include/SDL_mutex.h
++++ b/include/SDL_mutex.h
+@@ -39,7 +39,7 @@
+     defined(__clang__) && (!defined(SWIG))
+ #define SDL_THREAD_ANNOTATION_ATTRIBUTE__(x)   __attribute__((x))
+ #else
+-#define SDL_THREAD_ANNOTATION_ATTRIBUTE__(x)   // no-op
++#define SDL_THREAD_ANNOTATION_ATTRIBUTE__(x)   /* no-op */
+ #endif
+ 
+ #define SDL_CAPABILITY(x) \
+-- 
+2.17.1
+

@@ -1,0 +1,27 @@
+From af50d9be4358f26c459459eeaa3f6a1a66821738 Mon Sep 17 00:00:00 2001
+From: Henry Wang <Henry.Wang@arm.com>
+Date: Thu, 1 Dec 2022 19:39:10 +0800
+Subject: [PATCH 077/221] CHANGELOG: Start new "unstable" section
+
+Signed-off-by: Henry Wang <Henry.Wang@arm.com>
+Reviewed-by: Julien Grall <jgrall@amazon.com>
+---
+ CHANGELOG.md | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index 7f4d0f25e9..6754139713 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -4,6 +4,8 @@ Notable changes to Xen will be documented in this file.
+ 
+ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
+ 
++## [unstable UNRELEASED](https://xenbits.xen.org/gitweb/?p=xen.git;a=shortlog;h=staging) - TBD
++
+ ## [4.17.0](https://xenbits.xen.org/gitweb/?p=xen.git;a=shortlog;h=RELEASE-4.17.0) - 2022-12-12
+ 
+ ### Changed
+-- 
+2.17.1
+

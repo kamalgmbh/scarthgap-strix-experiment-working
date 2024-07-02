@@ -1,0 +1,26 @@
+From 3bdc62215ef3dd7963a7bde652ebb1131b0972c7 Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Thu, 1 Dec 2022 15:11:29 -0800
+Subject: [PATCH 066/458] Fixed Apple build after
+ d0bbfdbfb881e5407911d84c12899bd5b442a130
+
+---
+ src/render/metal/SDL_render_metal.m | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/render/metal/SDL_render_metal.m b/src/render/metal/SDL_render_metal.m
+index 7e6b4b00a..80fd96f07 100644
+--- a/src/render/metal/SDL_render_metal.m
++++ b/src/render/metal/SDL_render_metal.m
+@@ -1286,7 +1286,7 @@ SetCopyState(SDL_Renderer *renderer, const SDL_RenderCommand *cmd, const size_t
+         [data.mtlcmdencoder setFragmentTexture:texturedata.mtltexture atIndex:0];
+ #if SDL_HAVE_YUV
+         if (texturedata.yuv || texturedata.nv12) {
+-            [data.mtlcmdencoder setFragmentTexture:texturedata.mtltextureUv atIndex:1];
++            [data.mtlcmdencoder setFragmentTexture:texturedata.mtltexture_uv atIndex:1];
+             [data.mtlcmdencoder setFragmentBuffer:data.mtlbufconstants offset:texturedata.conversionBufferOffset atIndex:1];
+         }
+ #endif
+-- 
+2.17.1
+

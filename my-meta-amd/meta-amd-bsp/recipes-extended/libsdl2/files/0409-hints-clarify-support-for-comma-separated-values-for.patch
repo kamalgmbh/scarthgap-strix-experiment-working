@@ -1,0 +1,27 @@
+From c39524042520d6962434228ab8af9ba7e0542308 Mon Sep 17 00:00:00 2001
+From: Alibek Omarov <a1ba.omarov@gmail.com>
+Date: Fri, 2 Jun 2023 05:59:06 +0300
+Subject: [PATCH 409/458] hints: clarify support for comma-separated values for
+ QtWayland orientation that's available since 2.0.22
+
+Signed-off-by: Alibek Omarov <a1ba.omarov@gmail.com>
+---
+ include/SDL_hints.h | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/include/SDL_hints.h b/include/SDL_hints.h
+index 23bbf2b60..ad3b4030b 100644
+--- a/include/SDL_hints.h
++++ b/include/SDL_hints.h
+@@ -1321,6 +1321,8 @@ extern "C" {
+  *
+  *  This variable can be one of the following values:
+  *    "primary" (default), "portrait", "landscape", "inverted-portrait", "inverted-landscape"
++ *
++ *  Since SDL 2.0.22 this variable accepts a comma-separated list of values above.
+  */
+ #define SDL_HINT_QTWAYLAND_CONTENT_ORIENTATION "SDL_QTWAYLAND_CONTENT_ORIENTATION"
+ 
+-- 
+2.17.1
+

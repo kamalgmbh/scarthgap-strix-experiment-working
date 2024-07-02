@@ -1,0 +1,83 @@
+From fe6e106a6507537a7d3eac9177c389f89ff417ca Mon Sep 17 00:00:00 2001
+From: Dmitry Osipenko <dmitry.osipenko@collabora.com>
+Date: Tue, 27 Sep 2022 03:05:15 +0300
+Subject: [PATCH 25/70] wip: Extend event-notifier API
+
+Signed-off-by: Dmitry Osipenko <dmitry.osipenko@collabora.com>
+---
+ include/qemu/event_notifier.h |  2 ++
+ util/event_notifier-posix.c   | 29 ++++++++++++++++++++++-------
+ 2 files changed, 24 insertions(+), 7 deletions(-)
+
+diff --git a/include/qemu/event_notifier.h b/include/qemu/event_notifier.h
+index 8a4ff308e1..09526493c0 100644
+--- a/include/qemu/event_notifier.h
++++ b/include/qemu/event_notifier.h
+@@ -34,6 +34,8 @@ int event_notifier_init(EventNotifier *, int active);
+ void event_notifier_cleanup(EventNotifier *);
+ int event_notifier_set(EventNotifier *);
+ int event_notifier_test_and_clear(EventNotifier *);
++int event_notifier_write(EventNotifier *e, uint64_t value);
++int event_notifier_read(EventNotifier *e, uint64_t *value);
+ 
+ #ifdef CONFIG_POSIX
+ void event_notifier_init_fd(EventNotifier *, int fd);
+diff --git a/util/event_notifier-posix.c b/util/event_notifier-posix.c
+index 76420c5b56..e6b00d6d48 100644
+--- a/util/event_notifier-posix.c
++++ b/util/event_notifier-posix.c
+@@ -101,9 +101,8 @@ int event_notifier_get_wfd(const EventNotifier *e)
+     return e->wfd;
+ }
+ 
+-int event_notifier_set(EventNotifier *e)
++int event_notifier_write(EventNotifier *e, uint64_t value)
+ {
+-    static const uint64_t value = 1;
+     ssize_t ret;
+ 
+     if (!e->initialized) {
+@@ -112,15 +111,16 @@ int event_notifier_set(EventNotifier *e)
+ 
+     do {
+         ret = write(e->wfd, &value, sizeof(value));
+-    } while (ret < 0 && errno == EINTR);
++    } while (ret < 0 && (errno == EINTR || errno == EAGAIN));
+ 
+-    /* EAGAIN is fine, a read must be pending.  */
+-    if (ret < 0 && errno != EAGAIN) {
+-        return -errno;
+-    }
+     return 0;
+ }
+ 
++int event_notifier_set(EventNotifier *e)
++{
++    return event_notifier_write(e, 1);
++}
++
+ int event_notifier_test_and_clear(EventNotifier *e)
+ {
+     int value;
+@@ -140,3 +140,18 @@ int event_notifier_test_and_clear(EventNotifier *e)
+ 
+     return value;
+ }
++
++int event_notifier_read(EventNotifier *e, uint64_t *value)
++{
++    ssize_t ret;
++
++    do {
++        ret = read(e->rfd, value, sizeof(*value));
++    } while ((ret == -1 && errno == EINTR));
++
++    if (ret < 0) {
++        return -errno;
++    }
++
++    return 0;
++}
+-- 
+2.17.1
+

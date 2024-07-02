@@ -1,0 +1,61 @@
+From 4b40d68e663e87eb916b5bdf3da9743a17f43537 Mon Sep 17 00:00:00 2001
+From: Demi Marie Obenour <demi@invisiblethingslab.com>
+Date: Tue, 20 Dec 2022 16:51:55 +0100
+Subject: [PATCH 153/221] x86: derive XEN_MSR_PAT from its individual entries
+
+This avoids it being a magic constant that is difficult for humans to
+decode.  Use BUILD_BUG_ON to check that the old and new values are
+identical.
+
+Signed-off-by: Demi Marie Obenour <demi@invisiblethingslab.com>
+Reviewed-by: Jan Beulich <jbeulich@suse.com>
+---
+ xen/arch/x86/include/asm/processor.h |  9 ++++++++-
+ xen/arch/x86/mm.c                    | 11 +++++++++++
+ 2 files changed, 19 insertions(+), 1 deletion(-)
+
+diff --git a/xen/arch/x86/include/asm/processor.h b/xen/arch/x86/include/asm/processor.h
+index 8e2816fae9..60b9020609 100644
+--- a/xen/arch/x86/include/asm/processor.h
++++ b/xen/arch/x86/include/asm/processor.h
+@@ -96,7 +96,14 @@
+  * Host IA32_CR_PAT value to cover all memory types.  This is not the default
+  * MSR_PAT value, and is an ABI with PV guests.
+  */
+-#define XEN_MSR_PAT _AC(0x050100070406, ULL)
++#define XEN_MSR_PAT ((_AC(X86_MT_WB,  ULL) << 0x00) | \
++                     (_AC(X86_MT_WT,  ULL) << 0x08) | \
++                     (_AC(X86_MT_UCM, ULL) << 0x10) | \
++                     (_AC(X86_MT_UC,  ULL) << 0x18) | \
++                     (_AC(X86_MT_WC,  ULL) << 0x20) | \
++                     (_AC(X86_MT_WP,  ULL) << 0x28) | \
++                     (_AC(X86_MT_UC,  ULL) << 0x30) | \
++                     (_AC(X86_MT_UC,  ULL) << 0x38))
+ 
+ #ifndef __ASSEMBLY__
+ 
+diff --git a/xen/arch/x86/mm.c b/xen/arch/x86/mm.c
+index 8b9740f575..8fa29d5c8b 100644
+--- a/xen/arch/x86/mm.c
++++ b/xen/arch/x86/mm.c
+@@ -6283,6 +6283,17 @@ unsigned long get_upper_mfn_bound(void)
+     return min(max_mfn, 1UL << (paddr_bits - PAGE_SHIFT)) - 1;
+ }
+ 
++static void __init __maybe_unused build_assertions(void)
++{
++    /*
++     * If this trips, any guests that blindly rely on the public API in xen.h
++     * (instead of reading the PAT from Xen, as Linux 3.19+ does) will be
++     * broken.  Furthermore, live migration of PV guests between Xen versions
++     * using different PATs will not work.
++     */
++    BUILD_BUG_ON(XEN_MSR_PAT != 0x050100070406ULL);
++}
++
+ /*
+  * Local variables:
+  * mode: C
+-- 
+2.17.1
+

@@ -1,0 +1,124 @@
+From a87d6f0fbd003353f09d59df65c5fad905de450d Mon Sep 17 00:00:00 2001
+From: Juergen Gross <jgross@suse.com>
+Date: Fri, 2 Dec 2022 10:27:38 +0100
+Subject: [PATCH 035/221] xen: add knownalive_domain_from_domid() helper
+
+Add a helper knownalive_domain_from_domid() returning the struct domain
+pointer for a domain give by its domid and which is known not being
+able to be released (its reference count isn't incremented and no
+rcu_lock_domain() is called for it).
+
+In order to simplify coding add an internal helper for doing the lookup
+and call that from the new function and similar functions.
+
+Signed-off-by: Juergen Gross <jgross@suse.com>
+Reviewed-by: Jan Beulich <jbeulich@suse.com>
+---
+ xen/common/domain.c     | 53 +++++++++++++++++++++++++----------------
+ xen/include/xen/sched.h |  4 ++++
+ 2 files changed, 37 insertions(+), 20 deletions(-)
+
+diff --git a/xen/common/domain.c b/xen/common/domain.c
+index 53f7e734fe..c06d72ad64 100644
+--- a/xen/common/domain.c
++++ b/xen/common/domain.c
+@@ -835,25 +835,32 @@ out:
+     return 0;
+ }
+ 
+-
+-struct domain *get_domain_by_id(domid_t dom)
++/* rcu_read_lock(&domlist_read_lock) must be held. */
++static struct domain *domid_to_domain(domid_t dom)
+ {
+     struct domain *d;
+ 
+-    rcu_read_lock(&domlist_read_lock);
+-
+     for ( d = rcu_dereference(domain_hash[DOMAIN_HASH(dom)]);
+           d != NULL;
+           d = rcu_dereference(d->next_in_hashbucket) )
+     {
+         if ( d->domain_id == dom )
+-        {
+-            if ( unlikely(!get_domain(d)) )
+-                d = NULL;
+-            break;
+-        }
++            return d;
+     }
+ 
++    return NULL;
++}
++
++struct domain *get_domain_by_id(domid_t dom)
++{
++    struct domain *d;
++
++    rcu_read_lock(&domlist_read_lock);
++
++    d = domid_to_domain(dom);
++    if ( d && unlikely(!get_domain(d)) )
++        d = NULL;
++
+     rcu_read_unlock(&domlist_read_lock);
+ 
+     return d;
+@@ -862,20 +869,26 @@ struct domain *get_domain_by_id(domid_t dom)
+ 
+ struct domain *rcu_lock_domain_by_id(domid_t dom)
+ {
+-    struct domain *d = NULL;
++    struct domain *d;
+ 
+     rcu_read_lock(&domlist_read_lock);
+ 
+-    for ( d = rcu_dereference(domain_hash[DOMAIN_HASH(dom)]);
+-          d != NULL;
+-          d = rcu_dereference(d->next_in_hashbucket) )
+-    {
+-        if ( d->domain_id == dom )
+-        {
+-            rcu_lock_domain(d);
+-            break;
+-        }
+-    }
++    d = domid_to_domain(dom);
++    if ( d )
++        rcu_lock_domain(d);
++
++    rcu_read_unlock(&domlist_read_lock);
++
++    return d;
++}
++
++struct domain *knownalive_domain_from_domid(domid_t dom)
++{
++    struct domain *d;
++
++    rcu_read_lock(&domlist_read_lock);
++
++    d = domid_to_domain(dom);
+ 
+     rcu_read_unlock(&domlist_read_lock);
+ 
+diff --git a/xen/include/xen/sched.h b/xen/include/xen/sched.h
+index 072e4846aa..12be794002 100644
+--- a/xen/include/xen/sched.h
++++ b/xen/include/xen/sched.h
+@@ -737,8 +737,12 @@ static inline struct domain *rcu_lock_current_domain(void)
+     return /*rcu_lock_domain*/(current->domain);
+ }
+ 
++/* Get struct domain AND increase ref-count of domain. */
+ struct domain *get_domain_by_id(domid_t dom);
+ 
++/* Get struct domain known to have reference held or being RCU-locked. */
++struct domain *knownalive_domain_from_domid(domid_t dom);
++
+ struct domain *get_pg_owner(domid_t domid);
+ 
+ static inline void put_pg_owner(struct domain *pg_owner)
+-- 
+2.17.1
+

@@ -1,0 +1,26 @@
+From a9ded76dff04cc24c8b49d2d3ff2533181798d1e Mon Sep 17 00:00:00 2001
+From: "Ryan C. Gordon" <icculus@icculus.org>
+Date: Fri, 19 May 2023 01:35:08 -0400
+Subject: [PATCH 404/458] VisualC: turn on multi-processor compilation.
+
+This makes SDL2 build in 12 seconds, instead of 50, on my Windows
+workstation, with Visual Studio.
+---
+ VisualC/SDL/SDL.vcxproj | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/VisualC/SDL/SDL.vcxproj b/VisualC/SDL/SDL.vcxproj
+index 2c85790e2..957dabe1b 100644
+--- a/VisualC/SDL/SDL.vcxproj
++++ b/VisualC/SDL/SDL.vcxproj
+@@ -137,6 +137,7 @@
+       <DebugInformationFormat>OldStyle</DebugInformationFormat>
+       <OmitDefaultLibName>true</OmitDefaultLibName>
+       <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
++      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+     </ClCompile>
+     <ResourceCompile>
+       <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+-- 
+2.17.1
+

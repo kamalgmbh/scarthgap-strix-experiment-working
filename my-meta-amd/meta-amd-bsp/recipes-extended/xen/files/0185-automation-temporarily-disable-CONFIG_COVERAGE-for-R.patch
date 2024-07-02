@@ -1,0 +1,48 @@
+From da95e369750525d4acdb0597092ae99ca10b759e Mon Sep 17 00:00:00 2001
+From: Oleksii Kurochko <oleksii.kurochko@gmail.com>
+Date: Fri, 6 Jan 2023 12:28:01 +0200
+Subject: [PATCH 185/221] automation: temporarily disable CONFIG_COVERAGE for
+ RISC-V randconfig jobs
+
+As common isn't built for RISC-V architecture now, accordingly,
+common/coverage (where __gconv_* function are defined) isn't built either
+but randconfig may decide to enable CONFIG_COVERAGE which will lead to
+the following compilation error:
+
+riscv64-linux-gnu-ld: prelink.o: in function `.L0 ':
+arch/riscv/early_printk.c:(.text+0x18):
+    undefined reference to `__gcov_init'
+riscv64-linux-gnu-ld: arch/riscv/early_printk.c:(.text+0x40):
+    undefined reference to `__gcov_exit'
+
+Signed-off-by: Oleksii Kurochko <oleksii.kurochko@gmail.com>
+Acked-by: Andrew Cooper <andrew.cooper3@citrix.com>
+---
+ automation/gitlab-ci/build.yaml | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/automation/gitlab-ci/build.yaml b/automation/gitlab-ci/build.yaml
+index 6784974619..a292f0fb18 100644
+--- a/automation/gitlab-ci/build.yaml
++++ b/automation/gitlab-ci/build.yaml
+@@ -667,6 +667,8 @@ riscv64-cross-gcc-randconfig:
+     CONTAINER: archlinux:riscv64
+     KBUILD_DEFCONFIG: tiny64_defconfig
+     RANDCONFIG: y
++    EXTRA_FIXED_RANDCONFIG:
++      CONFIG_COVERAGE=n
+ 
+ riscv64-cross-gcc-debug-randconfig:
+   extends: .gcc-riscv64-cross-build-debug
+@@ -674,6 +676,8 @@ riscv64-cross-gcc-debug-randconfig:
+     CONTAINER: archlinux:riscv64
+     KBUILD_DEFCONFIG: tiny64_defconfig
+     RANDCONFIG: y
++    EXTRA_FIXED_RANDCONFIG:
++      CONFIG_COVERAGE=n
+ 
+ ## Test artifacts common
+ 
+-- 
+2.17.1
+

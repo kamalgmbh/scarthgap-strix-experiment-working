@@ -1,0 +1,91 @@
+From f5bb286b76dd45a17783c0ac8111ef251dd47802 Mon Sep 17 00:00:00 2001
+From: "Ryan C. Gordon" <icculus@icculus.org>
+Date: Thu, 2 Mar 2023 16:06:38 -0500
+Subject: [PATCH 265/458] dataqueue: Removed non-public
+ SDL_ReserveSpaceInDataQueue function
+
+This wasn't used, and it was just asking for trouble.
+
+(cherry picked from commit f833e005e10f63979fd545d8bc29b4f1a7c36486)
+---
+ src/SDL_dataqueue.c | 39 ---------------------------------------
+ src/SDL_dataqueue.h | 15 ---------------
+ 2 files changed, 54 deletions(-)
+
+diff --git a/src/SDL_dataqueue.c b/src/SDL_dataqueue.c
+index 875400a29..8abe7f7a9 100644
+--- a/src/SDL_dataqueue.c
++++ b/src/SDL_dataqueue.c
+@@ -288,43 +288,4 @@ SDL_CountDataQueue(SDL_DataQueue *queue)
+     return queue ? queue->queued_bytes : 0;
+ }
+ 
+-void *
+-SDL_ReserveSpaceInDataQueue(SDL_DataQueue *queue, const size_t len)
+-{
+-    SDL_DataQueuePacket *packet;
+-
+-    if (queue == NULL) {
+-        SDL_InvalidParamError("queue");
+-        return NULL;
+-    } else if (len == 0) {
+-        SDL_InvalidParamError("len");
+-        return NULL;
+-    } else if (len > queue->packet_size) {
+-        SDL_SetError("len is larger than packet size");
+-        return NULL;
+-    }
+-
+-    packet = queue->head;
+-    if (packet) {
+-        const size_t avail = queue->packet_size - packet->datalen;
+-        if (len <= avail) { /* we can use the space at end of this packet. */
+-            void *retval = packet->data + packet->datalen;
+-            packet->datalen += len;
+-            queue->queued_bytes += len;
+-            return retval;
+-        }
+-    }
+-
+-    /* Need a fresh packet. */
+-    packet = AllocateDataQueuePacket(queue);
+-    if (packet == NULL) {
+-        SDL_OutOfMemory();
+-        return NULL;
+-    }
+-
+-    packet->datalen = len;
+-    queue->queued_bytes += len;
+-    return packet->data;
+-}
+-
+ /* vi: set ts=4 sw=4 expandtab: */
+diff --git a/src/SDL_dataqueue.h b/src/SDL_dataqueue.h
+index b2f28a7be..45ef607cf 100644
+--- a/src/SDL_dataqueue.h
++++ b/src/SDL_dataqueue.h
+@@ -34,21 +34,6 @@ size_t SDL_ReadFromDataQueue(SDL_DataQueue *queue, void *buf, const size_t len);
+ size_t SDL_PeekIntoDataQueue(SDL_DataQueue *queue, void *buf, const size_t len);
+ size_t SDL_CountDataQueue(SDL_DataQueue *queue);
+ 
+-/* this sets a section of the data queue aside (possibly allocating memory for it)
+-   as if it's been written to, but returns a pointer to that space. You may write
+-   to this space until a read would consume it. Writes (and other calls to this
+-   function) will safely append their data after this reserved space and can
+-   be in flight at the same time. There is no thread safety.
+-   If there isn't an existing block of memory that can contain the reserved
+-   space, one will be allocated for it. You can not (currently) allocate
+-   a space larger than the packetlen requested in SDL_NewDataQueue.
+-   Returned buffer is uninitialized.
+-   This lets you avoid an extra copy in some cases, but it's safer to use
+-   SDL_WriteToDataQueue() unless you know what you're doing.
+-   Returns pointer to buffer of at least (len) bytes, NULL on error.
+-*/
+-void *SDL_ReserveSpaceInDataQueue(SDL_DataQueue *queue, const size_t len);
+-
+ #endif /* SDL_dataqueue_h_ */
+ 
+ /* vi: set ts=4 sw=4 expandtab: */
+-- 
+2.17.1
+

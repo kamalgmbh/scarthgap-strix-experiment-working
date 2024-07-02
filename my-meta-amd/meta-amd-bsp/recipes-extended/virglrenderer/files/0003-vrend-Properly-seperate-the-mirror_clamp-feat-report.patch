@@ -1,0 +1,54 @@
+From 66049f6b101438fa9984269893e8def26a3b9b60 Mon Sep 17 00:00:00 2001
+From: Gert Wollny <gert.wollny@collabora.com>
+Date: Wed, 17 Jan 2024 10:02:56 +0100
+Subject: [PATCH 03/16] vrend: Properly seperate the mirror_clamp feat
+ reporting
+
+Fixes:  e69b3a3225c810e3707191c3c5a9dc20e7e83dc3 (origin/master, origin/HEAD)
+    vrend: Handle and report TEXTURE_MIRROR_CLAMP correctly
+
+Signed-off-by: Gert Wollny <gert.wollny@collabora.com>
+Part-of: <https://gitlab.freedesktop.org/virgl/virglrenderer/-/merge_requests/1331>
+---
+ src/virgl_hw.h       | 1 +
+ src/vrend_renderer.c | 5 ++++-
+ 2 files changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/virgl_hw.h b/src/virgl_hw.h
+index 9c462f9b..5006639c 100644
+--- a/src/virgl_hw.h
++++ b/src/virgl_hw.h
+@@ -587,6 +587,7 @@ enum virgl_formats {
+ #define VIRGL_CAP_V2_DRAW_PARAMETERS      (1u << 14)
+ #define VIRGL_CAP_V2_GROUP_VOTE           (1u << 15)
+ #define VIRGL_CAP_V2_MIRROR_CLAMP_TO_EDGE (1u << 16)
++#define VIRGL_CAP_V2_MIRROR_CLAMP         (1u << 17)
+ 
+ /* virgl bind flags - these are compatible with mesa 10.5 gallium.
+  * but are fixed, no other should be passed to virgl either.
+diff --git a/src/vrend_renderer.c b/src/vrend_renderer.c
+index 0a323c3a..14a48805 100644
+--- a/src/vrend_renderer.c
++++ b/src/vrend_renderer.c
+@@ -12150,7 +12150,7 @@ static void vrend_renderer_fill_caps_v2(int gl_ver, int gles_ver,  union virgl_c
+     * this value to avoid regressions when a guest with a new mesa version is
+     * run on an old virgl host. Use it also to indicate non-cap fixes on the
+     * host that help enable features in the guest. */
+-   caps->v2.host_feature_check_version = 21;
++   caps->v2.host_feature_check_version = 22;
+ 
+    /* Forward host GL_RENDERER to the guest. */
+    strncpy(caps->v2.renderer, renderer, sizeof(caps->v2.renderer) - 1);
+@@ -12593,6 +12593,9 @@ static void vrend_renderer_fill_caps_v2(int gl_ver, int gles_ver,  union virgl_c
+    if (has_feature(feat_texture_mirror_clamp_to_edge))
+       caps->v2.capability_bits_v2 |= VIRGL_CAP_V2_MIRROR_CLAMP_TO_EDGE;
+ 
++   if (has_feature(feat_texture_mirror_clamp))
++      caps->v2.capability_bits_v2 |= VIRGL_CAP_V2_MIRROR_CLAMP;
++
+ #ifdef ENABLE_VIDEO
+    vrend_video_fill_caps(caps);
+ #else
+-- 
+2.17.1
+

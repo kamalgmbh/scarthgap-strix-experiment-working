@@ -1,0 +1,24 @@
+From 217e59c88ae62bfb2ab77cc9e675dd9f9f23bb30 Mon Sep 17 00:00:00 2001
+From: Pierre-Eric Pelloux-Prayer <pierre-eric.pelloux-prayer@amd.com>
+Date: Fri, 23 Feb 2024 09:44:56 +0100
+Subject: [PATCH 09/16] drm: include drm_util.h for drm_log
+
+---
+ src/drm/drm_renderer.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/src/drm/drm_renderer.c b/src/drm/drm_renderer.c
+index be3e72b6..8e3ebe30 100644
+--- a/src/drm/drm_renderer.c
++++ b/src/drm/drm_renderer.c
+@@ -15,6 +15,7 @@
+ 
+ #include "drm_hw.h"
+ #include "drm_renderer.h"
++#include "drm_util.h"
+ 
+ #ifdef ENABLE_DRM_MSM
+ #  include "msm/msm_renderer.h"
+-- 
+2.17.1
+

@@ -1,0 +1,33 @@
+From bb65cbd81caaaaf325d23f63b4c2165960563459 Mon Sep 17 00:00:00 2001
+From: Juergen Gross <jgross@suse.com>
+Date: Wed, 14 Dec 2022 12:02:04 +0100
+Subject: [PATCH 109/221] tools/xenstore: preserve errno across corrupt()
+
+Let corrupt() preserve errno in order to be able to simplify error
+handling in future.
+
+This is rather easy as the errno value when entering corrupt() is
+saved already.
+
+Signed-off-by: Juergen Gross <jgross@suse.com>
+Reviewed-by: Julien Grall <jgrall@amazon.com>
+---
+ tools/xenstore/xenstored_core.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/tools/xenstore/xenstored_core.c b/tools/xenstore/xenstored_core.c
+index 4cd54c8b5a..f68f82cb19 100644
+--- a/tools/xenstore/xenstored_core.c
++++ b/tools/xenstore/xenstored_core.c
+@@ -2551,6 +2551,8 @@ void corrupt(struct connection *conn, const char *fmt, ...)
+ 	talloc_free(str);
+ 
+ 	check_store();
++
++	errno = saved_errno;
+ }
+ 
+ #ifndef NO_SOCKETS
+-- 
+2.17.1
+

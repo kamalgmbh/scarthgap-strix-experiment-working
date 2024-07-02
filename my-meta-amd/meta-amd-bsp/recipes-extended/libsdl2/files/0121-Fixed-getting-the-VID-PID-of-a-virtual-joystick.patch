@@ -1,0 +1,26 @@
+From 29a4c5ebc2523f2d9cde1601405dbdafb847c559 Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Wed, 28 Dec 2022 12:51:36 -0800
+Subject: [PATCH 121/458] Fixed getting the VID/PID of a virtual joystick
+
+(cherry picked from commit e40a96155fc488feaeeeb79f947eb43399faa481)
+---
+ src/joystick/SDL_joystick.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/joystick/SDL_joystick.c b/src/joystick/SDL_joystick.c
+index ffcd20640..468debf3a 100644
+--- a/src/joystick/SDL_joystick.c
++++ b/src/joystick/SDL_joystick.c
+@@ -1869,7 +1869,7 @@ void SDL_GetJoystickGUIDInfo(SDL_JoystickGUID guid, Uint16 *vendor, Uint16 *prod
+     Uint16 *guid16 = (Uint16 *)guid.data;
+     Uint16 bus = SDL_SwapLE16(guid16[0]);
+ 
+-    if (bus < ' ' && guid16[3] == 0x0000 && guid16[5] == 0x0000) {
++    if ((bus < ' ' || bus == SDL_HARDWARE_BUS_VIRTUAL) && guid16[3] == 0x0000 && guid16[5] == 0x0000) {
+         /* This GUID fits the standard form:
+          * 16-bit bus
+          * 16-bit CRC16 of the joystick name (can be zero)
+-- 
+2.17.1
+

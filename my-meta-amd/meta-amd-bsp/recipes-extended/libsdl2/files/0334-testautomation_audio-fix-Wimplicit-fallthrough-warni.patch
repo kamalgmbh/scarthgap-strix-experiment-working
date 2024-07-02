@@ -1,0 +1,26 @@
+From ec3e333fb8e7647eb2bcba9042efbd1fdbb8d926 Mon Sep 17 00:00:00 2001
+From: Anonymous Maarten <anonymous.maarten@gmail.com>
+Date: Sat, 18 Mar 2023 20:34:56 +0100
+Subject: [PATCH 334/458] testautomation_audio: fix -Wimplicit-fallthrough
+ warning
+
+(cherry picked from commit 11c70406c322b5686f35349acc9659c4d8d5a8f7)
+---
+ test/testautomation_audio.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/test/testautomation_audio.c b/test/testautomation_audio.c
+index 912adb418..97df178bc 100644
+--- a/test/testautomation_audio.c
++++ b/test/testautomation_audio.c
+@@ -263,6 +263,7 @@ int audio_pauseUnpauseAudio()
+                 desired.samples = 4096;
+                 desired.callback = _audio_testCallback;
+                 desired.userdata = NULL;
++                break;
+ 
+             case 1:
+                 /* Set custom desired spec */
+-- 
+2.17.1
+

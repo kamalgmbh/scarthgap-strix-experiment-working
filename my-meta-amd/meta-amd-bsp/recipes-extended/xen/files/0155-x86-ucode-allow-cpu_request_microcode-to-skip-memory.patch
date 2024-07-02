@@ -1,0 +1,132 @@
+From 44a6871a5bd0e8b96e8bf7fccc8abf8eaf369680 Mon Sep 17 00:00:00 2001
+From: Sergey Dyasli <sergey.dyasli@citrix.com>
+Date: Mon, 19 Dec 2022 14:45:32 +0000
+Subject: [PATCH 155/221] x86/ucode: allow cpu_request_microcode() to skip
+ memory allocation
+
+This is a preparatory step in order to do earlier microcode loading on
+the boot CPU when the domain heap has not been initialized yet and
+xmalloc still unavailable.
+
+Add make_copy argument which will allow to load microcode directly from
+the blob bypassing microcode_cache.
+
+Signed-off-by: Sergey Dyasli <sergey.dyasli@citrix.com>
+Acked-by: Jan Beulich <jbeulich@suse.com>
+---
+ xen/arch/x86/cpu/microcode/amd.c     | 13 +++++++++----
+ xen/arch/x86/cpu/microcode/core.c    |  2 +-
+ xen/arch/x86/cpu/microcode/intel.c   | 13 +++++++++----
+ xen/arch/x86/cpu/microcode/private.h | 16 +++++++++++-----
+ 4 files changed, 30 insertions(+), 14 deletions(-)
+
+diff --git a/xen/arch/x86/cpu/microcode/amd.c b/xen/arch/x86/cpu/microcode/amd.c
+index 8195707ee1..4b097187a0 100644
+--- a/xen/arch/x86/cpu/microcode/amd.c
++++ b/xen/arch/x86/cpu/microcode/amd.c
+@@ -300,7 +300,7 @@ static int scan_equiv_cpu_table(const struct container_equiv_table *et)
+ }
+ 
+ static struct microcode_patch *cf_check cpu_request_microcode(
+-    const void *buf, size_t size)
++    const void *buf, size_t size, bool make_copy)
+ {
+     const struct microcode_patch *saved = NULL;
+     struct microcode_patch *patch = NULL;
+@@ -411,9 +411,14 @@ static struct microcode_patch *cf_check cpu_request_microcode(
+ 
+     if ( saved )
+     {
+-        patch = xmemdup_bytes(saved, saved_size);
+-        if ( !patch )
+-            error = -ENOMEM;
++        if ( make_copy )
++        {
++            patch = xmemdup_bytes(saved, saved_size);
++            if ( !patch )
++                error = -ENOMEM;
++        }
++        else
++            patch = (struct microcode_patch *)saved;
+     }
+ 
+     if ( error && !patch )
+diff --git a/xen/arch/x86/cpu/microcode/core.c b/xen/arch/x86/cpu/microcode/core.c
+index 452a7ca773..85c05e480d 100644
+--- a/xen/arch/x86/cpu/microcode/core.c
++++ b/xen/arch/x86/cpu/microcode/core.c
+@@ -244,7 +244,7 @@ static struct microcode_patch *parse_blob(const char *buf, size_t len)
+ {
+     alternative_vcall(ucode_ops.collect_cpu_info);
+ 
+-    return alternative_call(ucode_ops.cpu_request_microcode, buf, len);
++    return alternative_call(ucode_ops.cpu_request_microcode, buf, len, true);
+ }
+ 
+ static void microcode_free_patch(struct microcode_patch *patch)
+diff --git a/xen/arch/x86/cpu/microcode/intel.c b/xen/arch/x86/cpu/microcode/intel.c
+index f5ba6d76d7..f7fec4b4ed 100644
+--- a/xen/arch/x86/cpu/microcode/intel.c
++++ b/xen/arch/x86/cpu/microcode/intel.c
+@@ -324,7 +324,7 @@ static int cf_check apply_microcode(const struct microcode_patch *patch)
+ }
+ 
+ static struct microcode_patch *cf_check cpu_request_microcode(
+-    const void *buf, size_t size)
++    const void *buf, size_t size, bool make_copy)
+ {
+     int error = 0;
+     const struct microcode_patch *saved = NULL;
+@@ -364,10 +364,15 @@ static struct microcode_patch *cf_check cpu_request_microcode(
+ 
+     if ( saved )
+     {
+-        patch = xmemdup_bytes(saved, get_totalsize(saved));
++        if ( make_copy )
++        {
++            patch = xmemdup_bytes(saved, get_totalsize(saved));
+ 
+-        if ( !patch )
+-            error = -ENOMEM;
++            if ( !patch )
++                error = -ENOMEM;
++        }
++        else
++            patch = (struct microcode_patch *)saved;
+     }
+ 
+     if ( error && !patch )
+diff --git a/xen/arch/x86/cpu/microcode/private.h b/xen/arch/x86/cpu/microcode/private.h
+index c085a10268..73b095d5bf 100644
+--- a/xen/arch/x86/cpu/microcode/private.h
++++ b/xen/arch/x86/cpu/microcode/private.h
+@@ -23,15 +23,21 @@ struct microcode_ops {
+      * older that what is running in the CPU.  This is a feature, to better
+      * cope with corner cases from buggy firmware.)
+      *
+-     * If one is found, allocate and return a struct microcode_patch
+-     * encapsulating the appropriate microcode patch.  Does not alias the
+-     * original buffer.  Must be suitable to be freed with a single xfree().
++     * If one is found, behaviour depends on the make_copy argument:
++     *
++     *     true: allocate and return a struct microcode_patch encapsulating
++     *           the appropriate microcode patch.  Does not alias the original
++     *           buffer.  Must be suitable to be freed with a single xfree().
++     *
++     *    false: return a pointer to the patch within the original buffer.
++     *           This is useful for early microcode loading when xmalloc might
++     *           not be available yet.
+      *
+      * If one is not found, (nothing matches the current CPU), return NULL.
+      * Also may return ERR_PTR(-err), e.g. bad container, out of memory.
+      */
+-    struct microcode_patch *(*cpu_request_microcode)(const void *buf,
+-                                                     size_t size);
++    struct microcode_patch *(*cpu_request_microcode)(
++        const void *buf, size_t size, bool make_copy);
+ 
+     /*
+      * Obtain microcode-relevant details for the current CPU.  Results in
+-- 
+2.17.1
+

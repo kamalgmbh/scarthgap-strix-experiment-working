@@ -1,0 +1,30 @@
+From 17204546bc2d0ecdc85627e7e030ed46bb02e8d9 Mon Sep 17 00:00:00 2001
+From: Xenia Ragiadakou <xenia.ragiadakou@amd.com>
+Date: Mon, 27 May 2024 12:48:29 +0300
+Subject: [PATCH 49/49] fixup! fixup! xen: init and update dynamically hva to
+ guest physical mappings (v4)
+
+Signed-off-by: Xenia Ragiadakou <xenia.ragiadakou@amd.com>
+---
+ drivers/xen/hmem.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/xen/hmem.c b/drivers/xen/hmem.c
+index 2226d6865f2b..4bd109bc2887 100644
+--- a/drivers/xen/hmem.c
++++ b/drivers/xen/hmem.c
+@@ -20,7 +20,10 @@ struct xen_hmem {
+ 	struct mutex mutex;
+ };
+ 
+-#define SLOT_MAX_PAGES 65536
++/* Set SLOT_MAX_PAGES to the maximum number of pages that can be foreign
++ * mapped with a single XENMEM_add_to_physmap_batch hypercall.
++ */
++#define SLOT_MAX_PAGES 0xFFFF
+ struct xen_hmemslot {
+ 	struct xen_hmem *hmem;
+ 	unsigned long gfn;   // start gpfn mapped to the hva
+-- 
+2.17.1
+

@@ -1,0 +1,29 @@
+From 535ec1a9217ec7587e384b06e10027323c70c03a Mon Sep 17 00:00:00 2001
+From: Anonymous Maarten <anonymous.maarten@gmail.com>
+Date: Tue, 18 Apr 2023 18:46:35 +0200
+Subject: [PATCH 354/458] cmake: allow users of sdl2-config.cmake to not add
+ -mwindows to the link options
+
+---
+ sdl2-config.cmake.in | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/sdl2-config.cmake.in b/sdl2-config.cmake.in
+index d75f8b470..842f826bb 100644
+--- a/sdl2-config.cmake.in
++++ b/sdl2-config.cmake.in
+@@ -60,6 +60,11 @@ string(REGEX MATCHALL "-L([-a-zA-Z0-9._/]+)" _sdl2_static_private_libdirs "${_sd
+ string(REGEX REPLACE "^-L" "" _sdl2_static_private_libdirs "${_sdl2_static_private_libdirs}")
+ string(REGEX REPLACE ";-L" ";" _sdl2_static_private_libdirs "${_sdl2_static_private_libdirs}")
+ 
++# Set SDL2_NO_MWINDOWS to a true-ish value to not add the -mwindows link option
++if(SDL2_NO_MWINDOWS)
++  list(REMOVE_ITEM _sdl2_libraries "-mwindows")
++endif()
++
+ if(_sdl2_libraries MATCHES ".*SDL2main.*")
+   list(INSERT SDL2_LIBRARIES 0 SDL2::SDL2main)
+   list(INSERT SDL2_STATIC_LIBRARIES 0 SDL2::SDL2main)
+-- 
+2.17.1
+

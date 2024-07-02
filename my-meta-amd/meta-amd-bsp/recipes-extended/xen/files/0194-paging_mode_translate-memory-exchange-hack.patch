@@ -1,0 +1,58 @@
+From 6ea2902fafe906f41ca1b0ea8198e854782f442d Mon Sep 17 00:00:00 2001
+From: Xenia Ragiadakou <burzalodowa@gmail.com>
+Date: Wed, 15 Feb 2023 10:15:15 +0200
+Subject: [PATCH 194/221] paging_mode_translate memory exchange hack
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The patch permits to an autotranslated guest to exchange
+memory (remove pages from the guest and replace them with
+other pages, in the tee case, with physically contiguous pages)
+by disabling all relevant checks (this in xen is considered
+unsupported currently).
+
+If there is no second stage translation support (no iommu)
+in the system, the patch won’t work
+
+The patch is not upstreamable as is.
+
+Signed-off-by: Xenia Ragiadakou <xenia.ragiadakou@amd.com>
+Change-Id: Idc8072c03c28404d4972058622e0976308f7c542
+---
+ xen/arch/x86/mm.c   | 4 ++--
+ xen/common/memory.c | 3 +--
+ 2 files changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/xen/arch/x86/mm.c b/xen/arch/x86/mm.c
+index 0fe14faa5f..5e28352957 100644
+--- a/xen/arch/x86/mm.c
++++ b/xen/arch/x86/mm.c
+@@ -4365,8 +4365,8 @@ int steal_page(
+     const struct domain *owner;
+     int rc;
+ 
+-    if ( paging_mode_external(d) )
+-        return -EOPNOTSUPP;
++//    if ( paging_mode_external(d) )
++//        put_page_and_type(page);//return -EOPNOTSUPP;
+ 
+     /* Grab a reference to make sure the page doesn't change under our feet */
+     rc = -EINVAL;
+diff --git a/xen/common/memory.c b/xen/common/memory.c
+index a15e5580f3..9db9d44e25 100644
+--- a/xen/common/memory.c
++++ b/xen/common/memory.c
+@@ -792,8 +792,7 @@ static long memory_exchange(XEN_GUEST_HANDLE_PARAM(xen_memory_exchange_t) arg)
+             rc = guest_physmap_add_page(d, _gfn(gpfn), mfn,
+                                         exch.out.extent_order) ?: rc;
+ 
+-            if ( !paging_mode_translate(d) &&
+-                 __copy_mfn_to_guest_offset(exch.out.extent_start,
++            if ( __copy_mfn_to_guest_offset(exch.out.extent_start,
+                                             (i << out_chunk_order) + j,
+                                             mfn) )
+                 rc = -EFAULT;
+-- 
+2.17.1
+

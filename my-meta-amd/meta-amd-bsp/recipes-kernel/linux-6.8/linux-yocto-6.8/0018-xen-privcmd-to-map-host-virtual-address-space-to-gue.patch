@@ -1,0 +1,150 @@
+From bc5a769947515355bccb2dbe947a5187b37ec574 Mon Sep 17 00:00:00 2001
+From: Huang Rui <ray.huang@amd.com>
+Date: Wed, 29 Mar 2023 20:35:26 +0800
+Subject: [PATCH 18/49] xen: privcmd to map host virtual address space to guest
+---
+ drivers/xen/privcmd.c      | 91 ++++++++++++++++++++++++++++++++++++++
+ include/uapi/xen/privcmd.h | 12 +++++
+ 2 files changed, 103 insertions(+)
+
+diff --git a/drivers/xen/privcmd.c b/drivers/xen/privcmd.c
+index cc1f235cd314..ebe11b945ae3 100644
+--- a/drivers/xen/privcmd.c
++++ b/drivers/xen/privcmd.c
+@@ -1502,6 +1502,93 @@ static long privcmd_ioctl_gsi_from_irq(struct file *file, void __user *udata)
+ 	return 0;
+ }
+ 
++static long privcmd_ioctl_map_hva_to_gpfns(struct file *file, void __user *udata)
++{
++	struct mm_struct *mm = current->mm;
++	struct vm_area_struct *vma;
++	struct privcmd_map_hva_to_gpfns data;
++	unsigned long hva;
++	unsigned long *hpfns;
++	int i, ret=0;
++	bool is_userspace;
++
++	if (copy_from_user(&data, udata, sizeof(data))) {
++		printk(KERN_WARNING "%s: failed to copy from user ioctl data\n", __func__);
++		return -EFAULT;
++	}
++
++	hpfns = kmalloc(data.nr_pages * sizeof(*hpfns), GFP_KERNEL);
++	if (!hpfns)
++		return -ENOMEM;
++	hva = data.hva;
++
++	mmap_read_lock(mm);
++	vma = find_vma(mm, hva);
++	if (!vma) {
++		mmap_read_unlock(mm);
++		kfree(hpfns);
++		printk(KERN_WARNING "%s: vma for hva=0x%lx not found\n", __func__, hva);
++		return -EINVAL;
++	}
++
++	is_userspace = !(vma->vm_flags & (VM_IO | VM_PFNMAP));
++	if (is_userspace) {
++		struct page **pages;
++
++		pages = kmalloc(data.nr_pages * sizeof(*pages), GFP_KERNEL);
++		if (!pages) {
++			ret = -ENOMEM;
++			goto out;
++		}
++		if (1/*data.add_mapping*/) {
++			ret = pin_user_pages(hva, data.nr_pages, FOLL_WRITE, pages);
++			if (ret != data.nr_pages) {
++				printk(KERN_WARNING "failed to pin!!\n");
++				goto out;
++			}
++			for (i = 0; i < data.nr_pages; i++)
++				hpfns[i] = page_to_pfn(pages[i]);
++		}
++		kfree(pages);
++		ret = 0;
++		goto out;
++	}
++
++	for (i = 0; i < data.nr_pages; i++) {
++		unsigned long start = hva + i * PAGE_SIZE;
++		pte_t *ptep;
++		spinlock_t *ptl;
++
++		ret = follow_pte(vma->vm_mm, start, &ptep, &ptl);
++		if (ret) {
++			bool unlocked = false;
++			ret = fixup_user_fault(mm, start, 0, &unlocked);
++			if (unlocked)
++				ret = -EAGAIN;
++			if (ret) {
++				printk(KERN_WARNING "@@@ fixup_user_fault failed\n");
++				break;;
++			}
++			ret = follow_pte(vma->vm_mm, start, &ptep, &ptl);
++			if (ret) {
++				printk(KERN_WARNING "@@@ follow_pte not again!!!\n");
++				break;
++			}
++		}
++		hpfns[i] = pte_pfn(*ptep);
++		pte_unmap_unlock(ptep, ptl);
++	}
++ out:
++	mmap_read_unlock(mm);
++
++	if (copy_to_user(data.hpfns, hpfns, data.nr_pages * sizeof(*hpfns))) {
++		printk(KERN_WARNING "%s: failed to copy to user hfns\n", __func__);
++		ret = -EFAULT;
++	}
++	kfree(hpfns);
++	return ret;
++}
++
+ static long privcmd_ioctl(struct file *file,
+ 			  unsigned int cmd, unsigned long data)
+ {
+@@ -1548,6 +1635,10 @@ static long privcmd_ioctl(struct file *file,
+ 		ret = privcmd_ioctl_gsi_from_irq(file, udata);
+ 		break;
+ 
++	case IOCTL_PRIVCMD_MAP_HVA_TO_GPFNS:
++		ret = privcmd_ioctl_map_hva_to_gpfns(file, udata);
++		break;
++
+ 	default:
+ 		break;
+ 	}
+diff --git a/include/uapi/xen/privcmd.h b/include/uapi/xen/privcmd.h
+index 7b5ccb670c77..945808e2e7d3 100644
+--- a/include/uapi/xen/privcmd.h
++++ b/include/uapi/xen/privcmd.h
+@@ -131,6 +131,16 @@ struct privcmd_gsi_from_irq {
+ 	__u32 gsi;
+ };
+ 
++struct privcmd_map_hva_to_gpfns {
++    int nr_pages;
++    domid_t hdom;
++    domid_t gdom;
++    __u64 __user hva;
++    const xen_pfn_t __user *gpfns;
++    xen_pfn_t __user *hpfns;
++    int add_mapping;
++};
++
+ /*
+  * @cmd: IOCTL_PRIVCMD_HYPERCALL
+  * @arg: &privcmd_hypercall_t
+@@ -164,5 +174,7 @@ struct privcmd_gsi_from_irq {
+ 	_IOW('P', 9, struct privcmd_ioeventfd)
+ #define IOCTL_PRIVCMD_GSI_FROM_IRQ				\
+ 	_IOC(_IOC_NONE, 'P', 8, sizeof(struct privcmd_gsi_from_irq))
++#define IOCTL_PRIVCMD_MAP_HVA_TO_GPFNS                          \
++        _IOC(_IOC_NONE, 'P', 13, sizeof(struct privcmd_map_hva_to_gpfns))
+ 
+ #endif /* __LINUX_PUBLIC_PRIVCMD_H__ */
+-- 
+2.17.1
+

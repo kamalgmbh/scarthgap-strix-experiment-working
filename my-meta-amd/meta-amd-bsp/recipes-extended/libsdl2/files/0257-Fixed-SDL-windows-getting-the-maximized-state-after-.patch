@@ -1,0 +1,32 @@
+From 031348d377dad25573f7cce1ee1c9385df1b05a7 Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Tue, 28 Feb 2023 09:02:01 -0800
+Subject: [PATCH 257/458] Fixed SDL windows getting the maximized state after
+ leaving fullscreen on macOS
+
+(cherry picked from commit 2df08fb1b27b721998a1380a2acdbe1494b5591e)
+---
+ src/video/cocoa/SDL_cocoawindow.m | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/video/cocoa/SDL_cocoawindow.m b/src/video/cocoa/SDL_cocoawindow.m
+index a6d8ebf7d..634f8553b 100644
+--- a/src/video/cocoa/SDL_cocoawindow.m
++++ b/src/video/cocoa/SDL_cocoawindow.m
+@@ -817,7 +817,12 @@ Cocoa_UpdateClipCursor(SDL_Window * window)
+     SDL_SendWindowEvent(window, SDL_WINDOWEVENT_MOVED, x, y);
+     SDL_SendWindowEvent(window, SDL_WINDOWEVENT_RESIZED, w, h);
+ 
+-    zoomed = [nswindow isZoomed];
++    /* isZoomed always returns true if the window is not resizable */
++    if ((window->flags & SDL_WINDOW_RESIZABLE) && [nswindow isZoomed]) {
++        zoomed = YES;
++    } else {
++        zoomed = NO;
++    }
+     if (!zoomed) {
+         SDL_SendWindowEvent(window, SDL_WINDOWEVENT_RESTORED, 0, 0);
+     } else if (zoomed) {
+-- 
+2.17.1
+

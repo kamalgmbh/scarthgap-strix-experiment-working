@@ -1,0 +1,25 @@
+From 4ac2d45a060e3419c89e10249aaa886d1b23c0bd Mon Sep 17 00:00:00 2001
+From: "Ryan C. Gordon" <icculus@icculus.org>
+Date: Tue, 22 Nov 2022 18:12:43 -0500
+Subject: [PATCH 008/458] Testing the wiki, disregard this commit.
+
+---
+ include/SDL.h | 2 --
+ 1 file changed, 2 deletions(-)
+
+diff --git a/include/SDL.h b/include/SDL.h
+index 12e7f31a2..41b4d1209 100644
+--- a/include/SDL.h
++++ b/include/SDL.h
+@@ -191,8 +191,6 @@ extern DECLSPEC void SDLCALL SDL_QuitSubSystem(Uint32 flags);
+  *
+  *          The return value does not include SDL_INIT_NOPARACHUTE.
+  *
+- * \since This function is available since SDL 2.0.0.
+- *
+  * \sa SDL_Init
+  * \sa SDL_InitSubSystem
+  */
+-- 
+2.17.1
+

@@ -1,0 +1,25 @@
+From 6dc95e957f83025275583a5b6f6bed0490216ba6 Mon Sep 17 00:00:00 2001
+From: jiqichen <Jiqian.Chen@amd.com>
+Date: Mon, 30 Jan 2023 14:09:47 +0800
+Subject: [PATCH 078/106] hvm: PVH dom0 also need PHYSDEVOP_setup_gsi call
+
+Signed-off-by: Chen Jiqian <Jiqian.Chen@amd.com>
+---
+ xen/arch/x86/hvm/hypercall.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/xen/arch/x86/hvm/hypercall.c b/xen/arch/x86/hvm/hypercall.c
+index efb628a28e..c531abc9f3 100644
+--- a/xen/arch/x86/hvm/hypercall.c
++++ b/xen/arch/x86/hvm/hypercall.c
+@@ -77,6 +77,7 @@ long hvm_physdev_op(int cmd, XEN_GUEST_HANDLE_PARAM(void) arg)
+     case PHYSDEVOP_eoi:
+     case PHYSDEVOP_irq_status_query:
+     case PHYSDEVOP_get_free_pirq:
++    case PHYSDEVOP_setup_gsi:
+         break;
+ 
+     case PHYSDEVOP_pci_mmcfg_reserved:
+-- 
+2.25.1
+

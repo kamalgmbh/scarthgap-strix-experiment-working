@@ -1,0 +1,33 @@
+From afbb71e03eb7fa716ec9b22034567a1c6033b33a Mon Sep 17 00:00:00 2001
+From: Xenia Ragiadakou <xenia.ragiadakou@amd.com>
+Date: Fri, 13 Oct 2023 23:30:25 +0300
+Subject: [PATCH 092/106] pvh dom0: skip any ioreq handling
+
+Dom0 does not have ioreq servers.
+
+Signed-off-by: Xenia Ragiadakou <xenia.ragiadakou@amd.com>
+Change-Id: I55b2d283a7827647b74b07a71a2dea8d98e18c63
+---
+ xen/common/ioreq.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/xen/common/ioreq.c b/xen/common/ioreq.c
+index b05aa876a5..425920443c 100644
+--- a/xen/common/ioreq.c
++++ b/xen/common/ioreq.c
+@@ -219,6 +219,12 @@ bool vcpu_ioreq_handle_completion(struct vcpu *v)
+     enum vio_completion completion;
+     bool res = true;
+ 
++    if ( is_hardware_domain(v->domain) ) {
++        msix_write_completion(v);
++        vcpu_end_shutdown_deferral(v);
++        return true;
++    }
++
+     while ( (sv = get_pending_vcpu(v, &s)) != NULL )
+         if ( !wait_for_io(sv, get_ioreq(s, v)) )
+             return false;
+-- 
+2.25.1
+

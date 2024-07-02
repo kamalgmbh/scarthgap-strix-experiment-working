@@ -1,0 +1,32 @@
+From 5f344c17c2dcc31cfd998b7e1451551e27b6e08b Mon Sep 17 00:00:00 2001
+From: Ozkan Sezer <sezeroz@gmail.com>
+Date: Mon, 24 Apr 2023 18:47:04 +0300
+Subject: [PATCH 357/458] hidapi/mac: import mainstream commit c1b9d2ad
+
+https://github.com/libusb/hidapi/commit/c1b9d2ad985c826f7916aa793d4728885a43a0f4
+Properly handle the close of run loop on macOS
+(https://github.com/libusb/hidapi/pull/522)
+- as per documentation `kCFRunLoopRunStopped` should be handled once the runloop is closed via `CFRunLoopStop`;
+- if it is not handled - a race condition/crash may happen on the latest macOS when a device gets disconnected while being open;
+
+(cherry picked from commit 62d1a2c836c6176a6c76d54229eafa7d011bb9fb)
+---
+ src/hidapi/mac/hid.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/hidapi/mac/hid.c b/src/hidapi/mac/hid.c
+index 372a96731..e8c0d0994 100644
+--- a/src/hidapi/mac/hid.c
++++ b/src/hidapi/mac/hid.c
+@@ -772,7 +772,7 @@ static void *read_thread(void *param)
+ 	while (!dev->shutdown_thread && !dev->disconnected) {
+ 		code = CFRunLoopRunInMode(dev->run_loop_mode, 1000/*sec*/, FALSE);
+ 		/* Return if the device has been disconnected */
+-		if (code == kCFRunLoopRunFinished) {
++		if (code == kCFRunLoopRunFinished || code == kCFRunLoopRunStopped) {
+ 			dev->disconnected = 1;
+ 			break;
+ 		}
+-- 
+2.17.1
+

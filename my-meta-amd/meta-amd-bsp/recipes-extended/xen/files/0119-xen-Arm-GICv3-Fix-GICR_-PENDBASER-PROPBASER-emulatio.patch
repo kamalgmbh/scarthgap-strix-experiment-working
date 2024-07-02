@@ -1,0 +1,60 @@
+From 3f92d294b66f6eaf4c2c69d6544859be610f8a68 Mon Sep 17 00:00:00 2001
+From: Ayan Kumar Halder <ayan.kumar.halder@amd.com>
+Date: Mon, 5 Dec 2022 13:26:31 +0000
+Subject: [PATCH 119/221] xen/Arm: GICv3: Fix GICR_{PENDBASER, PROPBASER}
+ emulation on 32-bit host
+
+'unsigned long long' is defined as 64 bit across both AArch32 and AArch64.
+So, use 'ULL' for 64 bit word instead of UL which is 32 bits for AArch32.
+GICR_PENDBASER and GICR_PROPBASER both are 64 bit registers.
+
+Signed-off-by: Ayan Kumar Halder <ayan.kumar.halder@amd.com>
+Reviewed-by: Michal Orzel <michal.orzel@amd.com>
+Acked-by: Julien Grall <jgrall@amazon.com>
+---
+ xen/arch/arm/include/asm/gic_v3_defs.h | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/xen/arch/arm/include/asm/gic_v3_defs.h b/xen/arch/arm/include/asm/gic_v3_defs.h
+index 728e28d5e5..48a1bc401e 100644
+--- a/xen/arch/arm/include/asm/gic_v3_defs.h
++++ b/xen/arch/arm/include/asm/gic_v3_defs.h
+@@ -134,15 +134,15 @@
+ 
+ #define GICR_PROPBASER_OUTER_CACHEABILITY_SHIFT         56
+ #define GICR_PROPBASER_OUTER_CACHEABILITY_MASK               \
+-        (7UL << GICR_PROPBASER_OUTER_CACHEABILITY_SHIFT)
++        (7ULL << GICR_PROPBASER_OUTER_CACHEABILITY_SHIFT)
+ #define GICR_PROPBASER_SHAREABILITY_SHIFT               10
+ #define GICR_PROPBASER_SHAREABILITY_MASK                     \
+-        (3UL << GICR_PROPBASER_SHAREABILITY_SHIFT)
++        (3ULL << GICR_PROPBASER_SHAREABILITY_SHIFT)
+ #define GICR_PROPBASER_INNER_CACHEABILITY_SHIFT         7
+ #define GICR_PROPBASER_INNER_CACHEABILITY_MASK               \
+-        (7UL << GICR_PROPBASER_INNER_CACHEABILITY_SHIFT)
++        (7ULL << GICR_PROPBASER_INNER_CACHEABILITY_SHIFT)
+ #define GICR_PROPBASER_RES0_MASK                             \
+-        (GENMASK(63, 59) | GENMASK(55, 52) | GENMASK(6, 5))
++        (GENMASK_ULL(63, 59) | GENMASK_ULL(55, 52) | GENMASK_ULL(6, 5))
+ 
+ #define GICR_PENDBASER_SHAREABILITY_SHIFT               10
+ #define GICR_PENDBASER_INNER_CACHEABILITY_SHIFT         7
+@@ -152,11 +152,11 @@
+ #define GICR_PENDBASER_INNER_CACHEABILITY_MASK               \
+ 	(7UL << GICR_PENDBASER_INNER_CACHEABILITY_SHIFT)
+ #define GICR_PENDBASER_OUTER_CACHEABILITY_MASK               \
+-        (7UL << GICR_PENDBASER_OUTER_CACHEABILITY_SHIFT)
+-#define GICR_PENDBASER_PTZ                              BIT(62, UL)
++        (7ULL << GICR_PENDBASER_OUTER_CACHEABILITY_SHIFT)
++#define GICR_PENDBASER_PTZ                              BIT(62, ULL)
+ #define GICR_PENDBASER_RES0_MASK                             \
+-        (BIT(63, UL) | GENMASK(61, 59) | GENMASK(55, 52) |  \
+-         GENMASK(15, 12) | GENMASK(6, 0))
++        (BIT(63, ULL) | GENMASK_ULL(61, 59) | GENMASK_ULL(55, 52) |  \
++         GENMASK_ULL(15, 12) | GENMASK_ULL(6, 0))
+ 
+ #define DEFAULT_PMR_VALUE            0xff
+ 
+-- 
+2.17.1
+

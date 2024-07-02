@@ -1,0 +1,32 @@
+From f79ea7ca41f7e786e0c23b3fe60efc2f760a1ea2 Mon Sep 17 00:00:00 2001
+From: Stefano Stabellini <stefano.stabellini@amd.com>
+Date: Thu, 20 Apr 2023 18:36:21 -0700
+Subject: [PATCH 27/49] xen: do not resume on ACPI S3
+
+The xenbus suspend/resume functions are meant to be called on VM
+suspend/resume (xl suspend/resume), not on regular power state changes
+inside the VM. They should not be called on ACPI S3 suspend/resume for
+instance, as the PV drivers connection remains intact in that case.
+
+Signed-off-by: Stefano Stabellini <stefano.stabellini@amd.com>
+---
+ drivers/xen/xenbus/xenbus_probe.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/drivers/xen/xenbus/xenbus_probe.c b/drivers/xen/xenbus/xenbus_probe.c
+index 3205e5d724c8..c910ae8bd86c 100644
+--- a/drivers/xen/xenbus/xenbus_probe.c
++++ b/drivers/xen/xenbus/xenbus_probe.c
+@@ -690,6 +690,9 @@ int xenbus_dev_resume(struct device *dev)
+ 	if (dev->driver == NULL)
+ 		return 0;
+ 	drv = to_xenbus_driver(dev->driver);
++	/* ACPI S3 case */
++	if (xdev->state == XenbusStateConnected)
++		return 0;
+ 	err = talk_to_otherend(xdev);
+ 	if (err) {
+ 		dev_warn(dev, "resume (talk_to_otherend) failed: %i\n", err);
+-- 
+2.17.1
+

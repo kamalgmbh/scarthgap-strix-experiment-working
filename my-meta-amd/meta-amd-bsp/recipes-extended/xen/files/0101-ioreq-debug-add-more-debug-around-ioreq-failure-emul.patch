@@ -1,0 +1,40 @@
+From f4327a387b32fdda21370da94a5bdb2d6f6d387f Mon Sep 17 00:00:00 2001
+From: Xenia Ragiadakou <xenia.ragiadakou@amd.com>
+Date: Fri, 29 Mar 2024 11:56:44 +0200
+Subject: [PATCH 101/106] ioreq debug: add more debug around ioreq failure
+ emulate.c 200
+
+Signed-off-by: Xenia Ragiadakou <xenia.ragiadakou@amd.com>
+Change-Id: I8cfb2c10512e90afca1f4ea437553031ee52350f
+---
+ xen/arch/x86/hvm/emulate.c | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)
+
+diff --git a/xen/arch/x86/hvm/emulate.c b/xen/arch/x86/hvm/emulate.c
+index dd09fa2149..c354feea32 100644
+--- a/xen/arch/x86/hvm/emulate.c
++++ b/xen/arch/x86/hvm/emulate.c
+@@ -197,7 +197,20 @@ static int hvmemul_do_io(
+              (p.df != df) ||
+              (p.data_is_ptr != data_is_addr) ||
+              (data_is_addr && (p.data != data)) )
++        {
++            printk("[p.type=%d is_mmio=%d] \n"
++                   "[p.addr=0x%lx addr=0x%lx] \n"
++                   "[p.size=0x%x size=0x%x]\n"
++                   "[p.count=%u reps=%lu]\n"
++                   "[p.dir=%d dir=%d]\n"
++                   "[p.df=%d df=%d]\n"
++                   "[p.data_is_ptr=%d data_is_addr=%d]"
++                   "[p.data=0x%lx data=0x%lx]\n",
++                   p.type, is_mmio, p.addr, addr, p.size, size,
++                   p.count, *reps, p.dir, dir, p.df, df, p.data_is_ptr,
++                   data_is_addr, p.data, data);
+             domain_crash(currd);
++        }
+ 
+         if ( data_is_addr )
+             return X86EMUL_UNHANDLEABLE;
+-- 
+2.25.1
+

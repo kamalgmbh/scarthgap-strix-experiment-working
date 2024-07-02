@@ -1,0 +1,68 @@
+From 455451b5f8a4d2f3a5db9066ae09443606baf9ce Mon Sep 17 00:00:00 2001
+From: Andrew Cooper <andrew.cooper3@citrix.com>
+Date: Wed, 8 Nov 2023 14:38:33 +0000
+Subject: [PATCH 006/106] docs/sphinx: Fix syntax issues in hyperlaunch.rst
+
+sphinx-build reports:
+
+  docs/designs/launch/hyperlaunch.rst:111: WARNING: Title underline too short.
+  docs/designs/launch/hyperlaunch.rst:203: WARNING: Unexpected indentation.
+  docs/designs/launch/hyperlaunch.rst:216: WARNING: Unexpected indentation.
+
+Nested lists require newlines as delimiters.
+
+Signed-off-by: Andrew Cooper <andrew.cooper3@citrix.com>
+Acked-by: Stefano Stabellini <sstabellini@kernel.org>
+Release-acked-by: Henry Wang <Henry.Wang@arm.com>
+(cherry picked from commit 93ad5dd9743f54cbd1f98658de9cd3ddc7a98fb6)
+---
+ docs/designs/launch/hyperlaunch.rst | 19 +++++++++++--------
+ 1 file changed, 11 insertions(+), 8 deletions(-)
+
+diff --git a/docs/designs/launch/hyperlaunch.rst b/docs/designs/launch/hyperlaunch.rst
+index 4c138da884..3bed36f976 100644
+--- a/docs/designs/launch/hyperlaunch.rst
++++ b/docs/designs/launch/hyperlaunch.rst
+@@ -108,7 +108,7 @@ both modes of configuration from the same binary and when paired with its XSM
+ flask, provides strong controls that enable fine grained system partitioning.
+ 
+ Hypervisor Launch Landscape
+----------
++---------------------------
+ 
+ This comparison table presents the distinctive capabilities of Hyperlaunch with
+ reference to existing launch configurations currently available in Xen and
+@@ -200,11 +200,13 @@ The benefits of this structure include:
+   domains.
+ * Commonality: Reuses the same logic for initial basic domain building across
+   diverse Xen deployments.
+-	* It aligns the x86 initial domain construction with the existing Arm
+-	  dom0less feature for construction of multiple domains at boot.
+-	* The boot domain implementation may vary significantly with different
+-	  deployment use cases, whereas the hypervisor implementation is
+-	  common.
++
++  * It aligns the x86 initial domain construction with the existing Arm
++    dom0less feature for construction of multiple domains at boot.
++
++  * The boot domain implementation may vary significantly with different
++    deployment use cases, whereas the hypervisor implementation is common.
++
+ * Correctness: Increases confidence in the implementation of domain
+   construction, since it is performed by the hypervisor in well maintained and
+   centrally tested logic.
+@@ -213,8 +215,9 @@ The benefits of this structure include:
+ * Capability: Supports launch of advanced configurations where a sequenced
+   start of multiple domains is required, or multiple domains are involved in
+   startup of the running system configuration
+-	* eg. for PCI passthrough on systems where the toolstack runs in a
+-	  separate domain to the hardware management.
++
++  * eg. for PCI passthrough on systems where the toolstack runs in a separate
++    domain to the hardware management.
+ 
+ Please, see the ‘Hyperlaunch Device Tree’ design document, which describes the
+ configuration module that is provided to the hypervisor by the bootloader.
+-- 
+2.25.1
+

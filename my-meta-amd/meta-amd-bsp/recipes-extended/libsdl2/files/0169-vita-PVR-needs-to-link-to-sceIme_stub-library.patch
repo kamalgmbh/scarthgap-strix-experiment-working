@@ -1,0 +1,24 @@
+From c0445c23bf94b21b1500bd91d4bf6d6fe2ee743f Mon Sep 17 00:00:00 2001
+From: Anonymous Maarten <anonymous.maarten@gmail.com>
+Date: Mon, 23 Jan 2023 05:08:59 +0100
+Subject: [PATCH 169/458] vita: PVR needs to link to sceIme_stub library
+
+---
+ CMakeLists.txt | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index d68a96092..2d461ee9c 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -2508,6 +2508,7 @@ elseif(VITA)
+         list(APPEND EXTRA_LIBS
+           libgpu_es4_ext_stub_weak
+           libIMGEGL_stub_weak
++          SceIme_stub
+         )
+ 
+         set(HAVE_VIDEO_VITA_PVR ON)
+-- 
+2.17.1
+

@@ -1,0 +1,109 @@
+From 92a487f2e4a00ef484ddea985b50c02f1ccfee0d Mon Sep 17 00:00:00 2001
+From: Ozkan Sezer <sezeroz@gmail.com>
+Date: Fri, 19 May 2023 14:10:02 +0300
+Subject: [PATCH 374/458] style fixes for SDL_PROC macros.
+
+---
+ src/audio/aaudio/SDL_aaudio.c           | 2 +-
+ src/render/opengl/SDL_render_gl.c       | 2 +-
+ src/render/opengles/SDL_render_gles.c   | 2 +-
+ src/render/opengles2/SDL_render_gles2.c | 2 +-
+ test/testgl2.c                          | 2 +-
+ test/testgles2.c                        | 2 +-
+ test/testgles2_sdf.c                    | 2 +-
+ 7 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/audio/aaudio/SDL_aaudio.c b/src/audio/aaudio/SDL_aaudio.c
+index 35f3b4e01..8dfd16ce0 100644
+--- a/src/audio/aaudio/SDL_aaudio.c
++++ b/src/audio/aaudio/SDL_aaudio.c
+@@ -39,7 +39,7 @@ typedef struct AAUDIO_Data
+ {
+     AAudioStreamBuilder *builder;
+     void *handle;
+-#define SDL_PROC(ret, func, params) ret(*func) params;
++#define SDL_PROC(ret, func, params) ret (*func) params;
+ #include "SDL_aaudiofuncs.h"
+ #undef SDL_PROC
+ } AAUDIO_Data;
+diff --git a/src/render/opengl/SDL_render_gl.c b/src/render/opengl/SDL_render_gl.c
+index e96d136f5..291afba5d 100644
+--- a/src/render/opengl/SDL_render_gl.c
++++ b/src/render/opengl/SDL_render_gl.c
+@@ -102,7 +102,7 @@ typedef struct
+     GL_FBOList *framebuffers;
+ 
+     /* OpenGL functions */
+-#define SDL_PROC(ret, func, params) ret(APIENTRY *func) params;
++#define SDL_PROC(ret, func, params) ret (APIENTRY *func) params;
+ #include "SDL_glfuncs.h"
+ #undef SDL_PROC
+ 
+diff --git a/src/render/opengles/SDL_render_gles.c b/src/render/opengles/SDL_render_gles.c
+index 0b6f1edfe..962acba52 100644
+--- a/src/render/opengles/SDL_render_gles.c
++++ b/src/render/opengles/SDL_render_gles.c
+@@ -85,7 +85,7 @@ typedef struct
+ {
+     SDL_GLContext context;
+ 
+-#define SDL_PROC(ret, func, params) ret(APIENTRY *func) params;
++#define SDL_PROC(ret, func, params) ret (APIENTRY *func) params;
+ #define SDL_PROC_OES                SDL_PROC
+ #include "SDL_glesfuncs.h"
+ #undef SDL_PROC
+diff --git a/src/render/opengles2/SDL_render_gles2.c b/src/render/opengles2/SDL_render_gles2.c
+index f7b8fdd3a..c5f53af2d 100644
+--- a/src/render/opengles2/SDL_render_gles2.c
++++ b/src/render/opengles2/SDL_render_gles2.c
+@@ -151,7 +151,7 @@ typedef struct GLES2_RenderData
+ 
+     SDL_bool GL_EXT_blend_minmax_supported;
+ 
+-#define SDL_PROC(ret, func, params) ret(APIENTRY *func) params;
++#define SDL_PROC(ret, func, params) ret (APIENTRY *func) params;
+ #include "SDL_gles2funcs.h"
+ #undef SDL_PROC
+     GLES2_FBOList *framebuffers;
+diff --git a/test/testgl2.c b/test/testgl2.c
+index 56f8a280c..b58798c32 100644
+--- a/test/testgl2.c
++++ b/test/testgl2.c
+@@ -26,7 +26,7 @@
+ 
+ typedef struct GL_Context
+ {
+-#define SDL_PROC(ret, func, params) ret(APIENTRY *func) params;
++#define SDL_PROC(ret, func, params) ret (APIENTRY *func) params;
+ #include "../src/render/opengl/SDL_glfuncs.h"
+ #undef SDL_PROC
+ } GL_Context;
+diff --git a/test/testgles2.c b/test/testgles2.c
+index 1ddce2f86..656e5e611 100644
+--- a/test/testgles2.c
++++ b/test/testgles2.c
+@@ -33,7 +33,7 @@
+ 
+ typedef struct GLES2_Context
+ {
+-#define SDL_PROC(ret, func, params) ret(APIENTRY *func) params;
++#define SDL_PROC(ret, func, params) ret (APIENTRY *func) params;
+ #include "../src/render/opengles2/SDL_gles2funcs.h"
+ #undef SDL_PROC
+ } GLES2_Context;
+diff --git a/test/testgles2_sdf.c b/test/testgles2_sdf.c
+index e2ef46662..93c21b9b7 100644
+--- a/test/testgles2_sdf.c
++++ b/test/testgles2_sdf.c
+@@ -31,7 +31,7 @@
+ 
+ typedef struct GLES2_Context
+ {
+-#define SDL_PROC(ret, func, params) ret(APIENTRY *func) params;
++#define SDL_PROC(ret, func, params) ret (APIENTRY *func) params;
+ #include "../src/render/opengles2/SDL_gles2funcs.h"
+ #undef SDL_PROC
+ } GLES2_Context;
+-- 
+2.17.1
+

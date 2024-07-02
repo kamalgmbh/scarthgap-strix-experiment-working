@@ -1,0 +1,61 @@
+From 4384d96c1cedfa4e388401be3a19ff50f8dce54b Mon Sep 17 00:00:00 2001
+From: Jan Beulich <jbeulich@suse.com>
+Date: Mon, 12 Dec 2022 12:19:20 +0100
+Subject: [PATCH 097/221] x86/mm: PGC_shadowed_pt is used by shadow code only
+
+By defining the constant to zero when !SHADOW_PAGING we give compilers
+the chance to eliminate a little more dead code elsewhere in the tree.
+Plus, as a minor benefit, the general reference count can be one bit
+wider. (To simplify things, have PGC_shadowed_pt change places with
+PGC_extra.)
+
+Signed-off-by: Jan Beulich <jbeulich@suse.com>
+Acked-by: Andrew Cooper <andrew.cooper3@citrix.com>
+---
+ xen/arch/x86/include/asm/mm.h | 20 ++++++++++++++------
+ 1 file changed, 14 insertions(+), 6 deletions(-)
+
+diff --git a/xen/arch/x86/include/asm/mm.h b/xen/arch/x86/include/asm/mm.h
+index c4240a94d2..db29e3e205 100644
+--- a/xen/arch/x86/include/asm/mm.h
++++ b/xen/arch/x86/include/asm/mm.h
+@@ -70,9 +70,9 @@
+  /* Page is Xen heap? */
+ #define _PGC_xen_heap     PG_shift(2)
+ #define PGC_xen_heap      PG_mask(1, 2)
+- /* Set when a page table page has been shadowed. */
+-#define _PGC_shadowed_pt  PG_shift(3)
+-#define PGC_shadowed_pt   PG_mask(1, 3)
++ /* Page is not reference counted */
++#define _PGC_extra        PG_shift(3)
++#define PGC_extra         PG_mask(1, 3)
+  /* Page is broken? */
+ #define _PGC_broken       PG_shift(4)
+ #define PGC_broken        PG_mask(1, 4)
+@@ -83,12 +83,20 @@
+ #define PGC_state_offlined  PG_mask(2, 6)
+ #define PGC_state_free      PG_mask(3, 6)
+ #define page_state_is(pg, st) (((pg)->count_info&PGC_state) == PGC_state_##st)
+-/* Page is not reference counted */
+-#define _PGC_extra        PG_shift(7)
+-#define PGC_extra         PG_mask(1, 7)
++#ifdef CONFIG_SHADOW_PAGING
++ /* Set when a page table page has been shadowed. */
++#define _PGC_shadowed_pt  PG_shift(7)
++#define PGC_shadowed_pt   PG_mask(1, 7)
++#else
++#define PGC_shadowed_pt   0
++#endif
+ 
+ /* Count of references to this frame. */
++#if PGC_shadowed_pt
+ #define PGC_count_width   PG_shift(7)
++#else
++#define PGC_count_width   PG_shift(6)
++#endif
+ #define PGC_count_mask    ((1UL<<PGC_count_width)-1)
+ 
+ /*
+-- 
+2.17.1
+

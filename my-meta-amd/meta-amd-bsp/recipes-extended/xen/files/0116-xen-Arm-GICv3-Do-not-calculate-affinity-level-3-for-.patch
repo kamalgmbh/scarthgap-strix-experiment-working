@@ -1,0 +1,63 @@
+From 60baf1c14b66d74d05fdc80df27c596b08775571 Mon Sep 17 00:00:00 2001
+From: Ayan Kumar Halder <ayan.kumar.halder@amd.com>
+Date: Mon, 5 Dec 2022 13:26:28 +0000
+Subject: [PATCH 116/221] xen/Arm: GICv3: Do not calculate affinity level 3 for
+ AArch32
+
+Refer ARM DDI 0487I.a ID081822, G8-9817, G8.2.169
+Affinity level 3 is not present in AArch32.
+Also, refer ARM DDI 0406C.d ID040418, B4-1644, B4.1.106,
+Affinity level 3 is not present in Armv7 (ie arm32).
+Thus, any access to affinity level 3 needs to be guarded within
+"ifdef CONFIG_ARM_64".
+
+Signed-off-by: Ayan Kumar Halder <ayan.kumar.halder@amd.com>
+Reviewed-by: Michal Orzel <michal.orzel@amd.com>
+Acked-by: Julien Grall <jgrall@amazon.com>
+---
+ xen/arch/arm/gic-v3.c | 15 ++++++++++++---
+ 1 file changed, 12 insertions(+), 3 deletions(-)
+
+diff --git a/xen/arch/arm/gic-v3.c b/xen/arch/arm/gic-v3.c
+index 37eb7ff95e..532ae47c59 100644
+--- a/xen/arch/arm/gic-v3.c
++++ b/xen/arch/arm/gic-v3.c
+@@ -518,7 +518,10 @@ static void gicv3_set_pending_state(struct irq_desc *irqd, bool pending)
+ static inline uint64_t gicv3_mpidr_to_affinity(int cpu)
+ {
+      uint64_t mpidr = cpu_logical_map(cpu);
+-     return (MPIDR_AFFINITY_LEVEL(mpidr, 3) << 32 |
++     return (
++#ifdef CONFIG_ARM_64
++             MPIDR_AFFINITY_LEVEL(mpidr, 3) << 32 |
++#endif
+              MPIDR_AFFINITY_LEVEL(mpidr, 2) << 16 |
+              MPIDR_AFFINITY_LEVEL(mpidr, 1) << 8  |
+              MPIDR_AFFINITY_LEVEL(mpidr, 0));
+@@ -711,7 +714,10 @@ static int __init gicv3_populate_rdist(void)
+      * Convert affinity to a 32bit value that can be matched to GICR_TYPER
+      * bits [63:32]
+      */
+-    aff = (MPIDR_AFFINITY_LEVEL(mpidr, 3) << 24 |
++    aff = (
++#ifdef CONFIG_ARM_64
++           MPIDR_AFFINITY_LEVEL(mpidr, 3) << 24 |
++#endif
+            MPIDR_AFFINITY_LEVEL(mpidr, 2) << 16 |
+            MPIDR_AFFINITY_LEVEL(mpidr, 1) << 8 |
+            MPIDR_AFFINITY_LEVEL(mpidr, 0));
+@@ -963,7 +969,10 @@ static void gicv3_send_sgi_list(enum gic_sgi sgi, const cpumask_t *cpumask)
+          * Prepare affinity path of the cluster for which SGI is generated
+          * along with SGI number
+          */
+-        val = (MPIDR_AFFINITY_LEVEL(cluster_id, 3) << 48  |
++        val = (
++#ifdef CONFIG_ARM_64
++               MPIDR_AFFINITY_LEVEL(cluster_id, 3) << 48  |
++#endif
+                MPIDR_AFFINITY_LEVEL(cluster_id, 2) << 32  |
+                sgi << 24                                  |
+                MPIDR_AFFINITY_LEVEL(cluster_id, 1) << 16  |
+-- 
+2.17.1
+

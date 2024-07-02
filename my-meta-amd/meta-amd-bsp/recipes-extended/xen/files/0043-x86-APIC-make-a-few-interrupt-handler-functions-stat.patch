@@ -1,0 +1,120 @@
+From a93864955e4781ba05e76c95851c6c1d08be80d5 Mon Sep 17 00:00:00 2001
+From: Jan Beulich <jbeulich@suse.com>
+Date: Fri, 2 Dec 2022 10:39:22 +0100
+Subject: [PATCH 043/221] x86/APIC: make a few interrupt handler functions
+ static
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Four of them are used in apic.c only and hence better wouldn't be
+exposed to other CUs. To avoid the need for forward declarations, move
+apic_intr_init() past the four handlers.
+
+Signed-off-by: Jan Beulich <jbeulich@suse.com>
+Acked-by: Roger Pau Monné <roger.pau@citrix.com>
+---
+ xen/arch/x86/apic.c            | 38 +++++++++++++++++-----------------
+ xen/arch/x86/include/asm/irq.h |  4 ----
+ 2 files changed, 19 insertions(+), 23 deletions(-)
+
+diff --git a/xen/arch/x86/apic.c b/xen/arch/x86/apic.c
+index 47e6e5fe41..f71474d47d 100644
+--- a/xen/arch/x86/apic.c
++++ b/xen/arch/x86/apic.c
+@@ -127,21 +127,6 @@ void ack_bad_irq(unsigned int irq)
+         ack_APIC_irq();
+ }
+ 
+-void __init apic_intr_init(void)
+-{
+-    smp_intr_init();
+-
+-    /* self generated IPI for local APIC timer */
+-    set_direct_apic_vector(LOCAL_TIMER_VECTOR, apic_timer_interrupt);
+-
+-    /* IPI vectors for APIC spurious and error interrupts */
+-    set_direct_apic_vector(SPURIOUS_APIC_VECTOR, spurious_interrupt);
+-    set_direct_apic_vector(ERROR_APIC_VECTOR, error_interrupt);
+-
+-    /* Performance Counters Interrupt */
+-    set_direct_apic_vector(PMU_APIC_VECTOR, pmu_apic_interrupt);
+-}
+-
+ /* Using APIC to generate smp_local_timer_interrupt? */
+ static bool __read_mostly using_apic_timer;
+ 
+@@ -1363,7 +1348,7 @@ int reprogram_timer(s_time_t timeout)
+     return apic_tmict || !timeout;
+ }
+ 
+-void cf_check apic_timer_interrupt(struct cpu_user_regs *regs)
++static void cf_check apic_timer_interrupt(struct cpu_user_regs *regs)
+ {
+     ack_APIC_irq();
+     perfc_incr(apic_timer);
+@@ -1382,7 +1367,7 @@ void smp_send_state_dump(unsigned int cpu)
+ /*
+  * Spurious interrupts should _never_ happen with our APIC/SMP architecture.
+  */
+-void cf_check spurious_interrupt(struct cpu_user_regs *regs)
++static void cf_check spurious_interrupt(struct cpu_user_regs *regs)
+ {
+     /*
+      * Check if this is a vectored interrupt (most likely, as this is probably
+@@ -1413,7 +1398,7 @@ void cf_check spurious_interrupt(struct cpu_user_regs *regs)
+  * This interrupt should never happen with our APIC/SMP architecture
+  */
+ 
+-void cf_check error_interrupt(struct cpu_user_regs *regs)
++static void cf_check error_interrupt(struct cpu_user_regs *regs)
+ {
+     static const char *const esr_fields[] = {
+         "Send CS error",
+@@ -1446,12 +1431,27 @@ void cf_check error_interrupt(struct cpu_user_regs *regs)
+  * This interrupt handles performance counters interrupt
+  */
+ 
+-void cf_check pmu_apic_interrupt(struct cpu_user_regs *regs)
++static void cf_check pmu_interrupt(struct cpu_user_regs *regs)
+ {
+     ack_APIC_irq();
+     vpmu_do_interrupt(regs);
+ }
+ 
++void __init apic_intr_init(void)
++{
++    smp_intr_init();
++
++    /* self generated IPI for local APIC timer */
++    set_direct_apic_vector(LOCAL_TIMER_VECTOR, apic_timer_interrupt);
++
++    /* IPI vectors for APIC spurious and error interrupts */
++    set_direct_apic_vector(SPURIOUS_APIC_VECTOR, spurious_interrupt);
++    set_direct_apic_vector(ERROR_APIC_VECTOR, error_interrupt);
++
++    /* Performance Counters Interrupt */
++    set_direct_apic_vector(PMU_APIC_VECTOR, pmu_interrupt);
++}
++
+ /*
+  * This initializes the IO-APIC and APIC hardware if this is
+  * a UP kernel.
+diff --git a/xen/arch/x86/include/asm/irq.h b/xen/arch/x86/include/asm/irq.h
+index 76e6ed6d60..424b0e1af8 100644
+--- a/xen/arch/x86/include/asm/irq.h
++++ b/xen/arch/x86/include/asm/irq.h
+@@ -96,10 +96,6 @@ static inline struct cpu_user_regs *set_irq_regs(struct cpu_user_regs *new_regs)
+ void cf_check event_check_interrupt(struct cpu_user_regs *regs);
+ void cf_check invalidate_interrupt(struct cpu_user_regs *regs);
+ void cf_check call_function_interrupt(struct cpu_user_regs *regs);
+-void cf_check apic_timer_interrupt(struct cpu_user_regs *regs);
+-void cf_check error_interrupt(struct cpu_user_regs *regs);
+-void cf_check pmu_apic_interrupt(struct cpu_user_regs *regs);
+-void cf_check spurious_interrupt(struct cpu_user_regs *regs);
+ void cf_check irq_move_cleanup_interrupt(struct cpu_user_regs *regs);
+ 
+ uint8_t alloc_hipriority_vector(void);
+-- 
+2.17.1
+

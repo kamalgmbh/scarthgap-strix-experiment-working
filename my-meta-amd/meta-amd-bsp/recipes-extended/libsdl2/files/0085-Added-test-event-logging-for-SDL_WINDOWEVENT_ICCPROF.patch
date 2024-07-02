@@ -1,0 +1,30 @@
+From 569fa3f57f778344439d4a0990b64b1363c46c82 Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Fri, 9 Dec 2022 10:13:18 -0800
+Subject: [PATCH 085/458] Added test event logging for
+ SDL_WINDOWEVENT_ICCPROF_CHANGED and SDL_WINDOWEVENT_DISPLAY_CHANGED
+
+---
+ src/test/SDL_test_common.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/src/test/SDL_test_common.c b/src/test/SDL_test_common.c
+index 73ddd6e97..e0dfbcce1 100644
+--- a/src/test/SDL_test_common.c
++++ b/src/test/SDL_test_common.c
+@@ -1536,6 +1536,12 @@ static void SDLTest_PrintEvent(SDL_Event *event)
+         case SDL_WINDOWEVENT_HIT_TEST:
+             SDL_Log("SDL EVENT: Window %" SDL_PRIu32 " hit test", event->window.windowID);
+             break;
++        case SDL_WINDOWEVENT_ICCPROF_CHANGED:
++            SDL_Log("SDL EVENT: Window %" SDL_PRIu32 " ICC profile changed", event->window.windowID);
++            break;
++        case SDL_WINDOWEVENT_DISPLAY_CHANGED:
++            SDL_Log("SDL EVENT: Window %" SDL_PRIu32 " display changed to %d", event->window.windowID, event->window.data1);
++            break;
+         default:
+             SDL_Log("SDL EVENT: Window %" SDL_PRIu32 " got unknown event 0x%4.4x",
+                     event->window.windowID, event->window.event);
+-- 
+2.17.1
+

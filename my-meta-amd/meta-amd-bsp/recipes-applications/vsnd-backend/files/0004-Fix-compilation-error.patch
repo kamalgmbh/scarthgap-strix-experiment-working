@@ -1,0 +1,38 @@
+From 4dd2cc83a7035c6c8e930f9ac3500c37b3e568b0 Mon Sep 17 00:00:00 2001
+From: Raghavendra Prasad Mallela <raghavendraprasad.mallela@amd.com>
+Date: Fri, 10 May 2024 18:41:31 +0530
+Subject: [PATCH 4/4] Fix compilation error
+
+This patch has fix for compilation error.
+
+Signed-off-by: Raghavendra Prasad Mallela <raghavendraprasad.mallela@amd.com>
+Change-Id: I5d1b8f0793eae4715bcbe9f607f0739a951ea9b2
+---
+ snd_be/src/AlsaPcm.cpp | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/snd_be/src/AlsaPcm.cpp b/snd_be/src/AlsaPcm.cpp
+index d665bd1..d95bfe5 100644
+--- a/snd_be/src/AlsaPcm.cpp
++++ b/snd_be/src/AlsaPcm.cpp
+@@ -18,7 +18,7 @@
+  * Copyright (C) 2016 EPAM Systems Inc.
+  */
+ 
+-#include <string>
++#include <cmath>
+ 
+ #include "AlsaPcm.hpp"
+ 
+@@ -519,7 +519,7 @@ void AlsaPcm::getTimeStamp()
+ 
+ 	snd_pcm_status_get_audio_htstamp(status, &audioTimeStamp);
+ 
+-	uint64_t frame = llround((float)((audioTimeStamp.tv_sec * 1000000000 +
++	uint64_t frame = std::llround((float)((audioTimeStamp.tv_sec * 1000000000 +
+ 		audioTimeStamp.tv_nsec) * mParams.rate) / 1000000000);
+ 
+ 	uint64_t bytes;
+-- 
+2.17.1
+

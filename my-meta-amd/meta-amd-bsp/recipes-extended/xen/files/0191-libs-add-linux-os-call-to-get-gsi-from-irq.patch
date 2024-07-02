@@ -1,0 +1,163 @@
+From eedf131c303fad066446aa941f4f88fe03ca9fce Mon Sep 17 00:00:00 2001
+From: jiqichen <Jiqian.Chen@amd.com>
+Date: Mon, 30 Jan 2023 14:12:02 +0800
+Subject: [PATCH 191/221] libs: add linux os call to get gsi from irq
+
+When passthrough gpu to guest, usersapce can only get irq
+instead of gsi. But it should pass gsi to guest, so that
+guest can get interrupt signal. So, provide function to get
+gsi.
+
+Signed-off-by: Chen Jiqian <Jiqian.Chen@amd.com>
+Change-Id: Ibb77ec00345f5ab0775d3ec14b5a206e453ffa62
+---
+ tools/include/xen-sys/Linux/privcmd.h |  7 +++++++
+ tools/include/xencall.h               |  2 ++
+ tools/include/xenctrl.h               |  2 ++
+ tools/libs/call/core.c                |  5 +++++
+ tools/libs/call/libxencall.map        |  2 ++
+ tools/libs/call/linux.c               | 14 ++++++++++++++
+ tools/libs/call/private.h             |  9 +++++++++
+ tools/libs/ctrl/xc_physdev.c          |  4 ++++
+ 8 files changed, 45 insertions(+)
+
+diff --git a/tools/include/xen-sys/Linux/privcmd.h b/tools/include/xen-sys/Linux/privcmd.h
+index bc60e8fd55..d72e785b5d 100644
+--- a/tools/include/xen-sys/Linux/privcmd.h
++++ b/tools/include/xen-sys/Linux/privcmd.h
+@@ -95,6 +95,11 @@ typedef struct privcmd_mmap_resource {
+ 	__u64 addr;
+ } privcmd_mmap_resource_t;
+ 
++typedef struct privcmd_gsi_from_irq {
++	__u32 irq;
++	__u32 gsi;
++} privcmd_gsi_from_irq_t;
++
+ /*
+  * @cmd: IOCTL_PRIVCMD_HYPERCALL
+  * @arg: &privcmd_hypercall_t
+@@ -114,6 +119,8 @@ typedef struct privcmd_mmap_resource {
+ 	_IOC(_IOC_NONE, 'P', 6, sizeof(domid_t))
+ #define IOCTL_PRIVCMD_MMAP_RESOURCE				\
+ 	_IOC(_IOC_NONE, 'P', 7, sizeof(privcmd_mmap_resource_t))
++#define IOCTL_PRIVCMD_GSI_FROM_IRQ				\
++	_IOC(_IOC_NONE, 'P', 8, sizeof(privcmd_gsi_from_irq_t))
+ #define IOCTL_PRIVCMD_UNIMPLEMENTED				\
+ 	_IOC(_IOC_NONE, 'P', 0xFF, 0)
+ 
+diff --git a/tools/include/xencall.h b/tools/include/xencall.h
+index fc95ed0fe5..962cb45e1f 100644
+--- a/tools/include/xencall.h
++++ b/tools/include/xencall.h
+@@ -113,6 +113,8 @@ int xencall5(xencall_handle *xcall, unsigned int op,
+              uint64_t arg1, uint64_t arg2, uint64_t arg3,
+              uint64_t arg4, uint64_t arg5);
+ 
++int xen_oscall_gsi_from_irq(xencall_handle *xcall, int irq);
++
+ /* Variant(s) of the above, as needed, returning "long" instead of "int". */
+ long xencall2L(xencall_handle *xcall, unsigned int op,
+                uint64_t arg1, uint64_t arg2);
+diff --git a/tools/include/xenctrl.h b/tools/include/xenctrl.h
+index 23037874d3..3918be9e53 100644
+--- a/tools/include/xenctrl.h
++++ b/tools/include/xenctrl.h
+@@ -1652,6 +1652,8 @@ int xc_physdev_unmap_pirq(xc_interface *xch,
+                           uint32_t domid,
+                           int pirq);
+ 
++int xc_physdev_gsi_from_irq(xc_interface *xch, int irq);
++
+ /*
+  *  LOGGING AND ERROR REPORTING
+  */
+diff --git a/tools/libs/call/core.c b/tools/libs/call/core.c
+index 02c4f8e1ae..6f79f3babd 100644
+--- a/tools/libs/call/core.c
++++ b/tools/libs/call/core.c
+@@ -173,6 +173,11 @@ int xencall5(xencall_handle *xcall, unsigned int op,
+     return osdep_hypercall(xcall, &call);
+ }
+ 
++int xen_oscall_gsi_from_irq(xencall_handle *xcall, int irq)
++{
++    return osdep_oscall(xcall, irq);
++}
++
+ /*
+  * Local variables:
+  * mode: C
+diff --git a/tools/libs/call/libxencall.map b/tools/libs/call/libxencall.map
+index d18a3174e9..6cde8eda05 100644
+--- a/tools/libs/call/libxencall.map
++++ b/tools/libs/call/libxencall.map
+@@ -10,6 +10,8 @@ VERS_1.0 {
+ 		xencall4;
+ 		xencall5;
+ 
++		xen_oscall_gsi_from_irq;
++
+ 		xencall_alloc_buffer;
+ 		xencall_free_buffer;
+ 		xencall_alloc_buffer_pages;
+diff --git a/tools/libs/call/linux.c b/tools/libs/call/linux.c
+index 6d588e6bea..5267bceabf 100644
+--- a/tools/libs/call/linux.c
++++ b/tools/libs/call/linux.c
+@@ -85,6 +85,20 @@ long osdep_hypercall(xencall_handle *xcall, privcmd_hypercall_t *hypercall)
+     return ioctl(xcall->fd, IOCTL_PRIVCMD_HYPERCALL, hypercall);
+ }
+ 
++long osdep_oscall(xencall_handle *xcall, int irq)
++{
++    privcmd_gsi_from_irq_t gsi_irq = {
++        .irq = irq,
++        .gsi = -1,
++    };
++
++    if (ioctl(xcall->fd, IOCTL_PRIVCMD_GSI_FROM_IRQ, &gsi_irq)) {
++        return gsi_irq.irq;
++    }
++
++    return gsi_irq.gsi;
++}
++
+ static void *alloc_pages_bufdev(xencall_handle *xcall, size_t npages)
+ {
+     void *p;
+diff --git a/tools/libs/call/private.h b/tools/libs/call/private.h
+index 9c3aa432ef..01a1f5076a 100644
+--- a/tools/libs/call/private.h
++++ b/tools/libs/call/private.h
+@@ -57,6 +57,15 @@ int osdep_xencall_close(xencall_handle *xcall);
+ 
+ long osdep_hypercall(xencall_handle *xcall, privcmd_hypercall_t *hypercall);
+ 
++#if defined(__linux__)
++long osdep_oscall(xencall_handle *xcall, int irq);
++#else
++static inline long osdep_oscall(xencall_handle *xcall, int irq)
++{
++    return irq;
++}
++#endif
++
+ void *osdep_alloc_pages(xencall_handle *xcall, size_t nr_pages);
+ void osdep_free_pages(xencall_handle *xcall, void *p, size_t nr_pages);
+ 
+diff --git a/tools/libs/ctrl/xc_physdev.c b/tools/libs/ctrl/xc_physdev.c
+index 460a8e779c..4d3b138ebd 100644
+--- a/tools/libs/ctrl/xc_physdev.c
++++ b/tools/libs/ctrl/xc_physdev.c
+@@ -111,3 +111,7 @@ int xc_physdev_unmap_pirq(xc_interface *xch,
+     return rc;
+ }
+ 
++int xc_physdev_gsi_from_irq(xc_interface *xch, int irq)
++{
++    return xen_oscall_gsi_from_irq(xch->xcall, irq);
++}
+-- 
+2.17.1
+

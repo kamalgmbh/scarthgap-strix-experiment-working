@@ -1,0 +1,31 @@
+From 54eb949920464a2dd6488e826617f4006ca4441e Mon Sep 17 00:00:00 2001
+From: Pierre-Eric Pelloux-Prayer <pierre-eric.pelloux-prayer@amd.com>
+Date: Thu, 16 Nov 2023 18:01:09 +0100
+Subject: [PATCH 31/70] Do not signal fence from context 0 that aren't ctx0
+ from virgl_write_fence
+
+TODO: make sure virgl_write_fence is actually really needed.
+---
+ hw/display/virtio-gpu-virgl.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/hw/display/virtio-gpu-virgl.c b/hw/display/virtio-gpu-virgl.c
+index 0f0257f0de..f3c45e4aa9 100644
+--- a/hw/display/virtio-gpu-virgl.c
++++ b/hw/display/virtio-gpu-virgl.c
+@@ -1093,6 +1093,12 @@ static void virgl_write_fence(void *opaque, uint32_t fence)
+         return virgl_write_fence_async(g, fence);
+ 
+     QTAILQ_FOREACH_SAFE(cmd, &g->fenceq, next, tmp) {
++        /* Only process ctx0 fences here. */
++        if (cmd->cmd_hdr.ctx_id != 0)
++            continue;
++
++        assert (cmd->cmd_hdr.ring_idx == 0);
++
+         /*
+          * the guest can end up emitting fences out of order
+          * so we should check all fenced cmds not just the first one.
+-- 
+2.17.1
+

@@ -1,0 +1,35 @@
+From e19c532ebf30690381c4e0cc3ae0c36114553768 Mon Sep 17 00:00:00 2001
+From: Michael Fitzmayer <mail@michael-fitzmayer.de>
+Date: Thu, 24 Nov 2022 21:53:17 +0100
+Subject: [PATCH 022/458] Add bitdraw.h, remove non-working stub class
+
+(cherry picked from commit 67f31a19a8eb06ee80bccb9ec8cc8c34aa635b3d)
+---
+ src/video/ngage/SDL_ngagevideo.h | 11 +----------
+ 1 file changed, 1 insertion(+), 10 deletions(-)
+
+diff --git a/src/video/ngage/SDL_ngagevideo.h b/src/video/ngage/SDL_ngagevideo.h
+index af8e8d857..e74038bb2 100644
+--- a/src/video/ngage/SDL_ngagevideo.h
++++ b/src/video/ngage/SDL_ngagevideo.h
+@@ -30,16 +30,7 @@
+ #include <e32svr.h>
+ #include <bitdev.h>
+ #include <w32std.h>
+-
+-class CFbsDrawDevice : public CBase
+-{
+-public:
+-public:
+-    IMPORT_C static CFbsDrawDevice* NewScreenDeviceL(TScreenInfoV01 aInfo,TDisplayMode aDispMode);
+-public:
+-    virtual void Update() {}
+-    virtual void UpdateRegion(const TRect&) {}
+-};
++#include "bitdraw.h" // CFbsDrawDevice
+ 
+ #define _THIS SDL_VideoDevice *_this
+ 
+-- 
+2.17.1
+

@@ -1,0 +1,244 @@
+From aa1b48488ba9eb869b358936d4eb71bd4b5db8cd Mon Sep 17 00:00:00 2001
+From: David Stevens <stevensd@chromium.org>
+Date: Wed, 21 Feb 2024 16:25:28 +0900
+Subject: [PATCH 07/49] KVM: x86/mmu: Handle non-refcounted pages
+
+Handle non-refcounted pages in kvm_faultin_pfn(). This allows the host
+to map memory into the guest that is backed by non-refcounted struct
+pages - for example, the tail pages of higher order non-compound pages
+allocated by the amdgpu driver via ttm_pool_alloc_page.
+
+Tested-by: Dmitry Osipenko <dmitry.osipenko@collabora.com> # virgl+venus+virtio-intel+i915
+Signed-off-by: David Stevens <stevensd@chromium.org>
+---
+ arch/x86/kvm/mmu/mmu.c          | 24 +++++++++++++++++-------
+ arch/x86/kvm/mmu/mmu_internal.h |  2 ++
+ arch/x86/kvm/mmu/paging_tmpl.h  |  2 +-
+ arch/x86/kvm/mmu/tdp_mmu.c      |  3 ++-
+ include/linux/kvm_host.h        |  6 ++++--
+ virt/kvm/guest_memfd.c          |  8 ++++----
+ virt/kvm/kvm_main.c             | 10 ++++++++--
+ 7 files changed, 38 insertions(+), 17 deletions(-)
+
+diff --git a/arch/x86/kvm/mmu/mmu.c b/arch/x86/kvm/mmu/mmu.c
+index ddfea83e7339..487bd6fcc162 100644
+--- a/arch/x86/kvm/mmu/mmu.c
++++ b/arch/x86/kvm/mmu/mmu.c
+@@ -2924,6 +2924,11 @@ static int mmu_set_spte(struct kvm_vcpu *vcpu, struct kvm_memory_slot *slot,
+ 	bool host_writable = !fault || fault->map_writable;
+ 	bool prefetch = !fault || fault->prefetch;
+ 	bool write_fault = fault && fault->write;
++	/*
++	 * Prefetching uses gfn_to_page_many_atomic, which never gets
++	 * non-refcounted pages.
++	 */
++	bool is_refcounted = !fault || !!fault->accessed_page;
+ 
+ 	if (unlikely(is_noslot_pfn(pfn))) {
+ 		vcpu->stat.pf_mmio_spte_created++;
+@@ -2951,7 +2956,7 @@ static int mmu_set_spte(struct kvm_vcpu *vcpu, struct kvm_memory_slot *slot,
+ 	}
+ 
+ 	wrprot = make_spte(vcpu, sp, slot, pte_access, gfn, pfn, *sptep, prefetch,
+-			   true, host_writable, true, &spte);
++			   true, host_writable, is_refcounted, &spte);
+ 
+ 	if (*sptep == spte) {
+ 		ret = RET_PF_SPURIOUS;
+@@ -4319,8 +4324,8 @@ static int kvm_faultin_pfn_private(struct kvm_vcpu *vcpu,
+ 		return -EFAULT;
+ 	}
+ 
+-	r = kvm_gmem_get_pfn(vcpu->kvm, fault->slot, fault->gfn, &fault->pfn,
+-			     &max_order);
++	r = kvm_gmem_get_pfn(vcpu->kvm, fault->slot, fault->gfn,
++			     &fault->pfn, &fault->accessed_page, &max_order);
+ 	if (r) {
+ 		kvm_mmu_prepare_memory_fault_exit(vcpu, fault);
+ 		return r;
+@@ -4330,6 +4335,9 @@ static int kvm_faultin_pfn_private(struct kvm_vcpu *vcpu,
+ 			       fault->max_level);
+ 	fault->map_writable = !(fault->slot->flags & KVM_MEM_READONLY);
+ 
++	/* kvm_gmem_get_pfn takes a refcount, but accessed_page doesn't need it. */
++	put_page(fault->accessed_page);
++
+ 	return RET_PF_CONTINUE;
+ }
+ 
+@@ -4339,10 +4347,10 @@ static int __kvm_faultin_pfn(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault
+ 	struct kvm_follow_pfn kfp = {
+ 		.slot = slot,
+ 		.gfn = fault->gfn,
+-		.flags = FOLL_GET | (fault->write ? FOLL_WRITE : 0),
++		.flags = fault->write ? FOLL_WRITE : 0,
+ 		.try_map_writable = true,
+ 		.guarded_by_mmu_notifier = true,
+-		.allow_non_refcounted_struct_page = false,
++		.allow_non_refcounted_struct_page = spte_has_refcount_bit(),
+ 	};
+ 
+ 	/*
+@@ -4359,6 +4367,7 @@ static int __kvm_faultin_pfn(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault
+ 			fault->slot = NULL;
+ 			fault->pfn = KVM_PFN_NOSLOT;
+ 			fault->map_writable = false;
++			fault->accessed_page = NULL;
+ 			return RET_PF_CONTINUE;
+ 		}
+ 		/*
+@@ -4422,6 +4431,7 @@ static int __kvm_faultin_pfn(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault
+ success:
+ 	fault->hva = kfp.hva;
+ 	fault->map_writable = kfp.writable;
++	fault->accessed_page = kfp.refcounted_page;
+ 	return RET_PF_CONTINUE;
+ }
+ 
+@@ -4552,8 +4562,8 @@ static int direct_page_fault(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault
+ 	r = direct_map(vcpu, fault);
+ 
+ out_unlock:
++	kvm_set_page_accessed(fault->accessed_page);
+ 	write_unlock(&vcpu->kvm->mmu_lock);
+-	kvm_release_pfn_clean(fault->pfn);
+ 	return r;
+ }
+ 
+@@ -4628,8 +4638,8 @@ static int kvm_tdp_mmu_page_fault(struct kvm_vcpu *vcpu,
+ 	r = kvm_tdp_mmu_map(vcpu, fault);
+ 
+ out_unlock:
++	kvm_set_page_accessed(fault->accessed_page);
+ 	read_unlock(&vcpu->kvm->mmu_lock);
+-	kvm_release_pfn_clean(fault->pfn);
+ 	return r;
+ }
+ #endif
+diff --git a/arch/x86/kvm/mmu/mmu_internal.h b/arch/x86/kvm/mmu/mmu_internal.h
+index 0669a8a668ca..0b05183600af 100644
+--- a/arch/x86/kvm/mmu/mmu_internal.h
++++ b/arch/x86/kvm/mmu/mmu_internal.h
+@@ -240,6 +240,8 @@ struct kvm_page_fault {
+ 	kvm_pfn_t pfn;
+ 	hva_t hva;
+ 	bool map_writable;
++	/* Does NOT have an elevated refcount */
++	struct page *accessed_page;
+ 
+ 	/*
+ 	 * Indicates the guest is trying to write a gfn that contains one or
+diff --git a/arch/x86/kvm/mmu/paging_tmpl.h b/arch/x86/kvm/mmu/paging_tmpl.h
+index c965f77ac4d5..b39dce802394 100644
+--- a/arch/x86/kvm/mmu/paging_tmpl.h
++++ b/arch/x86/kvm/mmu/paging_tmpl.h
+@@ -847,8 +847,8 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault
+ 	r = FNAME(fetch)(vcpu, fault, &walker);
+ 
+ out_unlock:
++	kvm_set_page_accessed(fault->accessed_page);
+ 	write_unlock(&vcpu->kvm->mmu_lock);
+-	kvm_release_pfn_clean(fault->pfn);
+ 	return r;
+ }
+ 
+diff --git a/arch/x86/kvm/mmu/tdp_mmu.c b/arch/x86/kvm/mmu/tdp_mmu.c
+index ee497fb78d90..0524be7c0796 100644
+--- a/arch/x86/kvm/mmu/tdp_mmu.c
++++ b/arch/x86/kvm/mmu/tdp_mmu.c
+@@ -958,7 +958,8 @@ static int tdp_mmu_map_handle_target_level(struct kvm_vcpu *vcpu,
+ 	else
+ 		wrprot = make_spte(vcpu, sp, fault->slot, ACC_ALL, iter->gfn,
+ 				   fault->pfn, iter->old_spte, fault->prefetch, true,
+-				   fault->map_writable, true, &new_spte);
++				   fault->map_writable, !!fault->accessed_page,
++				   &new_spte);
+ 
+ 	if (new_spte == iter->old_spte)
+ 		ret = RET_PF_SPURIOUS;
+diff --git a/include/linux/kvm_host.h b/include/linux/kvm_host.h
+index 8f0a76feffde..d2acb4995002 100644
+--- a/include/linux/kvm_host.h
++++ b/include/linux/kvm_host.h
+@@ -2447,11 +2447,13 @@ static inline bool kvm_mem_is_private(struct kvm *kvm, gfn_t gfn)
+ 
+ #ifdef CONFIG_KVM_PRIVATE_MEM
+ int kvm_gmem_get_pfn(struct kvm *kvm, struct kvm_memory_slot *slot,
+-		     gfn_t gfn, kvm_pfn_t *pfn, int *max_order);
++		     gfn_t gfn, kvm_pfn_t *pfn, struct page **page,
++		     int *max_order);
+ #else
+ static inline int kvm_gmem_get_pfn(struct kvm *kvm,
+ 				   struct kvm_memory_slot *slot, gfn_t gfn,
+-				   kvm_pfn_t *pfn, int *max_order)
++				   kvm_pfn_t *pfn, struct page **page,
++				   int *max_order)
+ {
+ 	KVM_BUG_ON(1, kvm);
+ 	return -EIO;
+diff --git a/virt/kvm/guest_memfd.c b/virt/kvm/guest_memfd.c
+index 0f4e0cf4f158..dabcca2ecc37 100644
+--- a/virt/kvm/guest_memfd.c
++++ b/virt/kvm/guest_memfd.c
+@@ -483,12 +483,12 @@ void kvm_gmem_unbind(struct kvm_memory_slot *slot)
+ }
+ 
+ int kvm_gmem_get_pfn(struct kvm *kvm, struct kvm_memory_slot *slot,
+-		     gfn_t gfn, kvm_pfn_t *pfn, int *max_order)
++		     gfn_t gfn, kvm_pfn_t *pfn, struct page **page,
++		     int *max_order)
+ {
+ 	pgoff_t index = gfn - slot->base_gfn + slot->gmem.pgoff;
+ 	struct kvm_gmem *gmem;
+ 	struct folio *folio;
+-	struct page *page;
+ 	struct file *file;
+ 	int r;
+ 
+@@ -514,9 +514,9 @@ int kvm_gmem_get_pfn(struct kvm *kvm, struct kvm_memory_slot *slot,
+ 		goto out_unlock;
+ 	}
+ 
+-	page = folio_file_page(folio, index);
++	*page = folio_file_page(folio, index);
+ 
+-	*pfn = page_to_pfn(page);
++	*pfn = page_to_pfn(*page);
+ 	if (max_order)
+ 		*max_order = 0;
+ 
+diff --git a/virt/kvm/kvm_main.c b/virt/kvm/kvm_main.c
+index f759286de476..efce04e60dcb 100644
+--- a/virt/kvm/kvm_main.c
++++ b/virt/kvm/kvm_main.c
+@@ -3281,11 +3281,17 @@ void kvm_set_page_dirty(struct page *page)
+ }
+ EXPORT_SYMBOL_GPL(kvm_set_page_dirty);
+ 
+-void kvm_set_page_accessed(struct page *page)
++static void __kvm_set_page_accessed(struct page *page)
+ {
+ 	if (kvm_is_ad_tracked_page(page))
+ 		mark_page_accessed(page);
+ }
++
++void kvm_set_page_accessed(struct page *page)
++{
++	if (page)
++		__kvm_set_page_accessed(page);
++}
+ EXPORT_SYMBOL_GPL(kvm_set_page_accessed);
+ 
+ void kvm_release_page_clean(struct page *page)
+@@ -3295,7 +3301,7 @@ void kvm_release_page_clean(struct page *page)
+ 	if (!page)
+ 		return;
+ 
+-	kvm_set_page_accessed(page);
++	__kvm_set_page_accessed(page);
+ 	put_page(page);
+ }
+ EXPORT_SYMBOL_GPL(kvm_release_page_clean);
+-- 
+2.17.1
+

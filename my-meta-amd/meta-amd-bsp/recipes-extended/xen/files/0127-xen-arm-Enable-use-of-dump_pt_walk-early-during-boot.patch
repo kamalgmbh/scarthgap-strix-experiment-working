@@ -1,0 +1,117 @@
+From 9487a6d62af1edb0bd497b546839b4a0cd768603 Mon Sep 17 00:00:00 2001
+From: Julien Grall <jgrall@amazon.com>
+Date: Thu, 15 Dec 2022 11:44:45 +0000
+Subject: [PATCH 127/221] xen/arm: Enable use of dump_pt_walk() early during
+ boot
+
+At the moment, dump_pt_walk() is using map_domain_page() to map
+the page tables.
+
+map_domain_page() is only usuable after init_domheap_mappings() is called
+(arm32) or the xenheap has been initialized (arm64).
+
+This means it can be hard to diagnose incorrect page-tables during
+early boot. So update dump_pt_walk() to xen_{, un}map_table() instead.
+
+Note that the two helpers are moved earlier to avoid forward declaring
+them.
+
+Signed-off-by: Julien Grall <jgrall@amazon.com>
+Reviewed-by: Stefano Stabellini <sstabellini@kernel.org>
+---
+ xen/arch/arm/mm.c | 56 +++++++++++++++++++++++------------------------
+ 1 file changed, 28 insertions(+), 28 deletions(-)
+
+diff --git a/xen/arch/arm/mm.c b/xen/arch/arm/mm.c
+index 630175276f..1fd207b27c 100644
+--- a/xen/arch/arm/mm.c
++++ b/xen/arch/arm/mm.c
+@@ -177,6 +177,30 @@ static void __init __maybe_unused build_assertions(void)
+ #undef CHECK_SAME_SLOT
+ }
+ 
++static lpae_t *xen_map_table(mfn_t mfn)
++{
++    /*
++     * During early boot, map_domain_page() may be unusable. Use the
++     * PMAP to map temporarily a page-table.
++     */
++    if ( system_state == SYS_STATE_early_boot )
++        return pmap_map(mfn);
++
++    return map_domain_page(mfn);
++}
++
++static void xen_unmap_table(const lpae_t *table)
++{
++    /*
++     * During early boot, xen_map_table() will not use map_domain_page()
++     * but the PMAP.
++     */
++    if ( system_state == SYS_STATE_early_boot )
++        pmap_unmap(table);
++    else
++        unmap_domain_page(table);
++}
++
+ void dump_pt_walk(paddr_t ttbr, paddr_t addr,
+                   unsigned int root_level,
+                   unsigned int nr_root_tables)
+@@ -216,7 +240,7 @@ void dump_pt_walk(paddr_t ttbr, paddr_t addr,
+     else
+         root_table = 0;
+ 
+-    mapping = map_domain_page(mfn_add(root_mfn, root_table));
++    mapping = xen_map_table(mfn_add(root_mfn, root_table));
+ 
+     for ( level = root_level; ; level++ )
+     {
+@@ -232,11 +256,11 @@ void dump_pt_walk(paddr_t ttbr, paddr_t addr,
+             break;
+ 
+         /* For next iteration */
+-        unmap_domain_page(mapping);
+-        mapping = map_domain_page(lpae_get_mfn(pte));
++        xen_unmap_table(mapping);
++        mapping = xen_map_table(lpae_get_mfn(pte));
+     }
+ 
+-    unmap_domain_page(mapping);
++    xen_unmap_table(mapping);
+ }
+ 
+ void dump_hyp_walk(vaddr_t addr)
+@@ -699,30 +723,6 @@ void *ioremap(paddr_t pa, size_t len)
+     return ioremap_attr(pa, len, PAGE_HYPERVISOR_NOCACHE);
+ }
+ 
+-static lpae_t *xen_map_table(mfn_t mfn)
+-{
+-    /*
+-     * During early boot, map_domain_page() may be unusable. Use the
+-     * PMAP to map temporarily a page-table.
+-     */
+-    if ( system_state == SYS_STATE_early_boot )
+-        return pmap_map(mfn);
+-
+-    return map_domain_page(mfn);
+-}
+-
+-static void xen_unmap_table(const lpae_t *table)
+-{
+-    /*
+-     * During early boot, xen_map_table() will not use map_domain_page()
+-     * but the PMAP.
+-     */
+-    if ( system_state == SYS_STATE_early_boot )
+-        pmap_unmap(table);
+-    else
+-        unmap_domain_page(table);
+-}
+-
+ static int create_xen_table(lpae_t *entry)
+ {
+     mfn_t mfn;
+-- 
+2.17.1
+

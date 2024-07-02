@@ -1,0 +1,27 @@
+From 8efa1f8fc60e0a2961ce3bad9293c048301d25ba Mon Sep 17 00:00:00 2001
+From: Fabian Greffrath <fabian@greffrath.com>
+Date: Mon, 16 Jan 2023 15:17:26 +0100
+Subject: [PATCH 160/458] add support for libsamplerate's "linear" resampling
+ mode
+
+Fixes #6998
+---
+ src/audio/SDL_audio.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/src/audio/SDL_audio.c b/src/audio/SDL_audio.c
+index d42396de5..46ea9fa9b 100644
+--- a/src/audio/SDL_audio.c
++++ b/src/audio/SDL_audio.c
+@@ -160,6 +160,8 @@ static SDL_bool LoadLibSampleRate(void)
+         SRC_converter = SRC_SINC_MEDIUM_QUALITY;
+     } else if (*hint == '3' || SDL_strcasecmp(hint, "best") == 0) {
+         SRC_converter = SRC_SINC_BEST_QUALITY;
++    } else if (*hint == '4' || SDL_strcasecmp(hint, "linear") == 0) {
++        SRC_converter = SRC_LINEAR;
+     } else {
+         return SDL_FALSE; /* treat it like "default", don't load anything. */
+     }
+-- 
+2.17.1
+

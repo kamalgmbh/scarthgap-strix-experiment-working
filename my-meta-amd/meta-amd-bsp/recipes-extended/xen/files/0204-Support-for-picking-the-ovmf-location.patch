@@ -1,0 +1,60 @@
+From 5b33591326a8b4cad603565580460f991e4e5345 Mon Sep 17 00:00:00 2001
+From: Kalyan Rankireddy <kalyan.rankireddy@amd.com>
+Date: Thu, 20 Jul 2023 15:34:05 +0530
+Subject: [PATCH 204/221] Support for picking the ovmf location
+
+Currently XEN will pull the upstream ovmf code. This patch will
+add a support to pick the ovmf location if available in the system.
+This solves the problem of having a patch in ovmf. Added a new variable
+OVMF_UPSTREAM_LOC which needs to be set with local ovmf directory path.
+
+Signed-off-by: Kalyan Rankireddy <kalyan.rankireddy@amd.com>
+Change-Id: Ied19420d2a39e89c2aa895dce1ad1640cf6d5ce4
+---
+ Config.mk                    | 3 +++
+ tools/firmware/Makefile      | 7 ++++++-
+ tools/firmware/ovmf-makefile | 1 -
+ 3 files changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/Config.mk b/Config.mk
+index b15e47278b..c2e7616618 100644
+--- a/Config.mk
++++ b/Config.mk
+@@ -255,4 +255,7 @@ QEMU_UPSTREAM_LOC ?= $(call or,$(wildcard $(QEMU_UPSTREAM_INTREE)),\
+ # Specifies which seabios to be used.
+ SEABIOS_UPSTREAM_LOC = $(XEN_ROOT)/tools/seabios
+ 
++# Specifies which ovmf to be used.
++OVMF_UPSTREAM_LOC = $(XEN_ROOT)/tools/ovmf
++
+ CONFIG_TESTS       ?= y
+diff --git a/tools/firmware/Makefile b/tools/firmware/Makefile
+index 8e3b51a382..7b260795db 100644
+--- a/tools/firmware/Makefile
++++ b/tools/firmware/Makefile
+@@ -20,7 +20,12 @@ SEABIOSLD ?= $(LD)
+ SEABIOS_EXTRAVERSION ?= "-Xen"
+ 
+ ovmf-dir:
+-	GIT=$(GIT) $(XEN_ROOT)/scripts/git-checkout.sh $(OVMF_UPSTREAM_URL) $(OVMF_UPSTREAM_REVISION) ovmf-dir
++	if test -d $(OVMF_UPSTREAM_LOC) ; then \
++                ln -sf $(basename $(OVMF_UPSTREAM_LOC)) ovmf-dir; \
++        else \
++                GIT=$(GIT) $(XEN_ROOT)/scripts/git-checkout.sh $(OVMF_UPSTREAM_URL) $(OVMF_UPSTREAM_REVISION) ovmf-dir; \
++        fi
++
+ 	cp ovmf-makefile ovmf-dir/Makefile;
+ 
+ seabios-dir:
+diff --git a/tools/firmware/ovmf-makefile b/tools/firmware/ovmf-makefile
+index 1f619a5189..e35d8d9afe 100644
+--- a/tools/firmware/ovmf-makefile
++++ b/tools/firmware/ovmf-makefile
+@@ -1,4 +1,3 @@
+-XEN_ROOT=$(CURDIR)/../../..
+ include $(XEN_ROOT)/tools/Rules.mk
+ 
+ ifeq ($(debug),y)
+-- 
+2.17.1
+

@@ -1,0 +1,42 @@
+From e8938fc66a7b25deecf527e8e413da06622859a8 Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Fri, 20 Jan 2023 09:31:22 -0800
+Subject: [PATCH 200/458] Enable paddles on the Xbox Elite controller when
+ connected over USB
+
+(cherry picked from commit c4db0725e4cf5eb6ec5239e6f03346958e88b9cf)
+---
+ src/joystick/hidapi/SDL_hidapi_xboxone.c | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
+
+diff --git a/src/joystick/hidapi/SDL_hidapi_xboxone.c b/src/joystick/hidapi/SDL_hidapi_xboxone.c
+index 255ca429d..62304358d 100644
+--- a/src/joystick/hidapi/SDL_hidapi_xboxone.c
++++ b/src/joystick/hidapi/SDL_hidapi_xboxone.c
+@@ -655,6 +655,13 @@ static void HIDAPI_DriverXboxOne_HandleStatePacket(SDL_Joystick *joystick, SDL_D
+ {
+     Sint16 axis;
+ 
++    /* Enable paddles on the Xbox Elite controller when connected over USB */
++    if (ctx->has_paddles && !ctx->has_unmapped_state && size == 50) {
++        Uint8 packet[] = { 0x4d, 0x00, 0x00, 0x02, 0x07, 0x00 };
++
++        SDL_HIDAPI_SendRumble(ctx->device, packet, sizeof(packet));
++    }
++
+     if (ctx->last_state[4] != data[4]) {
+         SDL_PrivateJoystickButton(joystick, SDL_CONTROLLER_BUTTON_START, (data[4] & 0x04) ? SDL_PRESSED : SDL_RELEASED);
+         SDL_PrivateJoystickButton(joystick, SDL_CONTROLLER_BUTTON_BACK, (data[4] & 0x08) ? SDL_PRESSED : SDL_RELEASED);
+@@ -810,6 +817,9 @@ static void HIDAPI_DriverXboxOne_HandleStatePacket(SDL_Joystick *joystick, SDL_D
+     SDL_PrivateJoystickAxis(joystick, SDL_CONTROLLER_AXIS_RIGHTY, ~axis);
+ 
+     SDL_memcpy(ctx->last_state, data, SDL_min(size, sizeof(ctx->last_state)));
++
++    /* We don't have the unmapped state for this packet */
++    ctx->has_unmapped_state = SDL_FALSE;
+ }
+ 
+ static void HIDAPI_DriverXboxOne_HandleStatusPacket(SDL_Joystick *joystick, SDL_DriverXboxOne_Context *ctx, Uint8 *data, int size)
+-- 
+2.17.1
+

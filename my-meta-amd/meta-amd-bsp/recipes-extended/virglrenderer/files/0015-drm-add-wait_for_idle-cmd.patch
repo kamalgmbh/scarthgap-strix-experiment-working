@@ -1,0 +1,118 @@
+From 94d69c96355c910b10a50ed5cb4d4e15740d4fa2 Mon Sep 17 00:00:00 2001
+From: Julia Zhang <julia.zhang@amd.com>
+Date: Mon, 15 Apr 2024 14:03:10 +0800
+Subject: [PATCH 15/16] drm: add wait_for_idle cmd
+
+Add wait_for_idle command to implement bo_invalidate in minigbm.
+bo_invalidate is called in minigbm to sync data before reading buffer.
+
+See SWDEV-446155
+
+Signed-off-by: Julia Zhang <Julia.Zhang@amd.com>
+Change-Id: I8dea4ea796917ab824920ea1e64a63980b72843e
+---
+ src/drm/amdgpu/amdgpu_renderer.c     | 31 ++++++++++++++++++++++++++--
+ src/drm/amdgpu/amdgpu_virtio_proto.h | 17 +++++++++++++++
+ 2 files changed, 46 insertions(+), 2 deletions(-)
+
+diff --git a/src/drm/amdgpu/amdgpu_renderer.c b/src/drm/amdgpu/amdgpu_renderer.c
+index 6537275f..a8f0b8cd 100644
+--- a/src/drm/amdgpu/amdgpu_renderer.c
++++ b/src/drm/amdgpu/amdgpu_renderer.c
+@@ -93,7 +93,7 @@ struct amdgpu_context {
+    struct hash_table_u64 *id_to_ctx;
+ 
+    struct {
+-      struct cmd_stat s[9];
++      struct cmd_stat s[AMDGPU_CCMD_COUNT];
+       uint64_t last_print_ms;
+    } statistics;
+ 
+@@ -653,6 +653,32 @@ amdgpu_ccmd_query_info(struct amdgpu_context *ctx, const struct vdrm_ccmd_req *h
+    return 0;
+ }
+ 
++static int
++amdgpu_ccmd_bo_wait_for_idle(struct amdgpu_context *ctx, const struct vdrm_ccmd_req *hdr)
++{
++   const struct amdgpu_ccmd_bo_wait_for_idle_req *req = to_amdgpu_ccmd_bo_wait_for_idle_req(hdr);
++   struct amdgpu_ccmd_bo_wait_for_idle_rsp *rsp;
++   struct amdgpu_object *obj = amdgpu_get_object_from_res_id(ctx, req->res_id, __FUNCTION__);
++
++   rsp = amdgpu_context_rsp(ctx, hdr, sizeof(struct amdgpu_ccmd_bo_wait_for_idle_rsp));
++
++   if (!obj) {
++      print(0, "Cannot find object with res_id=%d", req->res_id);
++      rsp->hdr.ret = -EINVAL;
++      return rsp->hdr.ret;
++   }
++
++
++   rsp->hdr.ret = amdgpu_bo_wait_for_idle(obj->bo, req->timeout, &rsp->buffer_busy);
++
++   if (rsp->hdr.ret)
++      print(0, "res_id:%d DRM_AMDGPU_GEM_WAIT_IDLE failed with %d", req->res_id, rsp->hdr.ret);
++   else if (rsp->buffer_busy)
++      print(0, "res_id:%d DRM_AMDGPU_GEM_WAIT_IDLE BO is busy", req->res_id);
++
++   return rsp->hdr.ret;
++}
++
+ static int
+ amdgpu_ccmd_gem_new(struct amdgpu_context *ctx, const struct vdrm_ccmd_req *hdr)
+ {
+@@ -1122,6 +1148,7 @@ static const struct ccmd {
+    HANDLER(CREATE_CTX, create_ctx),
+    HANDLER(RESERVE_VMID, reserve_vmid),
+    HANDLER(SET_PSTATE, set_pstate),
++   HANDLER(BO_WAIT_FOR_IDLE, bo_wait_for_idle),
+ };
+ 
+ static int
+@@ -1208,7 +1235,7 @@ submit_cmd_dispatch(struct amdgpu_context *ctx, const struct vdrm_ccmd_req *hdr)
+    }
+ 
+    if (ret)
+-      print(0, "%s: dispatch failed: %d (%s)", ccmd->name, ret, strerror(errno));
++      print(0, "%s: dispatch failed: %d", ccmd->name, ret);
+ 
+    /* If the response length from the guest is smaller than the
+     * expected size, ie. newer host and older guest, then a shadow
+diff --git a/src/drm/amdgpu/amdgpu_virtio_proto.h b/src/drm/amdgpu/amdgpu_virtio_proto.h
+index 39add7d2..715257a4 100644
+--- a/src/drm/amdgpu/amdgpu_virtio_proto.h
++++ b/src/drm/amdgpu/amdgpu_virtio_proto.h
+@@ -15,6 +15,8 @@ enum amdgpu_ccmd {
+    AMDGPU_CCMD_CREATE_CTX,
+    AMDGPU_CCMD_RESERVE_VMID,
+    AMDGPU_CCMD_SET_PSTATE,
++   AMDGPU_CCMD_BO_WAIT_FOR_IDLE,
++   AMDGPU_CCMD_COUNT
+ };
+ 
+ struct amdgpu_ccmd_rsp {
+@@ -160,6 +162,21 @@ struct amdgpu_ccmd_bo_query_info_rsp {
+    } info;
+ };
+ 
++/*
++ * AMDGPU_CCMD_BO_INVALIDATE
++ */
++struct amdgpu_ccmd_bo_wait_for_idle_req {
++   struct vdrm_ccmd_req hdr;
++   uint64_t timeout;
++   uint32_t res_id;
++};
++DEFINE_CAST(vdrm_ccmd_req, amdgpu_ccmd_bo_wait_for_idle_req)
++
++struct amdgpu_ccmd_bo_wait_for_idle_rsp {
++   struct amdgpu_ccmd_rsp hdr;
++   bool buffer_busy;
++};
++
+ /*
+  * AMDGPU_CCMD_CREATE_CTX
+  */
+-- 
+2.17.1
+

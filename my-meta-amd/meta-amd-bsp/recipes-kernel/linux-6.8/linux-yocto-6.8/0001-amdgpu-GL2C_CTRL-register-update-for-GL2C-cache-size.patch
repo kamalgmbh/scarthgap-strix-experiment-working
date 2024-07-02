@@ -1,0 +1,27 @@
+From 4f8adf1bda8cfc65c542a2d6941f71bd9d0bde94 Mon Sep 17 00:00:00 2001
+From: Chaudhary Amit Kumar <chaudharyamit.kumar@amd.com>
+Date: Wed, 10 Apr 2024 19:27:14 +0530
+Subject: [PATCH 1/5] amdgpu: GL2C_CTRL register update for GL2C cache size
+
+Change-Id: I6bd6767ccc4e2d80dd74153e385237b951a12541
+---
+ drivers/gpu/drm/amd/amdgpu/gfx_v11_0.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/gpu/drm/amd/amdgpu/gfx_v11_0.c b/drivers/gpu/drm/amd/amdgpu/gfx_v11_0.c
+index 0afe86bcc932..cf56f980bb01 100644
+--- a/drivers/gpu/drm/amd/amdgpu/gfx_v11_0.c
++++ b/drivers/gpu/drm/amd/amdgpu/gfx_v11_0.c
+@@ -91,7 +91,8 @@ MODULE_FIRMWARE("amdgpu/gc_11_5_0_mec.bin");
+ MODULE_FIRMWARE("amdgpu/gc_11_5_0_rlc.bin");
+ 
+ static const struct soc15_reg_golden golden_settings_gc_11_0[] = {
+-	SOC15_REG_GOLDEN_VALUE(GC, 0, regTCP_CNTL, 0x20000000, 0x20000000)
++	SOC15_REG_GOLDEN_VALUE(GC, 0, regTCP_CNTL, 0x20000000, 0x20000000),
++	SOC15_REG_GOLDEN_VALUE(GC, 0, regGL2C_CTRL, 0x00000003, 0x00000002)
+ };
+ 
+ static const struct soc15_reg_golden golden_settings_gc_11_0_1[] =
+-- 
+2.34.1
+

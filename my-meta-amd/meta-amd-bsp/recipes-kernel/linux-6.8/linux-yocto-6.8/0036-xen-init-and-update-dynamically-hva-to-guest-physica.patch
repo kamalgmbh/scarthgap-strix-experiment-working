@@ -1,0 +1,712 @@
+From 487f1fe5d3e96a690605b5f4cce0ecb87a0ff0ac Mon Sep 17 00:00:00 2001
+From: Xenia Ragiadakou <xenia.ragiadakou@amd.com>
+Date: Tue, 27 Feb 2024 22:40:09 +0200
+Subject: [PATCH 36/49] xen: init and update dynamically hva to guest physical
+ mappings (v4)
+
+Signed-off-by: Xenia Ragiadakou <xenia.ragiadakou@amd.com>
+Change-Id: I11fbdc85d1eed556dd3fe52ca55d54d9a396721f
+---
+ drivers/xen/Makefile       |   2 +-
+ drivers/xen/hmem.c         | 526 +++++++++++++++++++++++++++++++++++++
+ drivers/xen/privcmd.c      |  93 +++++++
+ include/uapi/xen/privcmd.h |  17 ++
+ 4 files changed, 637 insertions(+), 1 deletion(-)
+ create mode 100644 drivers/xen/hmem.c
+
+diff --git a/drivers/xen/Makefile b/drivers/xen/Makefile
+index 79281b12b356..4756a80c6f34 100644
+--- a/drivers/xen/Makefile
++++ b/drivers/xen/Makefile
+@@ -36,7 +36,7 @@ xen-evtchn-y				:= evtchn.o
+ xen-gntdev-y				:= gntdev.o
+ xen-gntdev-$(CONFIG_XEN_GNTDEV_DMABUF)	+= gntdev-dmabuf.o
+ xen-gntalloc-y				:= gntalloc.o
+-xen-privcmd-y				:= privcmd.o privcmd-buf.o
++xen-privcmd-y				:= privcmd.o privcmd-buf.o hmem.o
+ obj-$(CONFIG_XEN_FRONT_PGDIR_SHBUF)	+= xen-front-pgdir-shbuf.o
+ obj-$(CONFIG_XEN_UNPOPULATED_ALLOC)	+= unpopulated-alloc.o
+ obj-$(CONFIG_XEN_GRANT_DMA_OPS)		+= grant-dma-ops.o
+diff --git a/drivers/xen/hmem.c b/drivers/xen/hmem.c
+new file mode 100644
+index 000000000000..aa190e92b2b7
+--- /dev/null
++++ b/drivers/xen/hmem.c
+@@ -0,0 +1,526 @@
++#include <linux/errno.h>
++#include <linux/hmm.h>
++#include <linux/interval_tree.h>
++#include <linux/mm.h>
++#include <linux/mmu_notifier.h>
++
++#include <xen/xen.h>
++#include <xen/features.h>
++#include <xen/interface/memory.h>
++#include <xen/hvc-console.h>
++
++#include <asm/xen/hypervisor.h>
++#include <asm/xen/hypercall.h>
++
++static bool use_bitmap = true;
++
++struct xen_hmem {
++	domid_t domid;
++	struct rb_root_cached slots;
++	struct mutex mutex;
++};
++
++#define SLOT_MAX_PAGES 512
++struct xen_hmemslot {
++	struct xen_hmem *hmem;
++	unsigned long gfn;   // start gpfn mapped to the hva
++	unsigned long npages;
++	struct interval_tree_node node;
++	struct mmu_interval_notifier notifier;
++	DECLARE_BITMAP(mapped, SLOT_MAX_PAGES);
++	struct mutex mutex;
++};
++
++static int xen_add_to_physmap(domid_t domid, domid_t fdomid,
++			      unsigned long *gfns, unsigned long *hfns,
++			      unsigned long npages, int *errs)
++
++{
++	unsigned int done = 0;
++	int ret = 0;
++
++	//if ( npages != (uint16_t)npages )
++	//	pr_info("%s: npages=%#lx > USHRT_MAX issue multiple hcalls\n",
++	//		__func__, npages);
++
++	while (done < npages) {
++		struct xen_add_to_physmap_range xatp;
++		uint16_t size = min_t(unsigned int, npages - done, USHRT_MAX);
++		unsigned long *xatp_hfns = &hfns[done];
++		unsigned long *xatp_gfns = &gfns[done];
++		int *xatp_errs = &errs[done];
++
++		xatp.domid = domid;
++		xatp.foreign_domid = fdomid;
++		xatp.space = XENMAPSPACE_gmfn_foreign;
++		xatp.size = size;
++
++		set_xen_guest_handle(xatp.idxs, xatp_hfns);
++		set_xen_guest_handle(xatp.gpfns, xatp_gfns);
++		set_xen_guest_handle(xatp.errs, xatp_errs);
++
++		ret = HYPERVISOR_memory_op(XENMEM_add_to_physmap_range, &xatp);
++		if (ret) {
++			pr_err("%s: XENMEM_add_to_physmap_range ret=%d\n",
++			       __func__, ret);
++			break;
++		}
++		done += size;
++	}
++	return ret;
++}
++
++static inline unsigned long hva_to_gfn(unsigned long hva,
++				       struct xen_hmemslot *slot)
++{
++	unsigned long offset = (hva - slot->node.start) >> PAGE_SHIFT;
++	return slot->gfn + offset;
++}
++
++int hva_range_update(struct xen_hmem *hmem,
++		     unsigned long start, unsigned long npages)
++{
++	struct interval_tree_node *node;
++	struct mm_struct *mm = current->mm;
++	domid_t domid = hmem->domid;
++	domid_t fdomid = 0;
++	unsigned long end = start + (npages << PAGE_SHIFT) - 1;
++	int ret = 0;
++
++	mmap_read_lock(mm);
++
++	mutex_lock(&hmem->mutex);
++	for (node = interval_tree_iter_first(&hmem->slots, start, end);
++	     node; node = interval_tree_iter_next(node, start, end))
++	{
++		struct xen_hmemslot *slot;
++		unsigned long hva, ehva;
++		unsigned long gfn, egfn;
++		unsigned long offset, nr, i;
++
++		slot = container_of(node, struct xen_hmemslot, node);
++		hva = max(start, slot->node.start);
++		ehva = min(end, slot->node.last);
++		gfn = hva_to_gfn(hva, slot);
++		egfn = hva_to_gfn(ehva, slot);
++
++		offset = (hva - slot->node.start) >> PAGE_SHIFT;
++		nr = egfn - gfn + 1;
++
++		//pr_info("UPDATE: slot=0x%lx (0x%lx): gfn=0x%lx egfn=0x%lx nr=%lu\n",
++		//        hva_to_gfn(slot->node.start, slot), slot->node.start,
++		//        gfn, egfn, nr);
++
++		for (i = 0; i < nr; i++) {
++			struct vm_area_struct *vma;
++			pte_t *ptep;
++			spinlock_t *ptl;
++			unsigned long hfn;
++			int err = 0;
++
++			vma = vma_lookup(mm, hva);
++			if (!vma) {
++				pr_err("%s: hva=0x%lx vma_lookup failed\n", __func__, hva);
++				ret = -EINVAL;
++				break;
++			}
++
++retry_follow_pte:
++			ret = follow_pte(vma->vm_mm, hva, &ptep, &ptl);
++			if (ret) {
++				bool unlocked = false;
++
++				//pr_debug("FAULT: slot=0x%lx (0x%lx): gfn=0x%lx\n",
++				//	 hva_to_gfn(slot->node.start, slot),
++				//	 slot->node.start, gfn);
++
++				ret = fixup_user_fault(mm, hva, FAULT_FLAG_WRITE, &unlocked);
++				if (unlocked) {
++					goto retry_follow_pte;
++				}
++				if (ret) {
++					pr_err("%s: fixup_user_fault failed [%d]\n",
++					       __func__, ret);
++					goto out;
++				}
++				ret = follow_pte(vma->vm_mm, hva, &ptep, &ptl);
++			}
++			if (ret) {
++				pr_err("%s: follow_pte failed [%d]\n",
++				       __func__, ret);
++				goto out;
++			}
++
++			hfn = pte_pfn(*ptep);
++
++			mutex_lock(&slot->mutex);
++			if (!use_bitmap) {
++				ret = xen_add_to_physmap(domid, fdomid, &gfn, &hfn, 1, &err);
++			} else if (!test_bit(offset + i, slot->mapped)) {
++				ret = xen_add_to_physmap(domid, fdomid, &gfn, &hfn, 1, &err);
++				if (!ret && !err) {
++					pr_debug("MAPPED: slot=0x%lx (0x%lx): gfn=0x%lx\n",
++						 hva_to_gfn(slot->node.start, slot),
++						 slot->node.start, gfn);
++					bitmap_set(slot->mapped, offset + i, 1);
++				}
++			}
++			mutex_unlock(&slot->mutex);
++
++			pte_unmap_unlock(ptep, ptl);
++
++			if (ret || err) {
++				pr_err("%s: failed to map gfn=0x%lx hfn=0x%lx ret=%d err=%d\n",
++					__func__, gfn, hfn, ret, err);
++				ret = err;
++				break;
++			}
++		}
++
++		hva += PAGE_SIZE;
++		gfn++;
++	}
++
++out:
++	mutex_unlock(&hmem->mutex);
++
++	mmap_read_unlock(mm);
++
++	return ret;
++}
++
++static int gfn_range_unmap(domid_t domid, unsigned long gfn,
++			   unsigned long npages)
++{
++	domid_t fdomid = 0;
++	unsigned long *gfns = NULL;
++	unsigned long *hfns = NULL;
++	int *errs = NULL;
++	int i, ret = 0;
++
++	//pr_debug("UNMAP: unmap gfn=0x%lx num=%lu\n", gfn, npages);
++
++	gfns = kmalloc(npages * sizeof(*gfns), GFP_KERNEL);
++	if (!gfns) {
++		ret = -ENOMEM;
++		goto out;
++	}
++	for (i = 0; i < npages; i++)
++		gfns[i] = gfn + i;
++
++	hfns = kmalloc(npages * sizeof(*hfns), GFP_KERNEL);
++	if (!hfns) {
++		ret = -ENOMEM;
++		goto out;
++	}
++	memset(hfns, -1, npages * sizeof(*hfns));
++
++	errs = kzalloc(npages * sizeof(*errs), GFP_KERNEL);
++	if (!errs) {
++		ret = -ENOMEM;
++		goto out;
++	}
++
++	ret = xen_add_to_physmap(domid, fdomid, gfns, hfns, npages, errs);
++	for (i = 0; i < npages; i++) {
++		if (errs[i]) {
++			pr_err("Failed to unmap gfn=0x%lx hfn=0x%lx err=%d\n",
++			       gfns[i], hfns[i], errs[i]);
++			ret = errs[i];
++			break;
++		}
++	}
++	if (ret)
++		pr_err("Remove from p2m failed (%d)\n", ret);
++
++out:
++	kfree(gfns);
++	kfree(hfns);
++	kfree(errs);
++	return ret;
++}
++
++int hva_zap_range(struct xen_hmem *hmem,
++		  unsigned long hva, unsigned long npages)
++{
++	struct mm_struct *mm = current->mm;
++	int ret = 0;
++
++	//pr_debug("%s: hva=0x%lx, npages=%ld\n", __func__, hva, npages);
++
++	mmap_read_lock(mm);
++
++	while (npages) {
++		struct vm_area_struct *vma;
++		unsigned long vma_npages, num_pages;
++
++		vma = vma_lookup(mm, hva);
++		if (!vma) {
++			pr_err("%s: hva=0x%lx: vma_lookup failed\n", __func__, hva);
++			ret = -EINVAL;
++			goto unlock;
++		}
++
++		vma_npages = (vma->vm_end - hva) / PAGE_SIZE;
++		num_pages = min(vma_npages, npages);
++
++		if (vma->vm_flags & VM_PFNMAP) {
++			//pr_info("%s: zap_vma_ptes hva=0x%lx\n", __func__, hva);
++			zap_vma_ptes(vma, hva, num_pages << PAGE_SHIFT);
++		}
++		else {
++			//pr_info("%s: not VM_PFNMAP could not zap hva=0x%lx\n",
++			//        __func__, hva);
++		}
++
++		hva += num_pages * PAGE_SIZE;
++		npages -= num_pages;
++	}
++
++unlock:
++	mmap_read_unlock(mm);
++	return ret;
++}
++
++static int hva_range_unmap(struct xen_hmemslot *slot,
++			   unsigned long start, unsigned long end)
++{
++	struct xen_hmem *hmem = slot->hmem;
++	domid_t domid = hmem->domid;
++	unsigned long shva, ehva;
++	unsigned long sgfn, egfn;
++	unsigned long offset, nr;
++	unsigned int rs, re;
++	int ret;
++
++	shva = max(start, slot->node.start);
++	ehva = min(end, slot->node.last);
++	sgfn = hva_to_gfn(shva, slot);
++	egfn = hva_to_gfn(ehva, slot);
++	offset = (shva - slot->node.start) >> PAGE_SHIFT;
++	nr = egfn - sgfn + 1;
++
++	//pr_info("NOTIFIER: unmap gfn=0x%lx offs=%lu num=%lu\n", sgfn, offset, nr);
++
++	rs = offset;
++	if (use_bitmap) {
++		for_each_set_bitrange_from(rs, re, slot->mapped, offset + nr) {
++			//pr_info("NOTIFIER: unmap gfn=0x%lx (rs=%u re=%u num=%u)\n",
++			//	sgfn + rs, rs, re, re-rs);
++			ret = gfn_range_unmap(domid, sgfn + rs, re-rs);
++			if (ret) {
++				pr_err("UNMAP: failed hva=0x%lx gfn=0x%lx\n",
++				       start + rs*PAGE_SIZE, sgfn+rs);
++				return ret;
++			}
++			bitmap_clear(slot->mapped, rs, re-rs);
++		}
++	} else {
++		ret = gfn_range_unmap(domid, sgfn, nr);
++		if (ret) {
++			pr_err("UNMAP: failed hva=0x%lx gfn=0x%lx\n",
++				start + rs*PAGE_SIZE, sgfn+rs);
++			return ret;
++		}
++	}
++
++	return 0;
++}
++
++static bool hmem_invalidate(struct mmu_interval_notifier *mni,
++			    const struct mmu_notifier_range *range,
++			    unsigned long cur_seq)
++{
++	struct xen_hmemslot *slot;
++	unsigned long start = range->start;
++	unsigned long end = range->end - 1;
++	int ret;
++
++	slot = container_of(mni, struct xen_hmemslot, notifier);
++
++	if (mmu_notifier_range_blockable(range))
++		mutex_lock(&slot->mutex);
++	else if (!mutex_trylock(&slot->mutex))
++		return false;
++
++	//pr_debug("INVALIDATE: seq=%lu range->start=0x%lx range->end=0x%lx\n",
++	//	 cur_seq, range->start, range->end);
++
++	mmu_interval_set_seq(mni, cur_seq);
++
++	ret = hva_range_unmap(slot, start, end);
++	if (ret) {
++		pr_info("INVALIDATE: 0x%lx-0x%lx: unmap failed ret=%d\n",
++			start, end, ret);
++	}
++
++	mutex_unlock(&slot->mutex);
++	return true;
++}
++
++static const struct mmu_interval_notifier_ops hmem_mn_ops = {
++	.invalidate = hmem_invalidate,
++};
++
++int hva_range_insert(struct xen_hmem *hmem,
++		     unsigned long hva, unsigned long npages,
++		     unsigned long gfn)
++{
++	int done = 0;
++	unsigned long shva = hva;
++
++	while (done < npages) {
++		struct xen_hmemslot *slot;
++		unsigned long slot_npages, slot_size;
++		int ret;
++
++		slot = kmalloc(sizeof(*slot), GFP_KERNEL);
++		if (!slot)
++			return -ENOMEM;
++
++		slot_npages = min_t(unsigned long, SLOT_MAX_PAGES, npages - done);
++		slot_size = slot_npages << PAGE_SHIFT;
++		slot->node.start = hva;
++		slot->node.last = hva + slot_size - 1;
++		slot->gfn = gfn;
++		slot->npages = slot_npages;
++		if (use_bitmap)
++			bitmap_zero(slot->mapped, SLOT_MAX_PAGES);
++		slot->hmem = hmem;
++		mutex_init(&slot->mutex);
++		ret = mmu_interval_notifier_insert(&slot->notifier, current->mm,
++						   hva, slot_size, &hmem_mn_ops);
++		if (ret)
++			return ret;
++
++		//pr_debug("INSERT: slot=0x%lx (0x%lx) npages=%lu\n",
++		//		 gfn, hva, slot_npages);
++
++		mutex_lock(&hmem->mutex);
++		interval_tree_insert(&slot->node, &hmem->slots);
++		mutex_unlock(&hmem->mutex);
++
++		done += slot_npages;
++		gfn += slot_npages;
++		hva += slot_size;
++	}
++
++	if (0) {
++		//pr_info("INIT UPDATE:%s: hva=0x%lx npages=%lu\n", __func__, shva, npages);
++		hva_range_update(hmem, shva, npages);
++		if (0) {
++			//pr_info("ZAP:%s: hva=0x%lx npages=%lu\n", __func__, shva, npages);
++			hva_zap_range(hmem, shva, npages);
++		}
++	}
++
++	return 0;
++}
++
++int hva_range_remove(struct xen_hmem *hmem,
++		     unsigned long hva, unsigned long npages)
++{
++	struct interval_tree_node *node;
++	unsigned long start, end;
++	int ret = 0;
++
++	start = hva;
++	end = hva + (npages << PAGE_SHIFT) - 1;
++
++	mutex_lock(&hmem->mutex);
++	while ((node = interval_tree_iter_first(&hmem->slots, start, end)))
++	{
++		struct xen_hmemslot *slot;
++		unsigned long shva, ehva;
++		unsigned long sgfn, egfn;
++		unsigned long offset, nr;
++		unsigned int rs, re;
++
++		slot = container_of(node, struct xen_hmemslot, node);
++		shva = max(start, slot->node.start);
++		ehva = min(end, slot->node.last);
++		sgfn = hva_to_gfn(shva, slot);
++		egfn = hva_to_gfn(ehva, slot);
++		offset = (shva - slot->node.start) >> PAGE_SHIFT;
++		nr = egfn - sgfn + 1;
++
++		if (start <= slot->node.start && end >= slot->node.last) {
++			interval_tree_remove(node, &hmem->slots);
++			mmu_interval_notifier_remove(&slot->notifier);
++		}
++		else {
++			if (end < slot->node.last)
++				pr_err("strange: slot->end=0x%lx end=0x%lx\n",
++				       slot->node.last, end);
++			if (start > slot->node.start)
++				pr_err("strange: slot->start=0x%lx start=0x%lx\n",
++				       slot->node.start, start);
++		}
++
++		//pr_debug("REMOVE: slot=0x%lx (0x%lx)\n",
++		//	 hva_to_gfn(slot->node.start, slot), slot->node.start);
++
++		rs = offset;
++		mutex_lock(&slot->mutex);
++		if (use_bitmap) {
++			for_each_set_bitrange_from(rs, re, slot->mapped, offset + nr) {
++				ret = gfn_range_unmap(hmem->domid, sgfn + rs, re-rs);
++				if (ret) {
++					pr_err("UNMAP: failed hva=0x%lx gfn=0x%lx\n",
++					       start + rs*PAGE_SIZE, sgfn+rs);
++					break;
++				}
++			}
++		} else {
++			ret = gfn_range_unmap(hmem->domid, sgfn, nr);
++			if (ret) {
++				pr_err("UNMAP: failed hva=0x%lx gfn=0x%lx\n",
++					start + rs*PAGE_SIZE, sgfn+rs);
++			}
++		}
++		mutex_unlock(&slot->mutex);
++		if (start <= slot->node.start && end >= slot->node.last)
++			kfree(slot);
++	}
++	mutex_unlock(&hmem->mutex);
++
++	return ret;
++}
++
++void hva_tree_destroy(struct xen_hmem *hmem)
++{
++	struct interval_tree_node *node;
++	struct xen_hmemslot *slot;
++	int ret;
++
++	mutex_lock(&hmem->mutex);
++	while ((node = interval_tree_iter_first(&hmem->slots, 0, ULONG_MAX)))
++	{
++		interval_tree_remove(node, &hmem->slots);
++		slot = container_of(node, struct xen_hmemslot, node);
++		mmu_interval_notifier_remove(&slot->notifier);
++		ret = gfn_range_unmap(hmem->domid, slot->gfn, slot->npages);
++		if (ret)
++			pr_err("%s: gfn_range_unmap gfn=0x%lx\n", __func__, slot->gfn);
++		kfree(slot);
++	}
++	mutex_unlock(&hmem->mutex);
++}
++
++struct xen_hmem *xen_hmem_init(domid_t domid)
++{
++	struct xen_hmem *hmem;
++
++	if (!xen_feature(XENFEAT_auto_translated_physmap))
++		return NULL;
++
++	hmem = kzalloc(sizeof(*hmem), GFP_KERNEL);
++	if (!hmem)
++		return NULL;
++	hmem->domid = domid;
++	hmem->slots = RB_ROOT_CACHED;
++	mutex_init(&hmem->mutex);
++
++	return hmem;
++}
++
+diff --git a/drivers/xen/privcmd.c b/drivers/xen/privcmd.c
+index 20a6c711ed3c..806a379f58ca 100644
+--- a/drivers/xen/privcmd.c
++++ b/drivers/xen/privcmd.c
+@@ -66,8 +66,95 @@ MODULE_PARM_DESC(dm_op_buf_max_size,
+ 
+ struct privcmd_data {
+ 	domid_t domid;
++	struct xen_hmem *hmem;
+ };
+ 
++struct xen_hmem *xen_hmem_init(domid_t domid);
++
++int hva_range_update(struct xen_hmem *hmem,
++		     unsigned long hva, unsigned long npages);
++
++static long privcmd_ioctl_update_hva(struct file *file, void __user *udata)
++{
++	struct privcmd_data *privdata = file->private_data;
++	struct xen_hmem *hmem = privdata->hmem;
++	struct privcmd_update_hva update;
++	unsigned long hva, npages;
++	int ret = 0;
++
++	if (copy_from_user(&update, udata, sizeof(update))) {
++		pr_warn("%s: copy from user failed\n", __func__);
++		return -EFAULT;
++	}
++
++	if (update.hva & ~PAGE_MASK) {
++		pr_warn("%s: 0x%llx & PAGE_MASK = 0x%llx\n",
++			__func__, update.hva, update.hva & ~PAGE_MASK);
++		return -EINVAL;
++	}
++
++	hva = update.hva;
++	npages = update.nr_pages;
++
++	//pr_debug("%s: hva=0x%lx:0x%lx [nr_pages: %lu]\n",
++	//	   __func__, hva, hva + npages * PAGE_SIZE - 1, npages);
++
++	ret = hva_range_update(hmem, hva, npages);
++
++	return ret;
++}
++
++int hva_range_insert(struct xen_hmem *hmem,
++		     unsigned long hva, unsigned long npages,
++		     unsigned long gfn);
++int hva_range_remove(struct xen_hmem *hmem,
++		     unsigned long hva, unsigned long npages,
++		     unsigned long gfn);
++static long privcmd_ioctl_map_hva(struct file *file, void __user *udata)
++{
++	struct privcmd_data *privdata = file->private_data;
++	domid_t domid = privdata->domid;
++	struct xen_hmem *hmem = privdata->hmem;
++	struct privcmd_map_hva map;
++	unsigned long hva, nr_pages, gpfn;
++	int ret = 0;
++
++	if (copy_from_user(&map, udata, sizeof(map))) {
++		pr_warn("%s: copy from user failed\n", __func__);
++		return -EFAULT;
++	}
++
++	if (privdata->hmem == NULL) {
++		privdata->hmem = xen_hmem_init(map.domid);
++		if (!privdata->hmem) {
++			pr_err("%s: dom%d failed to init hmem\n", __func__, domid);
++			return -ENOMEM;
++		}
++		hmem = privdata->hmem;
++	}
++
++	if (map.hva & ~PAGE_MASK) {
++		pr_warn("%s: 0x%llx & PAGE_MASK = 0x%llx\n",
++			__func__, map.hva, map.hva & ~PAGE_MASK);
++		return -EINVAL;
++	}
++
++	hva = map.hva;
++	nr_pages = map.nr_pages;
++	gpfn = map.gpfn;
++
++	if (map.add_mapping) {
++		ret = hva_range_insert(hmem, hva, nr_pages, gpfn);
++	} else {
++		ret = hva_range_remove(hmem, hva, nr_pages, gpfn);
++	}
++	//pr_debug("%s: dom=%d hva=0x%lx:0x%lx [nr_pages: %lu] gfn=0x%lx\n",
++	//	   __func__, domid, hva, hva + nr_pages * PAGE_SIZE - 1, nr_pages,
++	//	   gpfn);
++
++	return ret;
++}
++
+ static int privcmd_vma_range_is_mapped(
+                struct vm_area_struct *vma,
+                unsigned long addr,
+@@ -1661,6 +1748,12 @@ static long privcmd_ioctl(struct file *file,
+ 	void __user *udata = (void __user *) data;
+ 
+ 	switch (cmd) {
++	case IOCTL_PRIVCMD_UPDATE_HVA:
++		ret = privcmd_ioctl_update_hva(file, udata);
++		break;
++	case IOCTL_PRIVCMD_MAP_HVA:
++		ret = privcmd_ioctl_map_hva(file, udata);
++		break;
+ 	case IOCTL_PRIVCMD_HYPERCALL:
+ 		ret = privcmd_ioctl_hypercall(file, udata);
+ 		break;
+diff --git a/include/uapi/xen/privcmd.h b/include/uapi/xen/privcmd.h
+index 945808e2e7d3..56d6a045f6e0 100644
+--- a/include/uapi/xen/privcmd.h
++++ b/include/uapi/xen/privcmd.h
+@@ -38,6 +38,19 @@
+ #include <linux/compiler.h>
+ #include <xen/interface/xen.h>
+ 
++struct privcmd_update_hva {
++	int nr_pages;
++	__u64 hva;
++};
++
++struct privcmd_map_hva {
++	domid_t domid;
++	int nr_pages;
++	__u64 hva;
++	xen_pfn_t gpfn;
++	int add_mapping;
++};
++
+ struct privcmd_hypercall {
+ 	__u64 op;
+ 	__u64 arg[5];
+@@ -154,6 +167,10 @@ struct privcmd_map_hva_to_gpfns {
+  * if the operation was otherwise successful but any frame failed with
+  * -ENOENT, then -1 is returned and errno is set to ENOENT.
+  */
++#define IOCTL_PRIVCMD_UPDATE_HVA                                \
++	_IOC(_IOC_NONE, 'P', 17, sizeof(struct privcmd_update_hva))
++#define IOCTL_PRIVCMD_MAP_HVA                                   \
++	_IOC(_IOC_NONE, 'P', 18, sizeof(struct privcmd_map_hva))
+ #define IOCTL_PRIVCMD_HYPERCALL					\
+ 	_IOC(_IOC_NONE, 'P', 0, sizeof(struct privcmd_hypercall))
+ #define IOCTL_PRIVCMD_MMAP					\
+-- 
+2.17.1
+

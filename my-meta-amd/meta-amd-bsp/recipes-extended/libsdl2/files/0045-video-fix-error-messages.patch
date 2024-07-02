@@ -1,0 +1,66 @@
+From 724845110c9e6d4844a4effc9305b869bb0dbb6b Mon Sep 17 00:00:00 2001
+From: pionere <pionere@freemail.hu>
+Date: Tue, 29 Nov 2022 18:43:36 +0100
+Subject: [PATCH 045/458] video: fix error messages - do not overwrite error
+ message set by SDL_InitFormat (SDL_AllocFormat) - set proper error message
+ (Cocoa_Metal_CreateView) - protect against allocation failure
+ (UIKit_Metal_CreateView)
+
+(cherry picked from commit cf0cb44df88a4293805fdc926880155d58a46bea)
+---
+ src/video/SDL_pixels.c               | 2 +-
+ src/video/cocoa/SDL_cocoametalview.m | 1 +
+ src/video/uikit/SDL_uikitmetalview.m | 5 +++++
+ 3 files changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/video/SDL_pixels.c b/src/video/SDL_pixels.c
+index e4dc0cc8b..561512b92 100644
+--- a/src/video/SDL_pixels.c
++++ b/src/video/SDL_pixels.c
+@@ -530,7 +530,6 @@ SDL_AllocFormat(Uint32 pixel_format)
+     if (SDL_InitFormat(format, pixel_format) < 0) {
+         SDL_AtomicUnlock(&formats_lock);
+         SDL_free(format);
+-        SDL_InvalidParamError("format");
+         return NULL;
+     }
+ 
+@@ -671,6 +670,7 @@ SDL_AllocPalette(int ncolors)
+         (SDL_Color *) SDL_malloc(ncolors * sizeof(*palette->colors));
+     if (!palette->colors) {
+         SDL_free(palette);
++        SDL_OutOfMemory();
+         return NULL;
+     }
+     palette->ncolors = ncolors;
+diff --git a/src/video/cocoa/SDL_cocoametalview.m b/src/video/cocoa/SDL_cocoametalview.m
+index 289848561..7c424ba19 100644
+--- a/src/video/cocoa/SDL_cocoametalview.m
++++ b/src/video/cocoa/SDL_cocoametalview.m
+@@ -144,6 +144,7 @@ Cocoa_Metal_CreateView(_THIS, SDL_Window * window)
+                                                 highDPI:highDPI
+                                                 windowID:windowID];
+     if (newview == nil) {
++        SDL_OutOfMemory();
+         return NULL;
+     }
+ 
+diff --git a/src/video/uikit/SDL_uikitmetalview.m b/src/video/uikit/SDL_uikitmetalview.m
+index 8bc338095..e2e7015e7 100644
+--- a/src/video/uikit/SDL_uikitmetalview.m
++++ b/src/video/uikit/SDL_uikitmetalview.m
+@@ -92,6 +92,11 @@ UIKit_Metal_CreateView(_THIS, SDL_Window * window)
+ 
+     metalview = [[SDL_uikitmetalview alloc] initWithFrame:data.uiwindow.bounds
+                                                     scale:scale];
++    if (metalview == nil) {
++        SDL_OutOfMemory();
++        return NULL;
++    }
++
+     [metalview setSDLWindow:window];
+ 
+     return (void*)CFBridgingRetain(metalview);
+-- 
+2.17.1
+

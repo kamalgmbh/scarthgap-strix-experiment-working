@@ -1,0 +1,90 @@
+From 2001a891c48e87c1d53ea8ac74dde1b4358b09aa Mon Sep 17 00:00:00 2001
+From: Caleb Cornett <caleb.cornett@outlook.com>
+Date: Sat, 20 May 2023 13:09:46 -0400
+Subject: [PATCH 383/458] Fix Xbox link error from IsRectEmpty
+
+(cherry picked from commit 376a3cd100a3d59e887496c75a1ac49ab4a2d8ec)
+---
+ src/core/windows/SDL_windows.c        | 5 +++++
+ src/core/windows/SDL_windows.h        | 3 +++
+ src/video/windows/SDL_windowsevents.c | 4 ++--
+ src/video/windows/SDL_windowswindow.c | 4 ++--
+ 4 files changed, 12 insertions(+), 4 deletions(-)
+
+diff --git a/src/core/windows/SDL_windows.c b/src/core/windows/SDL_windows.c
+index a2f0d5300..682aaf1c0 100644
+--- a/src/core/windows/SDL_windows.c
++++ b/src/core/windows/SDL_windows.c
+@@ -333,6 +333,11 @@ void WIN_RectToRECT(const SDL_Rect *sdlrect, RECT *winrect)
+     winrect->bottom = sdlrect->y + sdlrect->h - 1;
+ }
+ 
++BOOL WIN_IsRectEmpty(const RECT *rect)
++{
++    /* Calculating this manually because UWP and Xbox do not support Win32 IsRectEmpty. */
++    return (rect->right <= rect->left) || (rect->bottom <= rect->top);
++}
+ #endif /* defined(__WIN32__) || defined(__WINRT__) || defined(__GDK__) */
+ 
+ /*
+diff --git a/src/core/windows/SDL_windows.h b/src/core/windows/SDL_windows.h
+index ffea8c6fc..ac6def634 100644
+--- a/src/core/windows/SDL_windows.h
++++ b/src/core/windows/SDL_windows.h
+@@ -153,6 +153,9 @@ extern BOOL WIN_IsEqualIID(REFIID a, REFIID b);
+ extern void WIN_RECTToRect(const RECT *winrect, SDL_Rect *sdlrect);
+ extern void WIN_RectToRECT(const SDL_Rect *sdlrect, RECT *winrect);
+ 
++/* Returns SDL_TRUE if the rect is empty */
++extern BOOL WIN_IsRectEmpty(const RECT *rect);
++
+ /* Ends C function definitions when using C++ */
+ #ifdef __cplusplus
+ }
+diff --git a/src/video/windows/SDL_windowsevents.c b/src/video/windows/SDL_windowsevents.c
+index 95a6f8d90..180c1a8eb 100644
+--- a/src/video/windows/SDL_windowsevents.c
++++ b/src/video/windows/SDL_windowsevents.c
+@@ -1217,7 +1217,7 @@ WIN_WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+             break;
+         }
+ 
+-        if (!GetClientRect(hwnd, &rect) || IsRectEmpty(&rect)) {
++        if (!GetClientRect(hwnd, &rect) || WIN_IsRectEmpty(&rect)) {
+             break;
+         }
+         ClientToScreen(hwnd, (LPPOINT)&rect);
+@@ -1349,7 +1349,7 @@ WIN_WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+                 RECT rect;
+                 float x, y;
+ 
+-                if (!GetClientRect(hwnd, &rect) || IsRectEmpty(&rect)) {
++                if (!GetClientRect(hwnd, &rect) || WIN_IsRectEmpty(&rect)) {
+                     if (inputs) {
+                         SDL_small_free(inputs, isstack);
+                     }
+diff --git a/src/video/windows/SDL_windowswindow.c b/src/video/windows/SDL_windowswindow.c
+index 82a4282ea..796b2a538 100644
+--- a/src/video/windows/SDL_windowswindow.c
++++ b/src/video/windows/SDL_windowswindow.c
+@@ -779,7 +779,7 @@ void WIN_GetWindowSizeInPixels(_THIS, SDL_Window *window, int *w, int *h)
+     HWND hwnd = data->hwnd;
+     RECT rect;
+ 
+-    if (GetClientRect(hwnd, &rect) && !IsRectEmpty(&rect)) {
++    if (GetClientRect(hwnd, &rect) && !WIN_IsRectEmpty(&rect)) {
+         *w = rect.right;
+         *h = rect.bottom;
+     } else {
+@@ -1340,7 +1340,7 @@ void WIN_UpdateClipCursor(SDL_Window *window)
+                     }
+                 }
+                 if (SDL_memcmp(&rect, &clipped_rect, sizeof(rect)) != 0) {
+-                    if (!IsRectEmpty(&rect)) {
++                    if (!WIN_IsRectEmpty(&rect)) {
+                         if (ClipCursor(&rect)) {
+                             data->cursor_clipped_rect = rect;
+                         }
+-- 
+2.17.1
+

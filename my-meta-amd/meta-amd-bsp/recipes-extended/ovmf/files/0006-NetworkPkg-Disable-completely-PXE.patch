@@ -1,0 +1,41 @@
+From 27e62f9912743af729e8c6674652432428a01ab9 Mon Sep 17 00:00:00 2001
+From: Xenia Ragiadakou <xenia.ragiadakou@amd.com>
+Date: Wed, 17 Apr 2024 10:04:34 +0300
+Subject: [PATCH 6/6] NetworkPkg: Disable completely PXE
+
+Signed-off-by: Xenia Ragiadakou <xenia.ragiadakou@amd.com>
+Change-Id: I6c4e0fb062eecf0fbd80d2a0a7179e698af9278e
+---
+ NetworkPkg/Network.fdf.inc           | 2 +-
+ NetworkPkg/NetworkComponents.dsc.inc | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/NetworkPkg/Network.fdf.inc b/NetworkPkg/Network.fdf.inc
+index 8a662ad1de..1e4f96a8e8 100644
+--- a/NetworkPkg/Network.fdf.inc
++++ b/NetworkPkg/Network.fdf.inc
+@@ -39,7 +39,7 @@
+   !endif
+ 
+   INF  NetworkPkg/TcpDxe/TcpDxe.inf
+-  INF  NetworkPkg/UefiPxeBcDxe/UefiPxeBcDxe.inf
++  #  INF  NetworkPkg/UefiPxeBcDxe/UefiPxeBcDxe.inf
+ 
+   !if $(NETWORK_TLS_ENABLE) == TRUE
+     INF  NetworkPkg/TlsDxe/TlsDxe.inf
+diff --git a/NetworkPkg/NetworkComponents.dsc.inc b/NetworkPkg/NetworkComponents.dsc.inc
+index 21cb62082f..cfb57b667c 100644
+--- a/NetworkPkg/NetworkComponents.dsc.inc
++++ b/NetworkPkg/NetworkComponents.dsc.inc
+@@ -41,7 +41,7 @@
+   !endif
+ 
+   NetworkPkg/TcpDxe/TcpDxe.inf
+-  NetworkPkg/UefiPxeBcDxe/UefiPxeBcDxe.inf
++  #  NetworkPkg/UefiPxeBcDxe/UefiPxeBcDxe.inf
+ 
+   !if $(NETWORK_TLS_ENABLE) == TRUE
+     NetworkPkg/TlsDxe/TlsDxe.inf
+-- 
+2.17.1
+

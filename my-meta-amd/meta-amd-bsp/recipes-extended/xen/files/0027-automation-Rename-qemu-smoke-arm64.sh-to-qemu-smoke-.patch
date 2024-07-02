@@ -1,0 +1,126 @@
+From 50f8e191e6092e4f1716ac5c3dc3b1fa211419c0 Mon Sep 17 00:00:00 2001
+From: Michal Orzel <michal.orzel@amd.com>
+Date: Tue, 27 Sep 2022 11:47:25 +0200
+Subject: [PATCH 027/221] automation: Rename qemu-smoke-arm64.sh to
+ qemu-smoke-dom0less-arm64.sh
+
+Testing arm64 is done using the qemu-alpine-arm64.sh and
+qemu-smoke-arm64.sh scripts. These scripts are executed with exactly
+the same artifacts (container, rootfs, kernel, qemu) and the only
+difference is that the former is used to perform dom0 based testing
+and the latter - dom0less based testing.
+
+Because the current naming is quite ambiguous, rename qemu-smoke-arm64.sh
+script to qemu-smoke-dom0less-arm64.sh to reflect its usage.
+
+qemu-alpine-arm64.sh will be renamed in the follow-up patch.
+
+Signed-off-by: Michal Orzel <michal.orzel@amd.com>
+Acked-by: Stefano Stabellini <sstabellini@kernel.org>
+---
+ automation/gitlab-ci/test.yaml                | 24 +++++++++----------
+ ...-arm64.sh => qemu-smoke-dom0less-arm64.sh} |  0
+ 2 files changed, 12 insertions(+), 12 deletions(-)
+ rename automation/scripts/{qemu-smoke-arm64.sh => qemu-smoke-dom0less-arm64.sh} (100%)
+
+diff --git a/automation/gitlab-ci/test.yaml b/automation/gitlab-ci/test.yaml
+index 1b51030c61..f620622671 100644
+--- a/automation/gitlab-ci/test.yaml
++++ b/automation/gitlab-ci/test.yaml
+@@ -81,12 +81,12 @@ qemu-alpine-x86_64-gcc:
+   tags:
+     - x86_64
+ 
+-qemu-smoke-arm64-gcc:
++qemu-smoke-dom0less-arm64-gcc:
+   extends: .test-jobs-common
+   variables:
+     CONTAINER: debian:unstable-arm64v8
+   script:
+-    - ./automation/scripts/qemu-smoke-arm64.sh 2>&1 | tee qemu-smoke-arm64.log
++    - ./automation/scripts/qemu-smoke-dom0less-arm64.sh 2>&1 | tee qemu-smoke-arm64.log
+   needs:
+     - alpine-3.12-gcc-arm64
+     - alpine-3.12-arm64-rootfs-export
+@@ -100,12 +100,12 @@ qemu-smoke-arm64-gcc:
+   tags:
+     - arm64
+ 
+-qemu-smoke-arm64-gcc-debug:
++qemu-smoke-dom0less-arm64-gcc-debug:
+   extends: .test-jobs-common
+   variables:
+     CONTAINER: debian:unstable-arm64v8
+   script:
+-    - ./automation/scripts/qemu-smoke-arm64.sh 2>&1 | tee qemu-smoke-arm64.log
++    - ./automation/scripts/qemu-smoke-dom0less-arm64.sh 2>&1 | tee qemu-smoke-arm64.log
+   needs:
+     - alpine-3.12-gcc-debug-arm64
+     - alpine-3.12-arm64-rootfs-export
+@@ -119,12 +119,12 @@ qemu-smoke-arm64-gcc-debug:
+   tags:
+     - arm64
+ 
+-qemu-smoke-arm64-gcc-staticmem:
++qemu-smoke-dom0less-arm64-gcc-staticmem:
+   extends: .test-jobs-common
+   variables:
+     CONTAINER: debian:unstable-arm64v8
+   script:
+-    - ./automation/scripts/qemu-smoke-arm64.sh static-mem 2>&1 | tee qemu-smoke-arm64.log
++    - ./automation/scripts/qemu-smoke-dom0less-arm64.sh static-mem 2>&1 | tee qemu-smoke-arm64.log
+   needs:
+     - alpine-3.12-gcc-arm64-staticmem
+     - alpine-3.12-arm64-rootfs-export
+@@ -138,12 +138,12 @@ qemu-smoke-arm64-gcc-staticmem:
+   tags:
+     - arm64
+ 
+-qemu-smoke-arm64-gcc-debug-staticmem:
++qemu-smoke-dom0less-arm64-gcc-debug-staticmem:
+   extends: .test-jobs-common
+   variables:
+     CONTAINER: debian:unstable-arm64v8
+   script:
+-    - ./automation/scripts/qemu-smoke-arm64.sh static-mem 2>&1 | tee qemu-smoke-arm64.log
++    - ./automation/scripts/qemu-smoke-dom0less-arm64.sh static-mem 2>&1 | tee qemu-smoke-arm64.log
+   needs:
+     - alpine-3.12-gcc-debug-arm64-staticmem
+     - alpine-3.12-arm64-rootfs-export
+@@ -157,12 +157,12 @@ qemu-smoke-arm64-gcc-debug-staticmem:
+   tags:
+     - arm64
+ 
+-qemu-smoke-arm64-gcc-boot-cpupools:
++qemu-smoke-dom0less-arm64-gcc-boot-cpupools:
+   extends: .test-jobs-common
+   variables:
+     CONTAINER: debian:unstable-arm64v8
+   script:
+-    - ./automation/scripts/qemu-smoke-arm64.sh boot-cpupools 2>&1 | tee qemu-smoke-arm64.log
++    - ./automation/scripts/qemu-smoke-dom0less-arm64.sh boot-cpupools 2>&1 | tee qemu-smoke-arm64.log
+   needs:
+     - alpine-3.12-gcc-arm64-boot-cpupools
+     - alpine-3.12-arm64-rootfs-export
+@@ -176,12 +176,12 @@ qemu-smoke-arm64-gcc-boot-cpupools:
+   tags:
+     - arm64
+ 
+-qemu-smoke-arm64-gcc-debug-boot-cpupools:
++qemu-smoke-dom0less-arm64-gcc-debug-boot-cpupools:
+   extends: .test-jobs-common
+   variables:
+     CONTAINER: debian:unstable-arm64v8
+   script:
+-    - ./automation/scripts/qemu-smoke-arm64.sh boot-cpupools 2>&1 | tee qemu-smoke-arm64.log
++    - ./automation/scripts/qemu-smoke-dom0less-arm64.sh boot-cpupools 2>&1 | tee qemu-smoke-arm64.log
+   needs:
+     - alpine-3.12-gcc-debug-arm64-boot-cpupools
+     - alpine-3.12-arm64-rootfs-export
+diff --git a/automation/scripts/qemu-smoke-arm64.sh b/automation/scripts/qemu-smoke-dom0less-arm64.sh
+similarity index 100%
+rename from automation/scripts/qemu-smoke-arm64.sh
+rename to automation/scripts/qemu-smoke-dom0less-arm64.sh
+-- 
+2.17.1
+

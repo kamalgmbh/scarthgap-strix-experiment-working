@@ -1,0 +1,32 @@
+From 2fd9e63f1a1de45aa5e8658014211061e07641a6 Mon Sep 17 00:00:00 2001
+From: Sylvain <sylvain.becker@gmail.com>
+Date: Sun, 1 Jan 2023 18:47:13 +0100
+Subject: [PATCH 127/458] Android: orientation, check for exact match to
+ "Portrait". (see #6959) (Portrait is also contained in PortraitUpsideDown)
+
+---
+ .../app/src/main/java/org/libsdl/app/SDLActivity.java      | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/android-project/app/src/main/java/org/libsdl/app/SDLActivity.java b/android-project/app/src/main/java/org/libsdl/app/SDLActivity.java
+index a57f04cd0..fde9b0a3e 100644
+--- a/android-project/app/src/main/java/org/libsdl/app/SDLActivity.java
++++ b/android-project/app/src/main/java/org/libsdl/app/SDLActivity.java
+@@ -977,9 +977,12 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
+             orientation_landscape = ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE;
+         }
+ 
+-        if (hint.contains("Portrait") && hint.contains("PortraitUpsideDown")) {
++        /* exact match to 'Portrait' to distinguish with PortraitUpsideDown */
++        boolean contains_Portrait = hint.contains("Portrait ") || hint.endsWith("Portrait");
++
++        if (contains_Portrait && hint.contains("PortraitUpsideDown")) {
+             orientation_portrait = ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT;
+-        } else if (hint.contains("Portrait")) {
++        } else if (contains_Portrait) {
+             orientation_portrait = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT;
+         } else if (hint.contains("PortraitUpsideDown")) {
+             orientation_portrait = ActivityInfo.SCREEN_ORIENTATION_REVERSE_PORTRAIT;
+-- 
+2.17.1
+

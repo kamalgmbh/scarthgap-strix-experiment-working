@@ -1,0 +1,38 @@
+From 1043dfb165cad25b83419b353abe91278b2b4745 Mon Sep 17 00:00:00 2001
+From: Jan Beulich <jbeulich@suse.com>
+Date: Mon, 5 Dec 2022 13:44:50 +0100
+Subject: [PATCH 057/221] gnttab: don't silently truncate GFNs in compat
+ setup-table handling
+
+Returning back truncated frame numbers is unhelpful: Quite likely
+they're not owned by the domain (if it's PV), or we may misguide the
+guest into writing grant entries into a page that it actually uses for
+other purposes.
+
+Signed-off-by: Jan Beulich <jbeulich@suse.com>
+Reviewed-by: Andrew Cooper <andrew.cooper3@citrix.com>
+---
+ xen/common/compat/grant_table.c | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/xen/common/compat/grant_table.c b/xen/common/compat/grant_table.c
+index 744f9b6e3d..f8177c84c0 100644
+--- a/xen/common/compat/grant_table.c
++++ b/xen/common/compat/grant_table.c
+@@ -176,7 +176,12 @@ int compat_grant_table_op(
+                     { \
+                         for ( i = 0; i < (_s_)->nr_frames; ++i ) \
+                         { \
+-                            unsigned int frame = (_s_)->frame_list.p[i]; \
++                            compat_pfn_t frame = (_s_)->frame_list.p[i]; \
++                            if ( frame != (_s_)->frame_list.p[i] ) \
++                            { \
++                                (_s_)->status = GNTST_address_too_big; \
++                                break; \
++                            } \
+                             if ( __copy_to_compat_offset((_d_)->frame_list, \
+                                                          i, &frame, 1) ) \
+                             { \
+-- 
+2.17.1
+

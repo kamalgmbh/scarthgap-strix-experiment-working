@@ -1,0 +1,24 @@
+From e87577594042554ec4eeb63b1c62b7546fc73b2a Mon Sep 17 00:00:00 2001
+From: Anonymous Maarten <anonymous.maarten@gmail.com>
+Date: Sat, 27 May 2023 02:10:18 +0200
+Subject: [PATCH 400/458] windows: SDL_immdevice needs SDL_timer.h include
+
+---
+ src/core/windows/SDL_immdevice.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/src/core/windows/SDL_immdevice.c b/src/core/windows/SDL_immdevice.c
+index 5373ce92a..71c78c67b 100644
+--- a/src/core/windows/SDL_immdevice.c
++++ b/src/core/windows/SDL_immdevice.c
+@@ -24,6 +24,7 @@
+ 
+ #include "SDL_windows.h"
+ #include "SDL_immdevice.h"
++#include "SDL_timer.h"
+ #include "../../audio/SDL_sysaudio.h"
+ #include <objbase.h> /* For CLSIDFromString */
+ 
+-- 
+2.17.1
+

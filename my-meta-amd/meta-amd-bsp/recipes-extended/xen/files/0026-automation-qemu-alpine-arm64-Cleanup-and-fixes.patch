@@ -1,0 +1,61 @@
+From ed02c506848f06fc8ed0a693116618ce8c1c5478 Mon Sep 17 00:00:00 2001
+From: Michal Orzel <michal.orzel@amd.com>
+Date: Tue, 27 Sep 2022 11:47:24 +0200
+Subject: [PATCH 026/221] automation: qemu-alpine-arm64: Cleanup and fixes
+
+Perform the following cleanup:
+- rename the device tree from virt-gicv3 to virt-gicv2 as the GIC version
+  used in this test is v2,
+- use fdtput to perform modifications on the dtb,
+- use DEBIAN_FRONTEND=noninteractive to prevent interactive prompt being
+  stuck waiting for answer other than "yes",
+- fix the number of cpus in the device tree because currently we generate
+  it with a single cpu and try to run QEMU with two,
+- fix the memory size we pass when generating QEMU device tree as it does
+  not match the memory size with what we run QEMU.
+
+Signed-off-by: Michal Orzel <michal.orzel@amd.com>
+---
+ automation/scripts/qemu-alpine-arm64.sh | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/automation/scripts/qemu-alpine-arm64.sh b/automation/scripts/qemu-alpine-arm64.sh
+index f4ac2d856f..9004c537e3 100755
+--- a/automation/scripts/qemu-alpine-arm64.sh
++++ b/automation/scripts/qemu-alpine-arm64.sh
+@@ -2,6 +2,7 @@
+ 
+ set -ex
+ 
++export DEBIAN_FRONTEND=noninteractive
+ apt-get -qy update
+ apt-get -qy install --no-install-recommends u-boot-qemu \
+                                             u-boot-tools \
+@@ -73,18 +74,17 @@ curl -fsSLO https://github.com/qemu/qemu/raw/v5.2.0/pc-bios/efi-virtio.rom
+ ./binaries/qemu-system-aarch64 \
+    -machine virtualization=true \
+    -cpu cortex-a57 -machine type=virt \
+-   -m 1024 -display none \
+-   -machine dumpdtb=binaries/virt-gicv3.dtb
++   -m 2048 -smp 2 -display none \
++   -machine dumpdtb=binaries/virt-gicv2.dtb
++
+ # XXX disable pl061 to avoid Linux crash
+-dtc -I dtb -O dts binaries/virt-gicv3.dtb > binaries/virt-gicv3.dts
+-sed 's/compatible = "arm,pl061.*/status = "disabled";/g' binaries/virt-gicv3.dts > binaries/virt-gicv3-edited.dts
+-dtc -I dts -O dtb binaries/virt-gicv3-edited.dts > binaries/virt-gicv3.dtb
++fdtput binaries/virt-gicv2.dtb -p -t s /pl061@9030000 status disabled
+ 
+ # ImageBuilder
+ echo 'MEMORY_START="0x40000000"
+-MEMORY_END="0x80000000"
++MEMORY_END="0xC0000000"
+ 
+-DEVICE_TREE="virt-gicv3.dtb"
++DEVICE_TREE="virt-gicv2.dtb"
+ XEN="xen"
+ DOM0_KERNEL="Image"
+ DOM0_RAMDISK="xen-rootfs.cpio.gz"
+-- 
+2.17.1
+

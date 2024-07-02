@@ -1,0 +1,47 @@
+From 0a0dfdb2f9634272f1f1b3ec96e299613c3911c1 Mon Sep 17 00:00:00 2001
+From: "Ryan C. Gordon" <icculus@icculus.org>
+Date: Tue, 28 Feb 2023 12:26:31 -0500
+Subject: [PATCH 259/458] wikiheaders: Sort pages before listing them in
+ README/FrontPage.md.
+
+(cherry picked from commit 99c38268cd1325bb64739217adbeebaae7ae6a84)
+---
+ build-scripts/wikiheaders.pl | 13 +++++++++----
+ 1 file changed, 9 insertions(+), 4 deletions(-)
+
+diff --git a/build-scripts/wikiheaders.pl b/build-scripts/wikiheaders.pl
+index 2927e6df7..a20b20802 100755
+--- a/build-scripts/wikiheaders.pl
++++ b/build-scripts/wikiheaders.pl
+@@ -1387,19 +1387,24 @@ if ($copy_direction == 1) {  # --copy-to-headers
+             }
+             closedir(DH);
+ 
+-            open(FH, '>', "$wikireadmepath/FrontPage.md") or die("Can't open '$wikireadmepath/FrontPage.md': $!\n");
+-            print FH "# All READMEs available here\n\n";
+-
++            my @pages = ();
+             opendir(DH, $wikireadmepath) or die("Can't opendir '$wikireadmepath': $!\n");
+             while (readdir(DH)) {
+                 my $dent = $_;
+                 if ($dent =~ /\A(.*?)\.(mediawiki|md)\Z/) {
+                     my $wikiname = $1;
+                     next if $wikiname eq 'FrontPage';
+-                    print FH "- [$wikiname]($wikiname)\n";
++                    push @pages, $wikiname;
+                 }
+             }
+             closedir(DH);
++
++            open(FH, '>', "$wikireadmepath/FrontPage.md") or die("Can't open '$wikireadmepath/FrontPage.md': $!\n");
++            print FH "# All READMEs available here\n\n";
++            foreach (sort @pages) {
++                my $wikiname = $_;
++                print FH "- [$wikiname]($wikiname)\n";
++            }
+             close(FH);
+         }
+     }
+-- 
+2.17.1
+

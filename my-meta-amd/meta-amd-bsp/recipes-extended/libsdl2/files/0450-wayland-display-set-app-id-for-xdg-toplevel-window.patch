@@ -1,0 +1,119 @@
+From f1210e6dc4b913538c3d0e88480527663501f888 Mon Sep 17 00:00:00 2001
+From: Sophia Gong <lili.gong@amd.com>
+Date: Wed, 12 Jul 2023 20:52:21 -0400
+Subject: [PATCH 450/458] wayland display: set app-id for xdg toplevel window
+
+It's to set app-id for multiple wayland xdg toplevel
+windows that are created in a qemu DomU VM.
+
+The original method sets app-id for only one xdg window
+by env param 'SDL_VIDEO_WAYLAND_WMCLASS'. This patch will
+extend the param classname with console index to recognize
+multiple console windows.
+
+Signed-off-by: Sophia Gong <lili.gong@amd.com>
+Change-Id: I65997f321dea355aa050a508b1c45680aa6a8996
+---
+ include/SDL_video.h                   |  9 ++++++++-
+ src/video/SDL_sysvideo.h              |  1 +
+ src/video/SDL_video.c                 |  7 +++++++
+ src/video/wayland/SDL_waylandwindow.c | 29 ++++++++++++++++++++++++---
+ 4 files changed, 42 insertions(+), 4 deletions(-)
+
+diff --git a/include/SDL_video.h b/include/SDL_video.h
+index 151cee2e3..ab98df5cd 100644
+--- a/include/SDL_video.h
++++ b/include/SDL_video.h
+@@ -127,9 +127,16 @@ typedef enum
+     SDL_WINDOW_VULKAN           = 0x10000000,   /**< window usable for Vulkan surface */
+     SDL_WINDOW_METAL            = 0x20000000,   /**< window usable for Metal view */
+ 
+-    SDL_WINDOW_INPUT_GRABBED = SDL_WINDOW_MOUSE_GRABBED /**< equivalent to SDL_WINDOW_MOUSE_GRABBED for compatibility */
++    SDL_WINDOW_INPUT_GRABBED = SDL_WINDOW_MOUSE_GRABBED, /**< equivalent to SDL_WINDOW_MOUSE_GRABBED for compatibility */
++
++    /** multiple display consoles in a vm
++     ** bit27 ~ bit24: number of multi consoles
++     **/
++    SDL_WINDOW_VM_MULTI_CONSOLE_MASK   = 0x0F000000
+ } SDL_WindowFlags;
+ 
++#define SDL_WINDOW_VM_MULTI_CONSOLE_SHIFT 24
++
+ /**
+  *  \brief Used to indicate that you don't care what the window position is.
+  */
+diff --git a/src/video/SDL_sysvideo.h b/src/video/SDL_sysvideo.h
+index 5cbee6ef6..c36d77843 100644
+--- a/src/video/SDL_sysvideo.h
++++ b/src/video/SDL_sysvideo.h
+@@ -84,6 +84,7 @@ struct SDL_Window
+     Uint32 flags;
+     Uint32 last_fullscreen_flags;
+     Uint32 display_index;
++    Uint32 multi_console_index;
+ 
+     /* Stored position and size for windowed mode */
+     SDL_Rect windowed;
+diff --git a/src/video/SDL_video.c b/src/video/SDL_video.c
+index 7783b2094..c92129e7e 100644
+--- a/src/video/SDL_video.c
++++ b/src/video/SDL_video.c
+@@ -1767,6 +1767,13 @@ SDL_Window *SDL_CreateWindow(const char *title, int x, int y, int w, int h, Uint
+     if (title) {
+         SDL_SetWindowTitle(window, title);
+     }
++
++    window->multi_console_index = 0;
++    if (flags & SDL_WINDOW_VM_MULTI_CONSOLE_MASK) {
++        window->multi_console_index =
++                (flags & SDL_WINDOW_VM_MULTI_CONSOLE_MASK) >> SDL_WINDOW_VM_MULTI_CONSOLE_SHIFT;
++    }
++
+     SDL_FinishWindowCreation(window, flags);
+ 
+     /* If the window was created fullscreen, make sure the mode code matches */
+diff --git a/src/video/wayland/SDL_waylandwindow.c b/src/video/wayland/SDL_waylandwindow.c
+index 634b9aa26..ef9db9cc4 100644
+--- a/src/video/wayland/SDL_waylandwindow.c
++++ b/src/video/wayland/SDL_waylandwindow.c
+@@ -1386,11 +1386,34 @@ void Wayland_ShowWindow(_THIS, SDL_Window *window)
+                 }
+             }
+         } else {
++            int index;
++            int size;
++            char id[4] = {'\0'};
++            char *name = NULL;
++
++            index = window->multi_console_index;
++
++            if (index > 0) {
++                SDL_itoa(index, id, 10);
++                size = SDL_strlen(c->classname) + SDL_strlen(id) + 1;
++                name = SDL_calloc(1, size);
++                if (name != NULL) {
++                    SDL_strlcpy(name, c->classname, size);
++                    SDL_strlcat(name, id, size);
++                } else {
++                    SDL_OutOfMemory();
++                    printf("%s, recreate classname fail.\n", __func__);
++                }
++            }
++
+             data->shell_surface.xdg.roleobj.toplevel = xdg_surface_get_toplevel(data->shell_surface.xdg.surface);
+-            if (window->title != NULL) {
+-                xdg_toplevel_set_app_id(data->shell_surface.xdg.roleobj.toplevel, window->title);
+-            } else {
++            if (!name) {
+                 xdg_toplevel_set_app_id(data->shell_surface.xdg.roleobj.toplevel, c->classname);
++                printf("%s, set app_id classname %s.\n", __func__, c->classname);
++            } else {
++                xdg_toplevel_set_app_id(data->shell_surface.xdg.roleobj.toplevel, name);
++                printf("%s, set app_id name %s.\n", __func__, name);
++                SDL_free(name);
+             }
+             xdg_toplevel_add_listener(data->shell_surface.xdg.roleobj.toplevel, &toplevel_listener_xdg, data);
+         }
+-- 
+2.17.1
+

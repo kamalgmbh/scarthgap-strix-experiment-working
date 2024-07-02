@@ -1,0 +1,231 @@
+From cb5d66b8387ed2895170cb0a4e07d0c6658a449f Mon Sep 17 00:00:00 2001
+From: Xenia Ragiadakou <xenia.ragiadakou@amd.com>
+Date: Tue, 16 Apr 2024 16:24:05 +0300
+Subject: [PATCH 64/70] hw/arm: xen: Break out parts of xen-arm setup into
+ common code
+
+Break out parts of he Xen PVH ARM machine setup into a common
+xen-pvh-common module. This is in preparation for adding an
+x86 PVH machine.
+
+Signed-off-by: Edgar E. Iglesias <edgar.iglesias@amd.com>
+Change-Id: I726956133f297c97eb0449c6add48d1250a96a5b
+---
+ hw/arm/trace-events             |  3 ++
+ hw/arm/xen_arm.c                | 34 ++++------------
+ hw/xen/meson.build              |  1 +
+ hw/xen/xen-pvh-common.c         | 70 +++++++++++++++++++++++++++++++++
+ include/hw/xen/xen-pvh-common.h | 32 +++++++++++++++
+ 5 files changed, 114 insertions(+), 26 deletions(-)
+ create mode 100644 hw/xen/xen-pvh-common.c
+ create mode 100644 include/hw/xen/xen-pvh-common.h
+
+diff --git a/hw/arm/trace-events b/hw/arm/trace-events
+index 2dee296c8f..bfdea0c4a8 100644
+--- a/hw/arm/trace-events
++++ b/hw/arm/trace-events
+@@ -53,3 +53,6 @@ smmuv3_notify_flag_add(const char *iommu) "ADD SMMUNotifier node for iommu mr=%s
+ smmuv3_notify_flag_del(const char *iommu) "DEL SMMUNotifier node for iommu mr=%s"
+ smmuv3_inv_notifiers_iova(const char *name, uint16_t asid, uint64_t iova, uint8_t tg, uint64_t num_pages) "iommu mr=%s asid=%d iova=0x%"PRIx64" tg=%d num_pages=0x%"PRIx64
+ 
++# xen_arm.c
++xen_create_virtio_mmio_devices(int i, int irq, uint64_t base) "Created virtio-mmio device %d: irq %d base 0x%"PRIx64
++xen_enable_tpm(uint64_t addr) "Connected tpmdev at address 0x%"PRIx64
+diff --git a/hw/arm/xen_arm.c b/hw/arm/xen_arm.c
+index c08259610e..4d4ad0825b 100644
+--- a/hw/arm/xen_arm.c
++++ b/hw/arm/xen_arm.c
+@@ -31,37 +31,24 @@
+ #include "sysemu/block-backend.h"
+ #include "sysemu/tpm_backend.h"
+ #include "sysemu/sysemu.h"
+-#include "hw/xen/xen-hvm-common.h"
++#include "hw/xen/xen-pvh-common.h"
+ #include "sysemu/tpm.h"
+ #include "hw/xen/arch_hvm.h"
+ 
+ #define TYPE_XEN_ARM  MACHINE_TYPE_NAME("xenpvh")
+ OBJECT_DECLARE_SIMPLE_TYPE(XenArmState, XEN_ARM)
+ 
+-static const MemoryListener xen_memory_listener = {
+-    .region_add = xen_region_add,
+-    .region_del = xen_region_del,
+-    .log_start = NULL,
+-    .log_stop = NULL,
+-    .log_sync = NULL,
+-    .log_global_start = NULL,
+-    .log_global_stop = NULL,
+-    .priority = MEMORY_LISTENER_PRIORITY_ACCEL,
+-};
+-
+ struct XenArmState {
+     /*< private >*/
+     MachineState parent;
+ 
+-    XenIOState *state;
++    XenPVHCommonState pvh;
+ 
+     struct {
+         uint64_t tpm_base_addr;
+     } cfg;
+ };
+ 
+-static MemoryRegion ram_lo, ram_hi;
+-
+ /*
+  * VIRTIO_MMIO_DEV_SIZE is imported from tools/libs/light/libxl_arm.c under Xen
+  * repository.
+@@ -172,20 +159,15 @@ static void xen_enable_tpm(XenArmState *xam)
+ 
+ static void xen_arm_init(MachineState *machine)
+ {
++    MemoryRegion *sysmem = get_system_memory();
+     XenArmState *xam = XEN_ARM(machine);
+ 
+-    xam->state =  g_new0(XenIOState, 1);
+-
+-    if (machine->ram_size == 0) {
+-        DPRINTF("ram_size not specified. QEMU machine started without IOREQ"
+-                "(no emulated devices including Virtio)\n");
+-        return;
+-    }
+-
+-    xen_init_ram(machine);
+-
+-    xen_register_ioreq(xam->state, machine->smp.cpus, &xen_memory_listener);
++    xam->pvh.cfg.ram_low.base = GUEST_RAM0_BASE;
++    xam->pvh.cfg.ram_low.size = GUEST_RAM0_SIZE;
++    xam->pvh.cfg.ram_high.base = GUEST_RAM1_BASE;
++    xam->pvh.cfg.ram_high.size = GUEST_RAM1_SIZE;
+ 
++    xen_pvh_common_init(machine, &xam->pvh, sysmem);
+     xen_create_virtio_mmio_devices(xam);
+ 
+ #ifdef CONFIG_TPM
+diff --git a/hw/xen/meson.build b/hw/xen/meson.build
+index afd20754a1..2a5d98d799 100644
+--- a/hw/xen/meson.build
++++ b/hw/xen/meson.build
+@@ -32,4 +32,5 @@ xen_ss = ss.source_set()
+ xen_ss.add(when: 'CONFIG_XEN', if_true: files(
+   'xen-mapcache.c',
+   'xen-hvm-common.c',
++  'xen-pvh-common.c',
+ ))
+diff --git a/hw/xen/xen-pvh-common.c b/hw/xen/xen-pvh-common.c
+new file mode 100644
+index 0000000000..45cfc9f1b8
+--- /dev/null
++++ b/hw/xen/xen-pvh-common.c
+@@ -0,0 +1,70 @@
++/*
++ * Common Xen PVH code.
++ *
++ * Copyright (c) 2024 Advanced Micro Devices, Inc.
++ *
++ * SPDX-License-Identifier: GPL-2.0-or-later
++ */
++
++#include "qemu/osdep.h"
++#include "qemu/error-report.h"
++#include "qapi/error.h"
++#include "hw/boards.h"
++#include "hw/irq.h"
++#include "hw/sysbus.h"
++#include "sysemu/sysemu.h"
++#include "hw/xen/xen-pvh-common.h"
++#include "trace.h"
++
++static const MemoryListener xen_memory_listener = {
++    .region_add = xen_region_add,
++    .region_del = xen_region_del,
++    .log_start = NULL,
++    .log_stop = NULL,
++    .log_sync = NULL,
++    .log_global_start = NULL,
++    .log_global_stop = NULL,
++    .priority = MEMORY_LISTENER_PRIORITY_ACCEL,
++};
++
++static void xen_pvh_init_ram(MachineState *machine, XenPVHCommonState *s,
++                             MemoryRegion *sysmem)
++{
++    ram_addr_t block_len, ram_size[2];
++
++    if (machine->ram_size <= s->cfg.ram_low.size) {
++        ram_size[0] = machine->ram_size;
++        ram_size[1] = 0;
++        block_len = s->cfg.ram_low.base + ram_size[0];
++    } else {
++        ram_size[0] = s->cfg.ram_low.size;
++        ram_size[1] = machine->ram_size - s->cfg.ram_low.size;
++        block_len = s->cfg.ram_high.base + ram_size[1];
++    }
++
++    memory_region_init_ram(&xen_memory, NULL, "xen.ram", block_len,
++                           &error_fatal);
++
++    memory_region_init_alias(&s->ram.low, NULL, "xen.ram.lo", &xen_memory,
++                             s->cfg.ram_low.base, ram_size[0]);
++    memory_region_add_subregion(sysmem, s->cfg.ram_low.base, &s->ram.low);
++    if (ram_size[1] > 0) {
++        memory_region_init_alias(&s->ram.high, NULL, "xen.ram.hi", &xen_memory,
++                                 s->cfg.ram_high.base, ram_size[1]);
++        memory_region_add_subregion(sysmem, s->cfg.ram_high.base, &s->ram.high);
++    }
++}
++
++void xen_pvh_common_init(MachineState *machine, XenPVHCommonState *s,
++                         MemoryRegion *sysmem)
++{
++    if (machine->ram_size == 0) {
++        warn_report("%s non-zero ram size not specified. QEMU machine started"
++                    " without IOREQ (no emulated devices including virtio)",
++                    MACHINE_CLASS(object_get_class(OBJECT(machine)))->desc);
++        return;
++    }
++
++    xen_pvh_init_ram(machine, s, sysmem);
++    xen_register_ioreq(&s->ioreq, machine->smp.cpus, &xen_memory_listener);
++}
+diff --git a/include/hw/xen/xen-pvh-common.h b/include/hw/xen/xen-pvh-common.h
+new file mode 100644
+index 0000000000..690abc2b1d
+--- /dev/null
++++ b/include/hw/xen/xen-pvh-common.h
+@@ -0,0 +1,32 @@
++/*
++ * QEMU Xen PVH machine common code.
++ *
++ * Copyright (c) 2024 Advanced Micro Devices, Inc.
++ *
++ * SPDX-License-Identifier: GPL-2.0-or-later
++ */
++
++#ifndef XEN_PVH_COMMON_H__
++#define XEN_PVH_COMMON_H__
++
++#include <assert.h>
++#include "hw/hw.h"
++#include "hw/xen/xen-hvm-common.h"
++
++typedef struct XenPVHCommonState {
++    XenIOState ioreq;
++
++    struct {
++        MemoryRegion low;
++        MemoryRegion high;
++    } ram;
++
++    struct {
++        MemMapEntry ram_low;
++        MemMapEntry ram_high;
++    } cfg;
++} XenPVHCommonState;
++
++void xen_pvh_common_init(MachineState *machine, XenPVHCommonState *s,
++                         MemoryRegion *sysmem);
++#endif
+-- 
+2.17.1
+

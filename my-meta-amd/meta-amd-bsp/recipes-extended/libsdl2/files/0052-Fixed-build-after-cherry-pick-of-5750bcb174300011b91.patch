@@ -1,0 +1,467 @@
+From 6926d046c0fbb19001c38cb79b46514e833938ed Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Wed, 30 Nov 2022 13:05:57 -0800
+Subject: [PATCH 052/458] Fixed build after cherry-pick of
+ 5750bcb174300011b91d1de20edb288fcca70f8c from SDL3
+
+---
+ src/render/software/SDL_render_sw.c | 315 +++++++---------------------
+ src/video/SDL_egl_c.h               |  76 +++----
+ 2 files changed, 101 insertions(+), 290 deletions(-)
+
+diff --git a/src/render/software/SDL_render_sw.c b/src/render/software/SDL_render_sw.c
+index 3d7f2087d..8332d7dc9 100644
+--- a/src/render/software/SDL_render_sw.c
++++ b/src/render/software/SDL_render_sw.c
+@@ -673,48 +673,43 @@ static int SW_RunCommandQueue(SDL_Renderer *renderer, SDL_RenderCommand *cmd, vo
+ 
+     while (cmd) {
+         switch (cmd->command) {
+-        case SDL_RENDERCMD_SETDRAWCOLOR:
+-        {
+-            break; /* Not used in this backend. */
+-        }
++            case SDL_RENDERCMD_SETDRAWCOLOR: {
++                break;  /* Not used in this backend. */
++            }
+ 
+-        case SDL_RENDERCMD_SETVIEWPORT:
+-        {
+-            drawstate.viewport = &cmd->data.viewport.rect;
+-            drawstate.surface_cliprect_dirty = SDL_TRUE;
+-            break;
+-        }
++            case SDL_RENDERCMD_SETVIEWPORT: {
++                drawstate.viewport = &cmd->data.viewport.rect;
++                drawstate.surface_cliprect_dirty = SDL_TRUE;
++                break;
++            }
+ 
+-        case SDL_RENDERCMD_SETCLIPRECT:
+-        {
+-            drawstate.cliprect = cmd->data.cliprect.enabled ? &cmd->data.cliprect.rect : NULL;
+-            drawstate.surface_cliprect_dirty = SDL_TRUE;
+-            break;
+-        }
++            case SDL_RENDERCMD_SETCLIPRECT: {
++                drawstate.cliprect = cmd->data.cliprect.enabled ? &cmd->data.cliprect.rect : NULL;
++                drawstate.surface_cliprect_dirty = SDL_TRUE;
++                break;
++            }
+ 
+-        case SDL_RENDERCMD_CLEAR:
+-        {
+-            const Uint8 r = cmd->data.color.r;
+-            const Uint8 g = cmd->data.color.g;
+-            const Uint8 b = cmd->data.color.b;
+-            const Uint8 a = cmd->data.color.a;
+-            /* By definition the clear ignores the clip rect */
+-            SDL_SetClipRect(surface, NULL);
+-            SDL_FillRect(surface, NULL, SDL_MapRGBA(surface->format, r, g, b, a));
+-            drawstate.surface_cliprect_dirty = SDL_TRUE;
+-            break;
+-        }
++            case SDL_RENDERCMD_CLEAR: {
++                const Uint8 r = cmd->data.color.r;
++                const Uint8 g = cmd->data.color.g;
++                const Uint8 b = cmd->data.color.b;
++                const Uint8 a = cmd->data.color.a;
++                /* By definition the clear ignores the clip rect */
++                SDL_SetClipRect(surface, NULL);
++                SDL_FillRect(surface, NULL, SDL_MapRGBA(surface->format, r, g, b, a));
++                drawstate.surface_cliprect_dirty = SDL_TRUE;
++                break;
++            }
+ 
+-        case SDL_RENDERCMD_DRAW_POINTS:
+-        {
+-            const Uint8 r = cmd->data.draw.r;
+-            const Uint8 g = cmd->data.draw.g;
+-            const Uint8 b = cmd->data.draw.b;
+-            const Uint8 a = cmd->data.draw.a;
+-            const int count = (int)cmd->data.draw.count;
+-            SDL_Point *verts = (SDL_Point *)(((Uint8 *)vertices) + cmd->data.draw.first);
+-            const SDL_BlendMode blend = cmd->data.draw.blend;
+-            SetDrawState(surface, &drawstate);
++            case SDL_RENDERCMD_DRAW_POINTS: {
++                const Uint8 r = cmd->data.draw.r;
++                const Uint8 g = cmd->data.draw.g;
++                const Uint8 b = cmd->data.draw.b;
++                const Uint8 a = cmd->data.draw.a;
++                const int count = (int) cmd->data.draw.count;
++                SDL_Point *verts = (SDL_Point *) (((Uint8 *) vertices) + cmd->data.draw.first);
++                const SDL_BlendMode blend = cmd->data.draw.blend;
++                SetDrawState(surface, &drawstate);
+ 
+                 /* Apply viewport */
+                 if (drawstate.viewport != NULL && (drawstate.viewport->x || drawstate.viewport->y)) {
+@@ -870,220 +865,64 @@ static int SW_RunCommandQueue(SDL_Renderer *renderer, SDL_RenderCommand *cmd, vo
+ 
+             case SDL_RENDERCMD_GEOMETRY: {
+                 int i;
+-                for (i = 0; i < count; i++) {
+-                    verts[i].x += drawstate.viewport->x;
+-                    verts[i].y += drawstate.viewport->y;
+-                }
+-            }
+-
+-            if (blend == SDL_BLENDMODE_NONE) {
+-                SDL_DrawPoints(surface, verts, count, SDL_MapRGBA(surface->format, r, g, b, a));
+-            } else {
+-                SDL_BlendPoints(surface, verts, count, blend, r, g, b, a);
+-            }
+-            break;
+-        }
+-
+-        case SDL_RENDERCMD_DRAW_LINES:
+-        {
+-            const Uint8 r = cmd->data.draw.r;
+-            const Uint8 g = cmd->data.draw.g;
+-            const Uint8 b = cmd->data.draw.b;
+-            const Uint8 a = cmd->data.draw.a;
+-            const int count = (int)cmd->data.draw.count;
+-            SDL_Point *verts = (SDL_Point *)(((Uint8 *)vertices) + cmd->data.draw.first);
+-            const SDL_BlendMode blend = cmd->data.draw.blend;
+-            SetDrawState(surface, &drawstate);
+-
+-            /* Apply viewport */
+-            if (drawstate.viewport != NULL && (drawstate.viewport->x || drawstate.viewport->y)) {
+-                int i;
+-                for (i = 0; i < count; i++) {
+-                    verts[i].x += drawstate.viewport->x;
+-                    verts[i].y += drawstate.viewport->y;
+-                }
+-            }
+-
+-            if (blend == SDL_BLENDMODE_NONE) {
+-                SDL_DrawLines(surface, verts, count, SDL_MapRGBA(surface->format, r, g, b, a));
+-            } else {
+-                SDL_BlendLines(surface, verts, count, blend, r, g, b, a);
+-            }
+-            break;
+-        }
+-
+-        case SDL_RENDERCMD_FILL_RECTS:
+-        {
+-            const Uint8 r = cmd->data.draw.r;
+-            const Uint8 g = cmd->data.draw.g;
+-            const Uint8 b = cmd->data.draw.b;
+-            const Uint8 a = cmd->data.draw.a;
+-            const int count = (int)cmd->data.draw.count;
+-            SDL_Rect *verts = (SDL_Rect *)(((Uint8 *)vertices) + cmd->data.draw.first);
+-            const SDL_BlendMode blend = cmd->data.draw.blend;
+-            SetDrawState(surface, &drawstate);
+-
+-            /* Apply viewport */
+-            if (drawstate.viewport != NULL && (drawstate.viewport->x || drawstate.viewport->y)) {
+-                int i;
+-                for (i = 0; i < count; i++) {
+-                    verts[i].x += drawstate.viewport->x;
+-                    verts[i].y += drawstate.viewport->y;
+-                }
+-            }
++                SDL_Rect *verts = (SDL_Rect *) (((Uint8 *) vertices) + cmd->data.draw.first);
++                const int count = (int) cmd->data.draw.count;
++                SDL_Texture *texture = cmd->data.draw.texture;
++                const SDL_BlendMode blend = cmd->data.draw.blend;
+ 
+-            if (blend == SDL_BLENDMODE_NONE) {
+-                SDL_FillRects(surface, verts, count, SDL_MapRGBA(surface->format, r, g, b, a));
+-            } else {
+-                SDL_BlendFillRects(surface, verts, count, blend, r, g, b, a);
+-            }
+-            break;
+-        }
++                SetDrawState(surface, &drawstate);
+ 
+-        case SDL_RENDERCMD_COPY:
+-        {
+-            SDL_Rect *verts = (SDL_Rect *)(((Uint8 *)vertices) + cmd->data.draw.first);
+-            const SDL_Rect *srcrect = verts;
+-            SDL_Rect *dstrect = verts + 1;
+-            SDL_Texture *texture = cmd->data.draw.texture;
+-            SDL_Surface *src = (SDL_Surface *)texture->driverdata;
++                if (texture) {
++                    SDL_Surface *src = (SDL_Surface *) texture->driverdata;
+ 
+-            SetDrawState(surface, &drawstate);
++                    GeometryCopyData *ptr = (GeometryCopyData *) verts;
+ 
+-            PrepTextureForCopy(cmd);
++                    PrepTextureForCopy(cmd);
+ 
+-            /* Apply viewport */
+-            if (drawstate.viewport != NULL && (drawstate.viewport->x || drawstate.viewport->y)) {
+-                dstrect->x += drawstate.viewport->x;
+-                dstrect->y += drawstate.viewport->y;
+-            }
++                    /* Apply viewport */
++                    if (drawstate.viewport != NULL && (drawstate.viewport->x || drawstate.viewport->y)) {
++                        SDL_Point vp;
++                        vp.x = drawstate.viewport->x;
++                        vp.y = drawstate.viewport->y;
++                        trianglepoint_2_fixedpoint(&vp);
++                        for (i = 0; i < count; i++) {
++                            ptr[i].dst.x += vp.x;
++                            ptr[i].dst.y += vp.y;
++                        }
++                    }
+ 
+-            if (srcrect->w == dstrect->w && srcrect->h == dstrect->h) {
+-                SDL_BlitSurface(src, srcrect, surface, dstrect);
+-            } else {
+-                /* If scaling is ever done, permanently disable RLE (which doesn't support scaling)
+-                 * to avoid potentially frequent RLE encoding/decoding.
+-                 */
+-                SDL_SetSurfaceRLE(surface, 0);
+-
+-                /* Prevent to do scaling + clipping on viewport boundaries as it may lose proportion */
+-                if (dstrect->x < 0 || dstrect->y < 0 || dstrect->x + dstrect->w > surface->w || dstrect->y + dstrect->h > surface->h) {
+-                    SDL_Surface *tmp = SDL_CreateRGBSurfaceWithFormat(dstrect->w, dstrect->h, src->format->format);
+-                    /* Scale to an intermediate surface, then blit */
+-                    if (tmp) {
+-                        SDL_Rect r;
+-                        SDL_BlendMode blendmode;
+-                        Uint8 alphaMod, rMod, gMod, bMod;
+-
+-                        SDL_GetSurfaceBlendMode(src, &blendmode);
+-                        SDL_GetSurfaceAlphaMod(src, &alphaMod);
+-                        SDL_GetSurfaceColorMod(src, &rMod, &gMod, &bMod);
+-
+-                        r.x = 0;
+-                        r.y = 0;
+-                        r.w = dstrect->w;
+-                        r.h = dstrect->h;
+-
+-                        SDL_SetSurfaceBlendMode(src, SDL_BLENDMODE_NONE);
+-                        SDL_SetSurfaceColorMod(src, 255, 255, 255);
+-                        SDL_SetSurfaceAlphaMod(src, 255);
+-
+-                        SDL_PrivateUpperBlitScaled(src, srcrect, tmp, &r, texture->scaleMode);
+-
+-                        SDL_SetSurfaceColorMod(tmp, rMod, gMod, bMod);
+-                        SDL_SetSurfaceAlphaMod(tmp, alphaMod);
+-                        SDL_SetSurfaceBlendMode(tmp, blendmode);
+-
+-                        SDL_BlitSurface(tmp, NULL, surface, dstrect);
+-                        SDL_FreeSurface(tmp);
+-                        /* No need to set back r/g/b/a/blendmode to 'src' since it's done in PrepTextureForCopy() */
++                    for (i = 0; i < count; i += 3, ptr += 3) {
++                        SDL_SW_BlitTriangle(
++                                src,
++                                &(ptr[0].src), &(ptr[1].src), &(ptr[2].src),
++                                surface,
++                                &(ptr[0].dst), &(ptr[1].dst), &(ptr[2].dst),
++                                ptr[0].color, ptr[1].color, ptr[2].color);
+                     }
+                 } else {
+-                    SDL_PrivateUpperBlitScaled(src, srcrect, surface, dstrect, texture->scaleMode);
+-                }
+-            }
+-            break;
+-        }
+-
+-        case SDL_RENDERCMD_COPY_EX:
+-        {
+-            CopyExData *copydata = (CopyExData *)(((Uint8 *)vertices) + cmd->data.draw.first);
+-            SetDrawState(surface, &drawstate);
+-            PrepTextureForCopy(cmd);
+-
+-            /* Apply viewport */
+-            if (drawstate.viewport != NULL && (drawstate.viewport->x || drawstate.viewport->y)) {
+-                copydata->dstrect.x += drawstate.viewport->x;
+-                copydata->dstrect.y += drawstate.viewport->y;
+-            }
+-
+-            SW_RenderCopyEx(renderer, surface, cmd->data.draw.texture, &copydata->srcrect,
+-                            &copydata->dstrect, copydata->angle, &copydata->center, copydata->flip,
+-                            copydata->scale_x, copydata->scale_y);
+-            break;
+-        }
+-
+-        case SDL_RENDERCMD_GEOMETRY:
+-        {
+-            int i;
+-            SDL_Rect *verts = (SDL_Rect *)(((Uint8 *)vertices) + cmd->data.draw.first);
+-            const int count = (int)cmd->data.draw.count;
+-            SDL_Texture *texture = cmd->data.draw.texture;
+-            const SDL_BlendMode blend = cmd->data.draw.blend;
+-
+-            SetDrawState(surface, &drawstate);
+-
+-            if (texture) {
+-                SDL_Surface *src = (SDL_Surface *)texture->driverdata;
+-
+-                GeometryCopyData *ptr = (GeometryCopyData *)verts;
+-
+-                PrepTextureForCopy(cmd);
+-
+-                /* Apply viewport */
+-                if (drawstate.viewport != NULL && (drawstate.viewport->x || drawstate.viewport->y)) {
+-                    SDL_Point vp;
+-                    vp.x = drawstate.viewport->x;
+-                    vp.y = drawstate.viewport->y;
+-                    trianglepoint_2_fixedpoint(&vp);
+-                    for (i = 0; i < count; i++) {
+-                        ptr[i].dst.x += vp.x;
+-                        ptr[i].dst.y += vp.y;
++                    GeometryFillData *ptr = (GeometryFillData *) verts;
++
++                    /* Apply viewport */
++                    if (drawstate.viewport != NULL && (drawstate.viewport->x || drawstate.viewport->y)) {
++                        SDL_Point vp;
++                        vp.x = drawstate.viewport->x;
++                        vp.y = drawstate.viewport->y;
++                        trianglepoint_2_fixedpoint(&vp);
++                        for (i = 0; i < count; i++) {
++                            ptr[i].dst.x += vp.x;
++                            ptr[i].dst.y += vp.y;
++                        }
+                     }
+-                }
+-
+-                for (i = 0; i < count; i += 3, ptr += 3) {
+-                    SDL_SW_BlitTriangle(
+-                        src,
+-                        &(ptr[0].src), &(ptr[1].src), &(ptr[2].src),
+-                        surface,
+-                        &(ptr[0].dst), &(ptr[1].dst), &(ptr[2].dst),
+-                        ptr[0].color, ptr[1].color, ptr[2].color);
+-                }
+-            } else {
+-                GeometryFillData *ptr = (GeometryFillData *)verts;
+ 
+-                /* Apply viewport */
+-                if (drawstate.viewport != NULL && (drawstate.viewport->x || drawstate.viewport->y)) {
+-                    SDL_Point vp;
+-                    vp.x = drawstate.viewport->x;
+-                    vp.y = drawstate.viewport->y;
+-                    trianglepoint_2_fixedpoint(&vp);
+-                    for (i = 0; i < count; i++) {
+-                        ptr[i].dst.x += vp.x;
+-                        ptr[i].dst.y += vp.y;
++                    for (i = 0; i < count; i += 3, ptr += 3) {
++                        SDL_SW_FillTriangle(surface, &(ptr[0].dst), &(ptr[1].dst), &(ptr[2].dst), blend, ptr[0].color, ptr[1].color, ptr[2].color);
+                     }
+                 }
+-
+-                for (i = 0; i < count; i += 3, ptr += 3) {
+-                    SDL_SW_FillTriangle(surface, &(ptr[0].dst), &(ptr[1].dst), &(ptr[2].dst), blend, ptr[0].color, ptr[1].color, ptr[2].color);
+-                }
++                break;
+             }
+-            break;
+-        }
+ 
+-        case SDL_RENDERCMD_NO_OP:
+-            break;
++            case SDL_RENDERCMD_NO_OP:
++                break;
+         }
+ 
+         cmd = cmd->next;
+diff --git a/src/video/SDL_egl_c.h b/src/video/SDL_egl_c.h
+index c8765ede3..4984c8a82 100644
+--- a/src/video/SDL_egl_c.h
++++ b/src/video/SDL_egl_c.h
+@@ -71,73 +71,45 @@ typedef struct SDL_EGL_VideoData
+     EGLSurface(EGLAPIENTRY *eglCreatePbufferSurface)(EGLDisplay dpy, EGLConfig config,
+                                                      EGLint const* attrib_list);
+ 
+-    EGLDisplay(EGLAPIENTRY *eglGetDisplay)(NativeDisplayType display);
+-    EGLDisplay(EGLAPIENTRY *eglGetPlatformDisplay)(EGLenum platform,
+-                                                   void *native_display,
+-                                                   const EGLAttrib *attrib_list);
+-    EGLDisplay(EGLAPIENTRY *eglGetPlatformDisplayEXT)(EGLenum platform,
+-                                                      void *native_display,
+-                                                      const EGLint *attrib_list);
+-    EGLBoolean(EGLAPIENTRY *eglInitialize)(EGLDisplay dpy, EGLint *major,
+-                                           EGLint *minor);
+-    EGLBoolean(EGLAPIENTRY *eglTerminate)(EGLDisplay dpy);
+-
+-    void *(EGLAPIENTRY *eglGetProcAddress)(const char *procName);
+-
+-    EGLBoolean(EGLAPIENTRY *eglChooseConfig)(EGLDisplay dpy,
+-                                             const EGLint *attrib_list,
+-                                             EGLConfig *configs,
+-                                             EGLint config_size, EGLint *num_config);
+-
+-    EGLContext(EGLAPIENTRY *eglCreateContext)(EGLDisplay dpy,
+-                                              EGLConfig config,
+-                                              EGLContext share_list,
+-                                              const EGLint *attrib_list);
+-
+-    EGLBoolean(EGLAPIENTRY *eglDestroyContext)(EGLDisplay dpy, EGLContext ctx);
+-
+-    EGLSurface(EGLAPIENTRY *eglCreatePbufferSurface)(EGLDisplay dpy, EGLConfig config,
+-                                                     EGLint const *attrib_list);
+-
+-    EGLSurface(EGLAPIENTRY *eglCreateWindowSurface)(EGLDisplay dpy,
+-                                                    EGLConfig config,
+-                                                    NativeWindowType window,
+-                                                    const EGLint *attrib_list);
+-    EGLBoolean(EGLAPIENTRY *eglDestroySurface)(EGLDisplay dpy, EGLSurface surface);
+-
+-    EGLBoolean(EGLAPIENTRY *eglMakeCurrent)(EGLDisplay dpy, EGLSurface draw,
+-                                            EGLSurface read, EGLContext ctx);
+-
+-    EGLBoolean(EGLAPIENTRY *eglSwapBuffers)(EGLDisplay dpy, EGLSurface draw);
+-
+-    EGLBoolean(EGLAPIENTRY *eglSwapInterval)(EGLDisplay dpy, EGLint interval);
+-
+-    const char *(EGLAPIENTRY *eglQueryString)(EGLDisplay dpy, EGLint name);
++    EGLSurface(EGLAPIENTRY *eglCreateWindowSurface) (EGLDisplay dpy,
++                                         EGLConfig config,
++                                         NativeWindowType window,
++                                         const EGLint * attrib_list);
++    EGLBoolean(EGLAPIENTRY *eglDestroySurface) (EGLDisplay dpy, EGLSurface surface);
++    
++    EGLBoolean(EGLAPIENTRY *eglMakeCurrent) (EGLDisplay dpy, EGLSurface draw,
++                                 EGLSurface read, EGLContext ctx);
++    
++    EGLBoolean(EGLAPIENTRY *eglSwapBuffers) (EGLDisplay dpy, EGLSurface draw);
++    
++    EGLBoolean(EGLAPIENTRY *eglSwapInterval) (EGLDisplay dpy, EGLint interval);
++    
++    const char *(EGLAPIENTRY *eglQueryString) (EGLDisplay dpy, EGLint name);
+ 
+     EGLenum(EGLAPIENTRY *eglQueryAPI)(void);
+-
+-    EGLBoolean(EGLAPIENTRY *eglGetConfigAttrib)(EGLDisplay dpy, EGLConfig config,
+-                                                EGLint attribute, EGLint *value);
+-
+-    EGLBoolean(EGLAPIENTRY *eglWaitNative)(EGLint engine);
++    
++    EGLBoolean(EGLAPIENTRY  *eglGetConfigAttrib) (EGLDisplay dpy, EGLConfig config,
++                                     EGLint attribute, EGLint * value);
++    
++    EGLBoolean(EGLAPIENTRY *eglWaitNative) (EGLint  engine);
+ 
+     EGLBoolean(EGLAPIENTRY *eglWaitGL)(void);
+-
++    
+     EGLBoolean(EGLAPIENTRY *eglBindAPI)(EGLenum);
+ 
+     EGLint(EGLAPIENTRY *eglGetError)(void);
+ 
+     EGLBoolean(EGLAPIENTRY *eglQueryDevicesEXT)(EGLint max_devices,
+-                                                void **devices,
+-                                                EGLint *num_devices);
++                                            void **devices,
++                                            EGLint *num_devices);
+ 
+-    /* Atomic functions */
++   /* Atomic functions */
+ 
+     EGLSyncKHR(EGLAPIENTRY *eglCreateSyncKHR)(EGLDisplay dpy, EGLenum type, const EGLint *attrib_list);
+ 
+     EGLBoolean(EGLAPIENTRY *eglDestroySyncKHR)(EGLDisplay dpy, EGLSyncKHR sync);
+ 
+-    EGLint(EGLAPIENTRY *eglDupNativeFenceFDANDROID)(EGLDisplay dpy, EGLSyncKHR sync);
++    EGLint(EGLAPIENTRY *eglDupNativeFenceFDANDROID)(EGLDisplay dpy, EGLSyncKHR sync); 
+ 
+     EGLint(EGLAPIENTRY *eglWaitSyncKHR)(EGLDisplay dpy, EGLSyncKHR sync, EGLint flags);
+ 
+-- 
+2.17.1
+

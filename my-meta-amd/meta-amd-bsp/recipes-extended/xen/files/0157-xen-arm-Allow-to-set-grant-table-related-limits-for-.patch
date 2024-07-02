@@ -1,0 +1,107 @@
+From 9c57a297378932249c3edefa5065c838f47cb3fb Mon Sep 17 00:00:00 2001
+From: Michal Orzel <michal.orzel@amd.com>
+Date: Mon, 19 Dec 2022 09:59:08 +0100
+Subject: [PATCH 157/221] xen/arm: Allow to set grant table related limits for
+ dom0less domUs
+
+At the moment, for dom0less domUs, we do not have a way to specify
+per domain grant table related limits (unlike when using xl), namely
+max version, max number of grant frames, max number of maptrack frames.
+This means that such domains always use the values specified by the Xen
+command line parameters or their default values if unspecified.
+
+In order to have more control over dom0less domUs, introduce the
+following device-tree properties that can be set under domUs nodes:
+ - max_grant_version to set the maximum grant table version the domain
+   is allowed to use,
+ - max_grant_frames to set the maximum number of grant frames the domain
+   is allowed to have,
+ - max_maptrack_frames to set the maximum number of grant maptrack frames
+   the domain is allowed to have.
+
+Update documentation accordingly.
+
+Note that the values obtained from device tree are of type uint32_t,
+whereas the d_cfg.max_{grant_frames,maptrack_frames} are of type int32_t.
+Call panic in case of overflow. Other sanity checks are already there in
+grant_table_init() resulting in panic in case of errors, therefore no
+need to repeat them in create_domUs().
+
+Signed-off-by: Michal Orzel <michal.orzel@amd.com>
+Reviewed-by: Stefano Stabellini <sstabellini@kernel.org>
+---
+ docs/misc/arm/device-tree/booting.txt | 21 +++++++++++++++++++++
+ xen/arch/arm/domain_build.c           | 18 ++++++++++++++++++
+ 2 files changed, 39 insertions(+)
+
+diff --git a/docs/misc/arm/device-tree/booting.txt b/docs/misc/arm/device-tree/booting.txt
+index 87eaa3e254..3879340b5e 100644
+--- a/docs/misc/arm/device-tree/booting.txt
++++ b/docs/misc/arm/device-tree/booting.txt
+@@ -223,6 +223,27 @@ with the following properties:
+     the default size of domain P2M pool, i.e. 1MB per guest vCPU plus 4KB
+     per MB of guest RAM plus 512KB for guest extended regions.
+ 
++- max_grant_version
++
++    Optional. A 32-bit integer specifying the maximum grant table version
++    the domain is allowed to use (valid values are 1 or 2). If this property
++    is missing, the value specified by Xen command line parameter gnttab=max-ver
++    (or its default value if unspecified, i.e. 1) is used.
++
++- max_grant_frames
++
++    Optional. A 32-bit integer specifying the maximum number of grant frames
++    the domain is allowed to have. If this property is missing, the value
++    specified by Xen command line parameter gnttab_max_frames (or its default
++    value if unspecified, i.e. 64) is used.
++
++- max_maptrack_frames
++
++    Optional. A 32-bit integer specifying the maximum number of grant maptrack
++    frames the domain is allowed to have. If this property is missing, the
++    value specified by Xen command line parameter gnttab_max_maptrack_frames
++    (or its default value if unspecified, i.e. 1024) is used.
++
+ Under the "xen,domain" compatible node, one or more sub-nodes are present
+ for the DomU kernel and ramdisk.
+ 
+diff --git a/xen/arch/arm/domain_build.c b/xen/arch/arm/domain_build.c
+index bef5e905a7..829cea8de8 100644
+--- a/xen/arch/arm/domain_build.c
++++ b/xen/arch/arm/domain_build.c
+@@ -3872,6 +3872,7 @@ void __init create_domUs(void)
+             .grant_opts = XEN_DOMCTL_GRANT_version(opt_gnttab_max_version),
+         };
+         unsigned int flags = 0U;
++        uint32_t val;
+ 
+         if ( !dt_device_is_compatible(node, "xen,domain") )
+             continue;
+@@ -3940,6 +3941,23 @@ void __init create_domUs(void)
+             d_cfg.cpupool_id = pool_id;
+         }
+ 
++        if ( dt_property_read_u32(node, "max_grant_version", &val) )
++            d_cfg.grant_opts = XEN_DOMCTL_GRANT_version(val);
++
++        if ( dt_property_read_u32(node, "max_grant_frames", &val) )
++        {
++            if ( val > INT32_MAX )
++                panic("max_grant_frames (%"PRIu32") overflow\n", val);
++            d_cfg.max_grant_frames = val;
++        }
++
++        if ( dt_property_read_u32(node, "max_maptrack_frames", &val) )
++        {
++            if ( val > INT32_MAX )
++                panic("max_maptrack_frames (%"PRIu32") overflow\n", val);
++            d_cfg.max_maptrack_frames = val;
++        }
++
+         /*
+          * The variable max_init_domid is initialized with zero, so here it's
+          * very important to use the pre-increment operator to call
+-- 
+2.17.1
+

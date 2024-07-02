@@ -1,0 +1,25 @@
+From a65d1bfb141d30835686ad885683819e8b1ea808 Mon Sep 17 00:00:00 2001
+From: Samuel Venable <samuelvenable@hotmail.com>
+Date: Mon, 28 Nov 2022 18:37:34 -0500
+Subject: [PATCH 035/458] Fix broken solaris build. (missing brace).
+
+missing brace.
+---
+ src/filesystem/unix/SDL_sysfilesystem.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/src/filesystem/unix/SDL_sysfilesystem.c b/src/filesystem/unix/SDL_sysfilesystem.c
+index bd11fdaa5..928d76965 100644
+--- a/src/filesystem/unix/SDL_sysfilesystem.c
++++ b/src/filesystem/unix/SDL_sysfilesystem.c
+@@ -246,6 +246,7 @@ SDL_GetBasePath(void)
+                 return NULL;
+             }
+         }
++    }
+ #endif
+ 
+     /* If we had access to argv[0] here, we could check it for a path,
+-- 
+2.17.1
+

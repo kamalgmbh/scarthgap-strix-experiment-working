@@ -1,0 +1,73 @@
+From 718eb7513ac7c5fb1163e777a04720a829f09278 Mon Sep 17 00:00:00 2001
+From: Ayan Kumar Halder <ayankuma@amd.com>
+Date: Mon, 24 Oct 2022 19:25:18 +0100
+Subject: [PATCH 064/221] GICv3: Emulate GICD_IGRPMODR as RAZ / WI
+
+Refer GIC v3 specification (Arm IHI 0069H ID020922), IGRPMODR is emulated
+as RAZ / WI for the guests as "GICD_CTLR.ARE_S==0" is true.
+Xen is currently supported to run in non-secure mode, so guests will run in
+non-secure mode only.
+
+Also, if Xen was supposed to run in secure mode with guests, the programming
+of the interrupts (ie whether it belongs to secure/non secure and group 0/1)
+will be done by Xen only. The guests will not be allowed to change this.
+
+Signed-off-by: Ayan Kumar Halder <ayankuma@amd.com>
+Reviewed-by: Bertrand Marquis <bertrand.marquis@arm.com>
+---
+ xen/arch/arm/include/asm/gic_v3_defs.h | 2 ++
+ xen/arch/arm/vgic-v3.c                 | 4 ++++
+ 2 files changed, 6 insertions(+)
+
+diff --git a/xen/arch/arm/include/asm/gic_v3_defs.h b/xen/arch/arm/include/asm/gic_v3_defs.h
+index 34ed5f857d..728e28d5e5 100644
+--- a/xen/arch/arm/include/asm/gic_v3_defs.h
++++ b/xen/arch/arm/include/asm/gic_v3_defs.h
+@@ -30,6 +30,8 @@
+ #define GICD_CLRSPI_NSR              (0x048)
+ #define GICD_SETSPI_SR               (0x050)
+ #define GICD_CLRSPI_SR               (0x058)
++#define GICD_IGRPMODR                (0xD00)
++#define GICD_IGRPMODRN               (0xD7C)
+ #define GICD_IROUTER                 (0x6000)
+ #define GICD_IROUTER32               (0x6100)
+ #define GICD_IROUTER1019             (0x7FD8)
+diff --git a/xen/arch/arm/vgic-v3.c b/xen/arch/arm/vgic-v3.c
+index 84dc442fc6..015446be17 100644
+--- a/xen/arch/arm/vgic-v3.c
++++ b/xen/arch/arm/vgic-v3.c
+@@ -684,6 +684,7 @@ static int __vgic_v3_distr_common_mmio_read(const char *name, struct vcpu *v,
+     switch ( reg )
+     {
+     case VRANGE32(GICD_IGROUPR, GICD_IGROUPRN):
++    case VRANGE32(GICD_IGRPMODR, GICD_IGRPMODRN):
+         /* We do not implement security extensions for guests, read zero */
+         if ( dabt.size != DABT_WORD ) goto bad_width;
+         goto read_as_zero;
+@@ -780,6 +781,7 @@ static int __vgic_v3_distr_common_mmio_write(const char *name, struct vcpu *v,
+     switch ( reg )
+     {
+     case VRANGE32(GICD_IGROUPR, GICD_IGROUPRN):
++    case VRANGE32(GICD_IGRPMODR, GICD_IGRPMODRN):
+         /* We do not implement security extensions for guests, write ignore */
+         goto write_ignore_32;
+ 
+@@ -1191,6 +1193,7 @@ static int vgic_v3_distr_mmio_read(struct vcpu *v, mmio_info_t *info,
+     case VRANGE32(GICD_ICACTIVER, GICD_ICACTIVERN):
+     case VRANGE32(GICD_IPRIORITYR, GICD_IPRIORITYRN):
+     case VRANGE32(GICD_ICFGR, GICD_ICFGRN):
++    case VRANGE32(GICD_IGRPMODR, GICD_IGRPMODRN):
+         /*
+          * Above all register are common with GICR and GICD
+          * Manage in common
+@@ -1378,6 +1381,7 @@ static int vgic_v3_distr_mmio_write(struct vcpu *v, mmio_info_t *info,
+     case VRANGE32(GICD_ICACTIVER, GICD_ICACTIVERN):
+     case VRANGE32(GICD_IPRIORITYR, GICD_IPRIORITYRN):
+     case VRANGE32(GICD_ICFGR, GICD_ICFGRN):
++    case VRANGE32(GICD_IGRPMODR, GICD_IGRPMODRN):
+         /* Above registers are common with GICR and GICD
+          * Manage in common */
+         return __vgic_v3_distr_common_mmio_write("vGICD", v, info,
+-- 
+2.17.1
+

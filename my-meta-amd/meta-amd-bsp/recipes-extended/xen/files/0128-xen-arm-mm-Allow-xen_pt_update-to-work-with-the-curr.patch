@@ -1,0 +1,36 @@
+From 0e506697d016ceab58b06a5c6e1932b9b382e29e Mon Sep 17 00:00:00 2001
+From: Julien Grall <jgrall@amazon.com>
+Date: Thu, 15 Dec 2022 11:44:54 +0000
+Subject: [PATCH 128/221] xen/arm: mm: Allow xen_pt_update() to work with the
+ current root table
+
+At the moment, xen_pt_update() will only work on the runtime page tables.
+In follow-up patches, we will also want to use the helper to update
+the boot page tables.
+
+All the existing callers of xen_pt_update() expects to modify the
+current page-tables. Therefore, we can read the root physical address
+directly from TTBR0_EL2.
+
+Signed-off-by: Julien Grall <jgrall@amazon.com>
+Acked-by: Stefano Stabellini <sstabellini@kernel.org>
+---
+ xen/arch/arm/mm.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/xen/arch/arm/mm.c b/xen/arch/arm/mm.c
+index 1fd207b27c..16ec1d0fe9 100644
+--- a/xen/arch/arm/mm.c
++++ b/xen/arch/arm/mm.c
+@@ -1099,7 +1099,7 @@ static int xen_pt_update(unsigned long virt,
+      *
+      * XXX: Add a check.
+      */
+-    const mfn_t root = virt_to_mfn(THIS_CPU_PGTABLE);
++    const mfn_t root = maddr_to_mfn(READ_SYSREG64(TTBR0_EL2));
+ 
+     /*
+      * The hardware was configured to forbid mapping both writeable and
+-- 
+2.17.1
+

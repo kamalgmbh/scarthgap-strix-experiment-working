@@ -1,0 +1,33 @@
+From e03427ebb6af75b5a29c9997d9b48121122a39d5 Mon Sep 17 00:00:00 2001
+From: Luca Fancellu <luca.fancellu@arm.com>
+Date: Thu, 22 Dec 2022 10:04:17 +0100
+Subject: [PATCH 158/221] public: misra rule 20.7 fix on errno.h
+
+Cppcheck has found a violation of rule 20.7 for the macro XEN_ERRNO,
+while the macro parameter is never used as an expression, it doesn't
+harm the code or the readability to add parenthesis, so add them.
+
+This finding is reported also by eclair and coverity.
+
+Signed-off-by: Luca Fancellu <luca.fancellu@arm.com>
+Acked-by: Jan Beulich <jbeulich@suse.com>
+---
+ xen/include/public/errno.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/xen/include/public/errno.h b/xen/include/public/errno.h
+index 6bdc8c5079..5a78a7607c 100644
+--- a/xen/include/public/errno.h
++++ b/xen/include/public/errno.h
+@@ -31,7 +31,7 @@
+ 
+ #ifndef __ASSEMBLY__
+ 
+-#define XEN_ERRNO(name, value) XEN_##name = value,
++#define XEN_ERRNO(name, value) XEN_##name = (value),
+ enum xen_errno {
+ 
+ #elif __XEN_INTERFACE_VERSION__ < 0x00040700
+-- 
+2.17.1
+

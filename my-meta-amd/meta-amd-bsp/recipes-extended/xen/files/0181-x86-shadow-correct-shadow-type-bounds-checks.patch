@@ -1,0 +1,41 @@
+From 065be673bb82572ac5e34019c09a8b7db96360d3 Mon Sep 17 00:00:00 2001
+From: Jan Beulich <jbeulich@suse.com>
+Date: Mon, 9 Jan 2023 14:26:54 +0100
+Subject: [PATCH 181/221] x86/shadow: correct shadow type bounds checks
+
+In sh_remove_shadow_via_pointer() the type range checks, besides being
+bogus (should be ">= min && <= max"), are fully redundant with the has-
+up-pointer assertion. In sh_hash_audit_bucket() properly use "min"
+instead of assuming a certain order of type numbers.
+
+Signed-off-by: Jan Beulich <jbeulich@suse.com>
+Acked-by: Andrew Cooper <andrew.cooper3@citrix.com>
+---
+ xen/arch/x86/mm/shadow/common.c | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/xen/arch/x86/mm/shadow/common.c b/xen/arch/x86/mm/shadow/common.c
+index e1db6cf890..d561f08822 100644
+--- a/xen/arch/x86/mm/shadow/common.c
++++ b/xen/arch/x86/mm/shadow/common.c
+@@ -1422,7 +1422,7 @@ static void sh_hash_audit_bucket(struct domain *d, int bucket)
+         /* Not a shadow? */
+         BUG_ON( (sp->count_info & PGC_count_mask )!= 0 ) ;
+         /* Bogus type? */
+-        BUG_ON( sp->u.sh.type == 0 );
++        BUG_ON( sp->u.sh.type < SH_type_min_shadow );
+         BUG_ON( sp->u.sh.type > SH_type_max_shadow );
+         /* Wrong page of a multi-page shadow? */
+         BUG_ON( !sp->u.sh.head );
+@@ -2120,8 +2120,6 @@ static int sh_remove_shadow_via_pointer(struct domain *d, mfn_t smfn)
+     l1_pgentry_t *vaddr;
+     int rc;
+ 
+-    ASSERT(sp->u.sh.type > 0);
+-    ASSERT(sp->u.sh.type < SH_type_max_shadow);
+     ASSERT(sh_type_has_up_pointer(d, sp->u.sh.type));
+ 
+     if (sp->up == 0) return 0;
+-- 
+2.17.1
+

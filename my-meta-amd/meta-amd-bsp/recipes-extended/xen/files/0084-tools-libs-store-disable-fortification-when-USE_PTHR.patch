@@ -1,0 +1,45 @@
+From b9a7a32c7796fa76aa6c2dcf9a2762ed52b6dab0 Mon Sep 17 00:00:00 2001
+From: Xenia Ragiadakou <xenia.ragiadakou@amd.com>
+Date: Tue, 16 May 2023 16:33:13 +0300
+Subject: [PATCH 084/106] tools/libs/store: disable fortification when
+ USE_PTHREAD is defined
+
+The code that destroys the connection to xenstored terminates the read thread
+by calling pthread_cancel() and pthread_join() e.g, by sending a cancellation
+request and waiting for it to terminate.
+The deferred cancelability of the read thread relies on the calls to function
+read() that act as cancellation points.
+
+When fortification is enabled, the function read() is replaced by its fortified
+version, __read_chk(), which performs also buffer overflow detection checks.
+However, in glibc 2.35, __read_chk() is not implemented to act always as a
+cancellation point.
+As a result, when fortification is enabled, due to the absence of cancellation
+points, the cancellation request cannot be processed, pthread_join() waits
+forever the read thread to terminate and the destruction path never completes.
+
+Undefine _FORTIFY_SOURCE when pthreads are used, to ensure that the calls to
+read() will always act as cancellation points.
+
+Signed-off-by: Xenia Ragiadakou <xenia.ragiadakou@amd.com>
+Signed-off-by: Huang Rui <ray.huang@amd.com>
+---
+ tools/libs/store/Makefile | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/tools/libs/store/Makefile b/tools/libs/store/Makefile
+index 0649cf8307..c7ea41f5a3 100644
+--- a/tools/libs/store/Makefile
++++ b/tools/libs/store/Makefile
+@@ -19,7 +19,7 @@ include ../libs.mk
+ CFLAGS += -include $(XEN_ROOT)/tools/config.h
+ CFLAGS += $(CFLAGS_libxentoolcore)
+ 
+-xs.opic: CFLAGS += -DUSE_PTHREAD
++xs.opic: CFLAGS += -DUSE_PTHREAD -U_FORTIFY_SOURCE
+ ifeq ($(CONFIG_Linux),y)
+ xs.opic: CFLAGS += -DUSE_DLSYM
+ endif
+-- 
+2.25.1
+

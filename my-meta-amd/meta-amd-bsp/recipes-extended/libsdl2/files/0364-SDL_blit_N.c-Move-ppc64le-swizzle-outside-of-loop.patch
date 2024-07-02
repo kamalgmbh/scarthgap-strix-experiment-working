@@ -1,0 +1,96 @@
+From 5e74365e556e9688b9167b005a6f7dc883bbb853 Mon Sep 17 00:00:00 2001
+From: Jeremy Rand <jeremyrand@danwin1210.de>
+Date: Sat, 6 May 2023 03:24:02 +0000
+Subject: [PATCH 364/458] SDL_blit_N.c: Move ppc64le swizzle outside of loop
+
+An in-place swizzle mutation was erroneously inside of a loop, which
+caused each consecutive 4-pixel vector to alternate between correct and
+incorrect endianness.
+
+The bug was introduced in 715e070d299fc547cce8c52915b75e6316af6bff.
+
+Thanks to RobbieAB for reporting the bug.
+
+Fixes https://github.com/libsdl-org/SDL/issues/3428
+
+(cherry picked from commit 9142292f4ad6d9bc8a2bc7c874e2fde54befeb9b)
+---
+ src/video/SDL_blit_N.c | 27 +++++++++++++++------------
+ 1 file changed, 15 insertions(+), 12 deletions(-)
+
+diff --git a/src/video/SDL_blit_N.c b/src/video/SDL_blit_N.c
+index 4bde9df49..39dfeefe6 100644
+--- a/src/video/SDL_blit_N.c
++++ b/src/video/SDL_blit_N.c
+@@ -624,6 +624,11 @@ static void Blit32to32KeyAltivec(SDL_BlitInfo *info)
+     ((unsigned int *)(char *)&vrgbmask)[0] = rgbmask;
+     vrgbmask = vec_splat(vrgbmask, 0);
+ 
++#if defined(__powerpc__) && (SDL_BYTEORDER == SDL_LIL_ENDIAN)
++    /* reorder bytes for PowerPC little endian */
++    vpermute = reorder_ppc64le_vec(vpermute);
++#endif
++
+     while (height--) {
+ #define ONE_PIXEL_BLEND(condition, widthvar)                    \
+     if (copy_alpha) {                                           \
+@@ -673,10 +678,6 @@ static void Blit32to32KeyAltivec(SDL_BlitInfo *info)
+                 /* vsel is set for items that match the key */
+                 vsel = (vector unsigned char)vec_and(vs, vrgbmask);
+                 vsel = (vector unsigned char)vec_cmpeq(vs, vckey);
+-#if defined(__powerpc__) && (SDL_BYTEORDER == SDL_LIL_ENDIAN)
+-                /* reorder bytes for PowerPC little endian */
+-                vpermute = reorder_ppc64le_vec(vpermute);
+-#endif
+                 /* permute the src vec to the dest format */
+                 vs = vec_perm(vs, valpha, vpermute);
+                 /* load the destination vec */
+@@ -724,6 +725,11 @@ static void ConvertAltivec32to32_noprefetch(SDL_BlitInfo *info)
+     SDL_assert(srcfmt->BytesPerPixel == 4);
+     SDL_assert(dstfmt->BytesPerPixel == 4);
+ 
++#if defined(__powerpc__) && (SDL_BYTEORDER == SDL_LIL_ENDIAN)
++    /* reorder bytes for PowerPC little endian */
++    vpermute = reorder_ppc64le_vec(vpermute);
++#endif
++
+     while (height--) {
+         vector unsigned char valigner;
+         vector unsigned int vbits;
+@@ -755,10 +761,6 @@ static void ConvertAltivec32to32_noprefetch(SDL_BlitInfo *info)
+             src += 4;
+             width -= 4;
+             vbits = vec_perm(vbits, voverflow, valigner); /* src is ready. */
+-#if defined(__powerpc__) && (SDL_BYTEORDER == SDL_LIL_ENDIAN)
+-            /* reorder bytes for PowerPC little endian */
+-            vpermute = reorder_ppc64le_vec(vpermute);
+-#endif
+             vbits = vec_perm(vbits, vzero, vpermute); /* swizzle it. */
+             vec_st(vbits, 0, dst);                    /* store it back out. */
+             dst += 4;
+@@ -809,6 +811,11 @@ static void ConvertAltivec32to32_prefetch(SDL_BlitInfo *info)
+     SDL_assert(srcfmt->BytesPerPixel == 4);
+     SDL_assert(dstfmt->BytesPerPixel == 4);
+ 
++#if defined(__powerpc__) && (SDL_BYTEORDER == SDL_LIL_ENDIAN)
++    /* reorder bytes for PowerPC little endian */
++    vpermute = reorder_ppc64le_vec(vpermute);
++#endif
++
+     while (height--) {
+         vector unsigned char valigner;
+         vector unsigned int vbits;
+@@ -848,10 +855,6 @@ static void ConvertAltivec32to32_prefetch(SDL_BlitInfo *info)
+             src += 4;
+             width -= 4;
+             vbits = vec_perm(vbits, voverflow, valigner); /* src is ready. */
+-#if defined(__powerpc__) && (SDL_BYTEORDER == SDL_LIL_ENDIAN)
+-            /* reorder bytes for PowerPC little endian */
+-            vpermute = reorder_ppc64le_vec(vpermute);
+-#endif
+             vbits = vec_perm(vbits, vzero, vpermute); /* swizzle it. */
+             vec_st(vbits, 0, dst);                    /* store it back out. */
+             dst += 4;
+-- 
+2.17.1
+

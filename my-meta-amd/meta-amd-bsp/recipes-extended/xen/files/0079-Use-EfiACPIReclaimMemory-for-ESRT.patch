@@ -1,0 +1,69 @@
+From d7669c101427c1504517418e832fb760ae89e6bc Mon Sep 17 00:00:00 2001
+From: Demi Marie Obenour <demi@invisiblethingslab.com>
+Date: Mon, 10 Oct 2022 23:42:03 -0400
+Subject: [PATCH 079/221] Use EfiACPIReclaimMemory for ESRT
+
+A previous patch tried to get Linux to use the ESRT under Xen if it is
+in memory of type EfiRuntimeServicesData.  However, this turns out to be
+a bad idea.  Ard Biesheuvel pointed out that EfiRuntimeServices* memory
+winds up fragmenting both the EFI page tables and the direct map, and
+that EfiACPIReclaimMemory is a much better choice for this purpose.
+
+Link: https://lists.xenproject.org/archives/html/xen-devel/2022-09/msg01365.html
+Signed-off-by: Demi Marie Obenour <demi@invisiblethingslab.com>
+Release-acked-by: Henry Wang <Henry.Wang@arm.com>
+Acked-by: Jan Beulich <jbeulich@suse.com>
+---
+ xen/common/efi/boot.c | 20 ++++++++++++--------
+ 1 file changed, 12 insertions(+), 8 deletions(-)
+
+diff --git a/xen/common/efi/boot.c b/xen/common/efi/boot.c
+index db0340c8e2..b3de1011ee 100644
+--- a/xen/common/efi/boot.c
++++ b/xen/common/efi/boot.c
+@@ -601,11 +601,14 @@ static size_t __init get_esrt_size(const EFI_MEMORY_DESCRIPTOR *desc)
+     if ( physical_start > esrt || esrt - physical_start >= len )
+         return 0;
+     /*
+-     * The specification requires EfiBootServicesData, but accept
+-     * EfiRuntimeServicesData, which is a more logical choice.
++     * The specification requires EfiBootServicesData, but also accept
++     * EfiRuntimeServicesData (for compatibility with buggy firmware)
++     * and EfiACPIReclaimMemory (which will contain the tables after
++     * successful kexec).
+      */
+     if ( (desc->Type != EfiRuntimeServicesData) &&
+-         (desc->Type != EfiBootServicesData) )
++         (desc->Type != EfiBootServicesData) &&
++         (desc->Type != EfiACPIReclaimMemory) )
+         return 0;
+     available_len = len - (esrt - physical_start);
+     if ( available_len <= offsetof(EFI_SYSTEM_RESOURCE_TABLE, Entries) )
+@@ -1144,18 +1147,19 @@ static void __init efi_relocate_esrt(EFI_SYSTEM_TABLE *SystemTable)
+     for ( i = 0; i < info_size; i += mdesc_size )
+     {
+         /*
+-         * ESRT needs to be moved to memory of type EfiRuntimeServicesData
++         * ESRT needs to be moved to memory of type EfiACPIReclaimMemory
+          * so that the memory it is in will not be used for other purposes.
+          */
+         void *new_esrt = NULL;
+-        size_t esrt_size = get_esrt_size(memory_map + i);
++        const EFI_MEMORY_DESCRIPTOR *desc = memory_map + i;
++        size_t esrt_size = get_esrt_size(desc);
+ 
+         if ( !esrt_size )
+             continue;
+-        if ( ((EFI_MEMORY_DESCRIPTOR *)(memory_map + i))->Type ==
+-             EfiRuntimeServicesData )
++        if ( desc->Type == EfiRuntimeServicesData ||
++             desc->Type == EfiACPIReclaimMemory )
+             break; /* ESRT already safe from reuse */
+-        status = efi_bs->AllocatePool(EfiRuntimeServicesData, esrt_size,
++        status = efi_bs->AllocatePool(EfiACPIReclaimMemory, esrt_size,
+                                       &new_esrt);
+         if ( status == EFI_SUCCESS && new_esrt )
+         {
+-- 
+2.17.1
+

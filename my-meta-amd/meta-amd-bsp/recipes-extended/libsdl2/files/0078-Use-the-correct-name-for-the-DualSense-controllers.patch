@@ -1,0 +1,44 @@
+From b4d547905d0eb4073ead48976c1e33a8025f60ea Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Wed, 7 Dec 2022 14:53:33 -0800
+Subject: [PATCH 078/458] Use the correct name for the DualSense controllers
+
+(cherry picked from commit 9a6bcca6b8db999217f157dab8c44bf27b0a8eb4)
+---
+ src/joystick/SDL_joystick.c          | 2 +-
+ src/joystick/hidapi/SDL_hidapi_ps5.c | 6 +++++-
+ 2 files changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/joystick/SDL_joystick.c b/src/joystick/SDL_joystick.c
+index 5c6866db4..8eec22be8 100644
+--- a/src/joystick/SDL_joystick.c
++++ b/src/joystick/SDL_joystick.c
+@@ -1901,7 +1901,7 @@ SDL_CreateJoystickName(Uint16 vendor, Uint16 product, const char *vendor_name, c
+             name = SDL_strdup("PS4 Controller");
+             break;
+         case SDL_CONTROLLER_TYPE_PS5:
+-            name = SDL_strdup("PS5 Controller");
++            name = SDL_strdup("DualSense Wireless Controller");
+             break;
+         case SDL_CONTROLLER_TYPE_NINTENDO_SWITCH_PRO:
+             name = SDL_strdup("Nintendo Switch Pro Controller");
+diff --git a/src/joystick/hidapi/SDL_hidapi_ps5.c b/src/joystick/hidapi/SDL_hidapi_ps5.c
+index 8daf621be..47083ae26 100644
+--- a/src/joystick/hidapi/SDL_hidapi_ps5.c
++++ b/src/joystick/hidapi/SDL_hidapi_ps5.c
+@@ -484,7 +484,11 @@ static SDL_bool HIDAPI_DriverPS5_InitDevice(SDL_HIDAPI_Device *device)
+     device->joystick_type = joystick_type;
+     device->type = SDL_CONTROLLER_TYPE_PS5;
+     if (device->vendor_id == USB_VENDOR_SONY) {
+-        HIDAPI_SetDeviceName(device, "PS5 Controller");
++        if (SDL_IsJoystickDualSenseEdge(device->vendor_id, device->product_id)) {
++            HIDAPI_SetDeviceName(device, "DualSense Edge Wireless Controller");
++        } else {
++            HIDAPI_SetDeviceName(device, "DualSense Wireless Controller");
++        }
+     }
+     HIDAPI_SetDeviceSerial(device, serial);
+ 
+-- 
+2.17.1
+

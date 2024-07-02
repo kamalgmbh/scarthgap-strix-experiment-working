@@ -1,0 +1,54 @@
+From a4c99f4cf5670a764120ede874d7d4c5e9848c10 Mon Sep 17 00:00:00 2001
+From: Ayan Kumar Halder <ayan.kumar.halder@amd.com>
+Date: Mon, 5 Dec 2022 13:26:30 +0000
+Subject: [PATCH 118/221] xen/Arm: vGICv3: Adapt emulation of GICR_TYPER for
+ AArch32
+
+Refer ARM DDI 0487I.a ID081822, G8-9650, G8.2.113
+Aff3 does not exist on AArch32.
+Also, refer ARM DDI 0406C.d ID040418, B4-1644, B4.1.106
+Aff3 does not exist on Armv7 (ie arm32).
+
+Thus, access to aff3 has been protected with "#ifdef CONFIG_ARM_64".
+Also, v->arch.vmpidr is a 32 bit register on AArch32. So, we have assigned it to
+'uint64_t vmpidr' to perform the shifts.
+
+Signed-off-by: Ayan Kumar Halder <ayan.kumar.halder@amd.com>
+Reviewed-by: Michal Orzel <michal.orzel@amd.com>
+Acked-by: Julien Grall <jgrall@amazon.com>
+---
+ xen/arch/arm/vgic-v3.c | 16 ++++++++++++----
+ 1 file changed, 12 insertions(+), 4 deletions(-)
+
+diff --git a/xen/arch/arm/vgic-v3.c b/xen/arch/arm/vgic-v3.c
+index 1b0118673c..55ae4a7c5c 100644
+--- a/xen/arch/arm/vgic-v3.c
++++ b/xen/arch/arm/vgic-v3.c
+@@ -182,12 +182,20 @@ static int __vgic_v3_rdistr_rd_mmio_read(struct vcpu *v, mmio_info_t *info,
+     case VREG64(GICR_TYPER):
+     {
+         uint64_t typer, aff;
++        /*
++         * This is to enable shifts greater than 32 bits which would have
++         * otherwise caused overflow (as v->arch.vmpidr is 32 bit on AArch32).
++         */
++        uint64_t vmpidr = v->arch.vmpidr;
+ 
+         if ( !vgic_reg64_check_access(dabt) ) goto bad_width;
+-        aff = (MPIDR_AFFINITY_LEVEL(v->arch.vmpidr, 3) << 56 |
+-               MPIDR_AFFINITY_LEVEL(v->arch.vmpidr, 2) << 48 |
+-               MPIDR_AFFINITY_LEVEL(v->arch.vmpidr, 1) << 40 |
+-               MPIDR_AFFINITY_LEVEL(v->arch.vmpidr, 0) << 32);
++        aff = (
++#ifdef CONFIG_ARM_64
++               MPIDR_AFFINITY_LEVEL(vmpidr, 3) << 56 |
++#endif
++               MPIDR_AFFINITY_LEVEL(vmpidr, 2) << 48 |
++               MPIDR_AFFINITY_LEVEL(vmpidr, 1) << 40 |
++               MPIDR_AFFINITY_LEVEL(vmpidr, 0) << 32);
+         typer = aff;
+         /* We use the VCPU ID as the redistributor ID in bits[23:8] */
+         typer |= v->vcpu_id << GICR_TYPER_PROC_NUM_SHIFT;
+-- 
+2.17.1
+

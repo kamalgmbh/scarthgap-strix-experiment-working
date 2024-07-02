@@ -1,0 +1,35 @@
+From c68cfcdb2d2345e30e1c85c7cbe977878fdee8a8 Mon Sep 17 00:00:00 2001
+From: Ozkan Sezer <sezeroz@gmail.com>
+Date: Tue, 7 Feb 2023 00:21:56 +0300
+Subject: [PATCH 197/458] make sure to not enable
+ SDL_PASSED_BEGINTHREAD_ENDTHREAD for WinRT
+
+---
+ include/SDL_thread.h | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/include/SDL_thread.h b/include/SDL_thread.h
+index 849f70bd4..b829bbad5 100644
+--- a/include/SDL_thread.h
++++ b/include/SDL_thread.h
+@@ -35,7 +35,7 @@
+ #include "SDL_atomic.h"
+ #include "SDL_mutex.h"
+ 
+-#if defined(__WIN32__) || defined(__GDK__)
++#if (defined(__WIN32__) || defined(__GDK__)) && !defined(__WINRT__)
+ #include <process.h> /* _beginthreadex() and _endthreadex() */
+ #endif
+ #if defined(__OS2__) /* for _beginthread() and _endthread() */
+@@ -88,7 +88,7 @@ typedef enum {
+ typedef int (SDLCALL * SDL_ThreadFunction) (void *data);
+ 
+ 
+-#if defined(__WIN32__) || defined(__GDK__)
++#if (defined(__WIN32__) || defined(__GDK__)) && !defined(__WINRT__)
+ /**
+  *  \file SDL_thread.h
+  *
+-- 
+2.17.1
+

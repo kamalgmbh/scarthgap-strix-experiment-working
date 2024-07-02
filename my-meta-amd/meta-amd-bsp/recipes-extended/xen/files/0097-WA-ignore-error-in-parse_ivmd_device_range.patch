@@ -1,0 +1,34 @@
+From d9386f6ce12729efbf972fc60e5864f0dbef4ab4 Mon Sep 17 00:00:00 2001
+From: Pierre-Eric Pelloux-Prayer <pierre-eric.pelloux-prayer@amd.com>
+Date: Thu, 7 Mar 2024 13:06:04 +0100
+Subject: [PATCH 097/106] WA: ignore error in parse_ivmd_device_range
+
+Otherwise dom0 can't boot in pvh mode because of:
+  AMD-Vi: Error: IVMD: no IOMMU for Dev_Id 0
+
+From amd_iommu_dump=1:
+  IVMD_TYPE_RANGE		 devid_start: 0000:00:00.0 devid_end: 0000:0f:1f.7 range_start: 00000000772b0000 range_end: 00000000772bf000 flags: 8
+---
+ xen/drivers/passthrough/amd/iommu_acpi.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/xen/drivers/passthrough/amd/iommu_acpi.c b/xen/drivers/passthrough/amd/iommu_acpi.c
+index 96d8879e7b..a7d996c99e 100644
+--- a/xen/drivers/passthrough/amd/iommu_acpi.c
++++ b/xen/drivers/passthrough/amd/iommu_acpi.c
+@@ -346,10 +346,11 @@ static int __init parse_ivmd_device_range(
+         return -ENODEV;
+     }
+ 
+-    for ( bdf = first_bdf, error = 0; (bdf <= last_bdf) && !error; bdf++ )
++    for ( bdf = first_bdf, error = 0; (bdf <= last_bdf) /* && !error */; bdf++ )
+         error = register_range_for_device(
+             bdf, base, limit, iw, ir, exclusion);
+ 
++    return 0;
+     return error;
+ }
+ 
+-- 
+2.25.1
+

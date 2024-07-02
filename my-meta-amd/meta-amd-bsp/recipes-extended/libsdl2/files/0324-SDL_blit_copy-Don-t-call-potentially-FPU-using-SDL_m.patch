@@ -1,0 +1,56 @@
+From cd64e0b6e3ab5b12d0d0b03c94e0cef29d865947 Mon Sep 17 00:00:00 2001
+From: Anonymous Maarten <anonymous.maarten@gmail.com>
+Date: Sun, 26 Mar 2023 16:31:18 +0200
+Subject: [PATCH 324/458] SDL_blit_copy: Don't call potentially FPU using
+ SDL_memcpy in SDL_memcpyMMX
+
+---
+ CMakeLists.txt            | 2 --
+ src/video/SDL_blit_copy.c | 8 ++++++--
+ 2 files changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index d1ca06ad9..376748b38 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -530,11 +530,9 @@ if(USE_INTELCC)
+   # warning #39: division by zero
+   # warning #239: floating point underflow
+   # warning #264: floating-point value does not fit in required floating-point type
+-  # warning #13203: No EMMS instruction before call to function
+   set_property(SOURCE "${SDL2_SOURCE_DIR}/src/libm/e_exp.c" APPEND_STRING PROPERTY COMPILE_FLAGS " -wd239 -wd264")
+   set_property(SOURCE "${SDL2_SOURCE_DIR}/src/libm/e_log.c" APPEND_STRING PROPERTY COMPILE_FLAGS " -wd39")
+   set_property(SOURCE "${SDL2_SOURCE_DIR}/src/libm/e_log10.c" APPEND_STRING PROPERTY COMPILE_FLAGS " -wd39")
+-  set_property(SOURCE "${SDL2_SOURCE_DIR}/src/video/SDL_blit_copy.c" APPEND_STRING PROPERTY COMPILE_FLAGS " -wd13203")
+ endif()
+ 
+ 
+diff --git a/src/video/SDL_blit_copy.c b/src/video/SDL_blit_copy.c
+index e8462abb0..b772a5540 100644
+--- a/src/video/SDL_blit_copy.c
++++ b/src/video/SDL_blit_copy.c
+@@ -57,7 +57,7 @@ static SDL_INLINE void SDL_memcpySSE(Uint8 *dst, const Uint8 *src, int len)
+ #endif
+ static SDL_INLINE void SDL_memcpyMMX(Uint8 *dst, const Uint8 *src, int len)
+ {
+-    const int remain = (len & 63);
++    int remain = len & 63;
+     int i;
+ 
+     __m64 *d64 = (__m64 *)dst;
+@@ -79,7 +79,11 @@ static SDL_INLINE void SDL_memcpyMMX(Uint8 *dst, const Uint8 *src, int len)
+ 
+     if (remain) {
+         const int skip = len - remain;
+-        SDL_memcpy(dst + skip, src + skip, remain);
++        dst += skip;
++        src += skip;
++        while (remain--) {
++            *dst++ = *src++;
++        }
+     }
+ }
+ #endif /* __MMX__ */
+-- 
+2.17.1
+

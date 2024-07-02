@@ -1,0 +1,46 @@
+From 39e0b9427a82865b416db169f70505ac04b8efe3 Mon Sep 17 00:00:00 2001
+From: Pierre-Eric Pelloux-Prayer <pierre-eric.pelloux-prayer@amd.com>
+Date: Thu, 23 Feb 2023 11:08:30 +0100
+Subject: [PATCH 10/49] drm/virtio: don't create a context with default param
+ if context_init is supported
+
+Otherwise Xorg context creation will fail when trying to use VIRTGPU_CONTEXT_INIT,
+because the context is already initialized.
+
+Signed-off-by: Pierre-Eric Pelloux-Prayer <pierre-eric.pelloux-prayer@amd.com>
+---
+ drivers/gpu/drm/virtio/virtgpu_gem.c | 11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)
+
+diff --git a/drivers/gpu/drm/virtio/virtgpu_gem.c b/drivers/gpu/drm/virtio/virtgpu_gem.c
+index 7db48d17ee3a..543426de0de3 100644
+--- a/drivers/gpu/drm/virtio/virtgpu_gem.c
++++ b/drivers/gpu/drm/virtio/virtgpu_gem.c
+@@ -126,16 +126,21 @@ int virtio_gpu_gem_object_open(struct drm_gem_object *obj,
+ 
+ 	/* the context might still be missing when the first ioctl is
+ 	 * DRM_IOCTL_MODE_CREATE_DUMB or DRM_IOCTL_PRIME_FD_TO_HANDLE
++	 * TODO: alternative: disallow native context when dumb buffers
++	 * are used. Probably simpler than hacking around dumb buffer
++	 * support.
+ 	 */
+-	virtio_gpu_create_context(obj->dev, file);
++	if (!vgdev->has_context_init)
++		virtio_gpu_create_context(obj->dev, file);
+ 
+ 	objs = virtio_gpu_array_alloc(1);
+ 	if (!objs)
+ 		return -ENOMEM;
+ 	virtio_gpu_array_add_obj(objs, obj);
+ 
+-	virtio_gpu_cmd_context_attach_resource(vgdev, vfpriv->ctx_id,
+-					       objs);
++	if (vfpriv->ctx_id)
++		virtio_gpu_cmd_context_attach_resource(vgdev, vfpriv->ctx_id, objs);
++
+ out_notify:
+ 	virtio_gpu_notify(vgdev);
+ 	return 0;
+-- 
+2.17.1
+

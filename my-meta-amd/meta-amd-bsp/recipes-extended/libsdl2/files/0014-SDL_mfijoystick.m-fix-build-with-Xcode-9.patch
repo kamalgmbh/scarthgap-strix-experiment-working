@@ -1,0 +1,36 @@
+From 242ce20cbf9e89679cce0c384a27ac56d00fc94d Mon Sep 17 00:00:00 2001
+From: Joshua Root <jmr@macports.org>
+Date: Thu, 24 Nov 2022 07:37:36 +1100
+Subject: [PATCH 014/458] SDL_mfijoystick.m: fix build with Xcode < 9
+
+Fixes #6601.
+
+(cherry picked from commit 53ca1f77029289a58f1a9963a00b637b903f494d)
+---
+ src/joystick/iphoneos/SDL_mfijoystick.m | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/src/joystick/iphoneos/SDL_mfijoystick.m b/src/joystick/iphoneos/SDL_mfijoystick.m
+index 8f207afb2..86e481067 100644
+--- a/src/joystick/iphoneos/SDL_mfijoystick.m
++++ b/src/joystick/iphoneos/SDL_mfijoystick.m
+@@ -639,11 +639,16 @@ static int
+ IOS_JoystickInit(void)
+ {
+ #if defined(__MACOSX__)
++#if _SDL_HAS_BUILTIN(__builtin_available)
+     if (@available(macOS 10.16, *)) {
+         /* Continue with initialization on macOS 11+ */
+     } else {
+         return 0;
+     }
++#else
++    /* No @available, must be an older macOS version */
++    return 0;
++#endif
+ #endif
+ 
+     @autoreleasepool {
+-- 
+2.17.1
+

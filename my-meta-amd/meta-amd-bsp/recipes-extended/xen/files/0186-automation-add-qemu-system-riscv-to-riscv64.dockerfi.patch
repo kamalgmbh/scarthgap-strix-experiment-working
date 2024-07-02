@@ -1,0 +1,33 @@
+From 692d04a9ca429ca574d859fa8f43578e03b9f8b3 Mon Sep 17 00:00:00 2001
+From: Oleksii Kurochko <oleksii.kurochko@gmail.com>
+Date: Mon, 9 Jan 2023 11:50:32 +0200
+Subject: [PATCH 186/221] automation: add qemu-system-riscv to
+ riscv64.dockerfile
+
+qemu-system-riscv will be used to run RISC-V Xen binary and
+gather logs for smoke tests.
+
+Signed-off-by: Oleksii Kurochko <oleksii.kurochko@gmail.com>
+Acked-by: Andrew Cooper <andrew.cooper3@citrix.com>
+---
+ automation/build/archlinux/riscv64.dockerfile | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/automation/build/archlinux/riscv64.dockerfile b/automation/build/archlinux/riscv64.dockerfile
+index ff8b2b955d..abf8e7bf0b 100644
+--- a/automation/build/archlinux/riscv64.dockerfile
++++ b/automation/build/archlinux/riscv64.dockerfile
+@@ -9,7 +9,9 @@ RUN pacman --noconfirm --needed -Syu \
+     inetutils \
+     riscv64-linux-gnu-binutils \
+     riscv64-linux-gnu-gcc \
+-    riscv64-linux-gnu-glibc
++    riscv64-linux-gnu-glibc \
++    # For test phase
++    qemu-system-riscv
+ 
+ # Add compiler path
+ ENV CROSS_COMPILE=riscv64-linux-gnu-
+-- 
+2.17.1
+

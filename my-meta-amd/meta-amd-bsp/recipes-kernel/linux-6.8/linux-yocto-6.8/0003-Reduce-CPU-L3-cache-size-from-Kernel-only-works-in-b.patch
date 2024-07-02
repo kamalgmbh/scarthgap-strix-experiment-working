@@ -1,0 +1,82 @@
+From d4a798bdae25d7cd2e63434767a876e97141af31 Mon Sep 17 00:00:00 2001
+From: Soham Dandapat <Soham.Dandapat@amd.com>
+Date: Tue, 2 Apr 2024 20:17:45 +0530
+Subject: [PATCH 3/5] Reduce CPU L3 cache size from Kernel, only works in bare
+ metal
+
+Change-Id: I75af481db2135764f77e8672ed51c683ce6cd623
+Signed-off-by: Chaudhary Amit Kumar <chaudharyamit.kumar@amd.com>
+---
+ drivers/gpu/drm/amd/amdgpu/amdgpu_device.c | 42 ++++++++++++++++++++++
+ 1 file changed, 42 insertions(+)
+
+diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_device.c b/drivers/gpu/drm/amd/amdgpu/amdgpu_device.c
+index 14d878675586..d2448e3766df 100644
+--- a/drivers/gpu/drm/amd/amdgpu/amdgpu_device.c
++++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_device.c
+@@ -84,6 +84,10 @@
+ #if IS_ENABLED(CONFIG_X86)
+ #include <asm/intel-family.h>
+ #endif
++#include <asm/msr.h>
++#include <linux/security.h>
++#include <linux/smp.h>
++
+ 
+ MODULE_FIRMWARE("amdgpu/vega10_gpu_info.bin");
+ MODULE_FIRMWARE("amdgpu/vega12_gpu_info.bin");
+@@ -3863,6 +3867,40 @@ static void amdgpu_device_set_mcbp(struct amdgpu_device *adev)
+ 		DRM_INFO("MCBP is enabled\n");
+ }
+ 
++
++#define MSR_IA32_MSR_L3_MASK(n) (0x00000c90 + (n))
++/*
++ *this function will update L3 cache slot
++ *This should be implemented by firmware , kernel should use that.This msr is not exposed to Xen , so this
++ * will work only in baremetal.To make the same work in Xen , we need to add same in Xen code
++ * As of now workaround added . Boot flow wouldn't be slow but any app mainly benchmark app will be slow
++ * TODO: move this function to amd_init as of now this will be set just before amdgpu
++ * */
++static void update_cpu_l3_cache(void)
++{
++ uint64_t data;
++ uint32_t lo;
++ uint32_t hi;
++ int err;
++ /*
++  * 0xFFFF -> full cache
++  * 0xFF --> half cache
++  * 0xF --> quarter cache
++  * */
++ data =0xFF;
++ lo=((u32)(data & 0xFFFFFFFF));
++ hi=((u32)(data >> 32));
++
++ DRM_DEBUG("Trying to update CPU l3 cache size \n");
++ if(security_locked_down(LOCKDOWN_MSR))
++         DRM_ERROR("Fail to update security lock while updating L3 cache \n");
++
++ add_taint(TAINT_CPU_OUT_OF_SPEC, LOCKDEP_STILL_OK);
++ err=wrmsr_safe_on_cpu(0,MSR_IA32_MSR_L3_MASK(0), lo , hi);
++ DRM_DEBUG("Updated L3 cache size %d \n",err);
++}
++
++
+ /**
+  * amdgpu_device_init - initialize the driver
+  *
+@@ -3886,6 +3924,10 @@ int amdgpu_device_init(struct amdgpu_device *adev,
+ 	adev->shutdown = false;
+ 	adev->flags = flags;
+ 
++        /*Temp place to update CPU cache*/
++        update_cpu_l3_cache();
++
++
+ 	if (amdgpu_force_asic_type >= 0 && amdgpu_force_asic_type < CHIP_LAST)
+ 		adev->asic_type = amdgpu_force_asic_type;
+ 	else
+-- 
+2.34.1
+

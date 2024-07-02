@@ -1,0 +1,2558 @@
+From 5b7b3da701a6112c33c5dd2684d74157b977e9ed Mon Sep 17 00:00:00 2001
+From: "Ryan C. Gordon" <icculus@icculus.org>
+Date: Tue, 28 Feb 2023 12:56:01 -0500
+Subject: [PATCH 260/458] Sync wiki -> headers.
+
+---
+ docs/README-.md            |   6 +
+ docs/README-android.md     |  28 ++--
+ docs/README-cmake.md       |  12 +-
+ docs/README-directfb.md    |  10 +-
+ docs/README-dynapi.md      | 108 ++++++-------
+ docs/README-gdk.md         | 310 ++++++++++++++++++-------------------
+ docs/README-gesture.md     |   6 +-
+ docs/README-git.md         |  38 ++---
+ docs/README-hg.md          |   8 +-
+ docs/README-ios.md         |  22 +--
+ docs/README-kmsbsd.md      |  54 +++----
+ docs/README-linux.md       |  34 ++--
+ docs/README-macos.md       |  14 +-
+ docs/README-nacl.md        |  52 +++----
+ docs/README-ngage.md       |  88 +++++------
+ docs/README-os2.md         | 184 +++++++++++-----------
+ docs/README-pandora.md     |   2 +-
+ docs/README-ps2.md         |   4 +-
+ docs/README-psp.md         |   4 +-
+ docs/README-raspberrypi.md |  40 ++---
+ docs/README-riscos.md      |  82 +++++-----
+ docs/README-touch.md       |   2 +-
+ docs/README-versions.md    | 120 +++++++-------
+ docs/README-visualc.md     | 228 +++++++++++++--------------
+ docs/README-vita.md        |  66 ++++----
+ docs/README-windows.md     | 116 +++++++-------
+ docs/README-winrt.md       | 128 +++++++--------
+ 27 files changed, 886 insertions(+), 880 deletions(-)
+ create mode 100644 docs/README-.md
+
+diff --git a/docs/README-.md b/docs/README-.md
+new file mode 100644
+index 000000000..0c0235e64
+--- /dev/null
++++ b/docs/README-.md
+@@ -0,0 +1,6 @@
++#
++
++<!-- BEGIN CATEGORY LIST -->
++- [raspberrypi](raspberrypi)
++<!-- END CATEGORY LIST -->
++
+diff --git a/docs/README-android.md b/docs/README-android.md
+index a247e5721..4933046e7 100644
+--- a/docs/README-android.md
++++ b/docs/README-android.md
+@@ -26,9 +26,9 @@ How the port works
+ ================================================================================
+ 
+ - Android applications are Java-based, optionally with parts written in C
+-- As SDL apps are C-based, we use a small Java shim that uses JNI to talk to 
++- As SDL apps are C-based, we use a small Java shim that uses JNI to talk to
+   the SDL library
+-- This means that your application C code must be placed inside an Android 
++- This means that your application C code must be placed inside an Android
+   Java project, along with some C support code that communicates with Java
+ - This eventually produces a standard Android .apk package
+ 
+@@ -69,7 +69,7 @@ done in the build directory for the app!
+ 
+ 
+ For more complex projects, follow these instructions:
+-    
++
+ 1. Copy the android-project directory wherever you want to keep your projects
+    and rename it to the name of your project.
+ 2. Move or symlink this SDL directory into the "<project>/app/jni" directory
+@@ -132,15 +132,15 @@ Here's an example of a minimal class file:
+ 
+     --- MyGame.java --------------------------
+     package com.gamemaker.game;
+-    
+-    import org.libsdl.app.SDLActivity; 
+-    
++
++    import org.libsdl.app.SDLActivity;
++
+     /**
+-     * A sample wrapper class that just calls SDLActivity 
+-     */ 
+-    
++     * A sample wrapper class that just calls SDLActivity
++     */
++
+     public class MyGame extends SDLActivity { }
+-    
++
+     ------------------------------------------
+ 
+ Then replace "SDLActivity" in AndroidManifest.xml with the name of your
+@@ -179,7 +179,7 @@ may want to keep this fact in mind when building your APK, specially when large
+ files are involved.
+ For more information on which extensions get compressed by default and how to
+ disable this behaviour, see for example:
+-    
++
+ http://ponystyle.com/blog/2010/03/26/dealing-with-asset-compression-in-android-apps/
+ 
+ 
+@@ -350,7 +350,7 @@ I get output from addr2line showing that it's in the quit function, in testsprit
+ You can add logging to your code to help show what's happening:
+ 
+     #include <android/log.h>
+-    
++
+     __android_log_print(ANDROID_LOG_INFO, "foo", "Something happened! x = %d", x);
+ 
+ If you need to build without optimization turned on, you can create a file called
+@@ -440,7 +440,7 @@ where you only update a portion of the screen on each frame, you may notice a
+ variety of visual glitches on Android, that are not present on other platforms.
+ This is caused by SDL's use of EGL as the support system to handle OpenGL ES/ES2
+ contexts, in particular the use of the eglSwapBuffers function. As stated in the
+-documentation for the function "The contents of ancillary buffers are always 
++documentation for the function "The contents of ancillary buffers are always
+ undefined after calling eglSwapBuffers".
+ Setting the EGL_SWAP_BEHAVIOR attribute of the surface to EGL_BUFFER_PRESERVED
+ is not possible for SDL as it requires EGL 1.4, available only on the API level
+@@ -459,7 +459,7 @@ Two legitimate ways:
+ Activity by calling Activity.finish().
+ 
+ - Android OS can decide to terminate your application by calling onDestroy()
+-(see Activity life cycle). Your application will receive a SDL_QUIT event you 
++(see Activity life cycle). Your application will receive a SDL_QUIT event you
+ can handle to save things and quit.
+ 
+ Don't call exit() as it stops the activity badly.
+diff --git a/docs/README-cmake.md b/docs/README-cmake.md
+index b10751c1a..a86be338c 100644
+--- a/docs/README-cmake.md
++++ b/docs/README-cmake.md
+@@ -3,10 +3,10 @@
+ (www.cmake.org)
+ 
+ SDL's build system was traditionally based on autotools. Over time, this
+-approach has suffered from several issues across the different supported 
++approach has suffered from several issues across the different supported
+ platforms.
+ To solve these problems, a new build system based on CMake was introduced.
+-It is developed in parallel to the legacy autotools build system, so users 
++It is developed in parallel to the legacy autotools build system, so users
+ can experiment with it without complication.
+ 
+ The CMake build system is supported on the following platforms:
+@@ -59,15 +59,15 @@ if(MYGAME_VENDORED)
+ else()
+     # 1. Look for a SDL2 package, 2. look for the SDL2 component and 3. fail if none can be found
+     find_package(SDL2 REQUIRED CONFIG REQUIRED COMPONENTS SDL2)
+-    
+-    # 1. Look for a SDL2 package, 2. Look for the SDL2maincomponent and 3. DO NOT fail when SDL2main is not available 
++
++    # 1. Look for a SDL2 package, 2. Look for the SDL2maincomponent and 3. DO NOT fail when SDL2main is not available
+     find_package(SDL2 REQUIRED CONFIG COMPONENTS SDL2main)
+ endif()
+ 
+-# Create your game executable target as usual 
++# Create your game executable target as usual
+ add_executable(mygame WIN32 mygame.c)
+ 
+-# SDL2::SDL2main may or may not be available. It is e.g. required by Windows GUI applications  
++# SDL2::SDL2main may or may not be available. It is e.g. required by Windows GUI applications
+ if(TARGET SDL2::SDL2main)
+     # It has an implicit dependency on SDL2 functions, so it MUST be added before SDL2::SDL2 (or SDL2::SDL2-static)
+     target_link_libraries(mygame PRIVATE SDL2::SDL2main)
+diff --git a/docs/README-directfb.md b/docs/README-directfb.md
+index 3b28eef34..bbc6e993b 100644
+--- a/docs/README-directfb.md
++++ b/docs/README-directfb.md
+@@ -12,7 +12,7 @@ Supports:
+ What you need:
+ 
+ * DirectFB 1.0.1, 1.2.x, 1.3.0
+-* Kernel-Framebuffer support: required: vesafb, radeonfb .... 
++* Kernel-Framebuffer support: required: vesafb, radeonfb ....
+ * Mesa 7.0.x	   - optional for OpenGL
+ 
+ The `/etc/directfbrc` file should contain the following lines to make
+@@ -44,7 +44,7 @@ To use hardware accelerated YUV-overlays for YUV-textures, use:
+ export SDL_DIRECTFB_YUV_DIRECT=1
+ ```
+ 
+-This is disabled by default. It will only support one 
++This is disabled by default. It will only support one
+ YUV texture, namely the first. Every other YUV texture will be
+ rendered in software.
+ 
+@@ -84,7 +84,7 @@ As of this writing 20100802 you need to pull Mesa from git and do the following:
+ 
+ ```
+ git clone git://anongit.freedesktop.org/git/mesa/mesa
+-cd mesa 
++cd mesa
+ git checkout 2c9fdaf7292423c157fc79b5ce43f0f199dd753a
+ ```
+ 
+@@ -92,10 +92,10 @@ Edit `configs/linux-directfb` so that the Directories-section looks like this:
+ 
+ ```
+ # Directories
+-SRC_DIRS     = mesa glu 
++SRC_DIRS     = mesa glu
+ GLU_DIRS     = sgi
+ DRIVER_DIRS  = directfb
+-PROGRAM_DIRS = 
++PROGRAM_DIRS =
+ ```
+ 
+ Then do the following:
+diff --git a/docs/README-dynapi.md b/docs/README-dynapi.md
+index 47b726b1d..7649c1d93 100644
+--- a/docs/README-dynapi.md
++++ b/docs/README-dynapi.md
+@@ -4,29 +4,29 @@ Originally posted on Ryan's Google+ account.
+ 
+ Background:
+ 
+-- The Steam Runtime has (at least in theory) a really kick-ass build of SDL2, 
+-  but developers are shipping their own SDL2 with individual Steam games. 
+-  These games might stop getting updates, but a newer SDL2 might be needed later. 
+-  Certainly we'll always be fixing bugs in SDL, even if a new video target isn't 
++- The Steam Runtime has (at least in theory) a really kick-ass build of SDL2,
++  but developers are shipping their own SDL2 with individual Steam games.
++  These games might stop getting updates, but a newer SDL2 might be needed later.
++  Certainly we'll always be fixing bugs in SDL, even if a new video target isn't
+   ever needed, and these fixes won't make it to a game shipping its own SDL.
+-- Even if we replace the SDL2 in those games with a compatible one, that is to 
+-  say, edit a developer's Steam depot (yuck!), there are developers that are 
+-  statically linking SDL2 that we can't do this for. We can't even force the 
++- Even if we replace the SDL2 in those games with a compatible one, that is to
++  say, edit a developer's Steam depot (yuck!), there are developers that are
++  statically linking SDL2 that we can't do this for. We can't even force the
+   dynamic loader to ignore their SDL2 in this case, of course.
+ - If you don't ship an SDL2 with the game in some form, people that disabled the
+-  Steam Runtime, or just tried to run the game from the command line instead of 
++  Steam Runtime, or just tried to run the game from the command line instead of
+   Steam might find themselves unable to run the game, due to a missing dependency.
+ - If you want to ship on non-Steam platforms like GOG or Humble Bundle, or target
+-  generic Linux boxes that may or may not have SDL2 installed, you have to ship 
+-  the library or risk a total failure to launch. So now, you might have to have 
+-  a non-Steam build plus a Steam build (that is, one with and one without SDL2 
+-  included), which is inconvenient if you could have had one universal build 
++  generic Linux boxes that may or may not have SDL2 installed, you have to ship
++  the library or risk a total failure to launch. So now, you might have to have
++  a non-Steam build plus a Steam build (that is, one with and one without SDL2
++  included), which is inconvenient if you could have had one universal build
+   that works everywhere.
+-- We like the zlib license, but the biggest complaint from the open source 
+-  community about the license change is the static linking. The LGPL forced this 
++- We like the zlib license, but the biggest complaint from the open source
++  community about the license change is the static linking. The LGPL forced this
+   as a legal, not technical issue, but zlib doesn't care. Even those that aren't
+-  concerned about the GNU freedoms found themselves solving the same problems: 
+-  swapping in a newer SDL to an older game often times can save the day. 
++  concerned about the GNU freedoms found themselves solving the same problems:
++  swapping in a newer SDL to an older game often times can save the day.
+   Static linking stops this dead.
+ 
+ So here's what we did:
+@@ -45,7 +45,7 @@ Except that is all done with a bunch of macro magic so we don't have to maintain
+ every one of these.
+ 
+ What is jump_table.SDL_init()? Eventually, that's a function pointer of the real
+-SDL_Init() that you've been calling all this time. But at startup, it looks more 
++SDL_Init() that you've been calling all this time. But at startup, it looks more
+ like this:
+ 
+ ```c
+@@ -56,12 +56,12 @@ Uint32 SDL_Init_DEFAULT(Uint32 flags)
+ }
+ ```
+ 
+-SDL_InitDynamicAPI() fills in jump_table with all the actual SDL function 
+-pointers, which means that this `_DEFAULT` function never gets called again. 
++SDL_InitDynamicAPI() fills in jump_table with all the actual SDL function
++pointers, which means that this `_DEFAULT` function never gets called again.
+ First call to any SDL function sets the whole thing up.
+ 
+ So you might be asking, what was the value in that? Isn't this what the operating
+-system's dynamic loader was supposed to do for us? Yes, but now we've got this 
++system's dynamic loader was supposed to do for us? Yes, but now we've got this
+ level of indirection, we can do things like this:
+ 
+ ```bash
+@@ -69,34 +69,34 @@ export SDL_DYNAMIC_API=/my/actual/libSDL-2.0.so.0
+ ./MyGameThatIsStaticallyLinkedToSDL2
+ ```
+ 
+-And now, this game that is statically linked to SDL, can still be overridden 
+-with a newer, or better, SDL. The statically linked one will only be used as 
++And now, this game that is statically linked to SDL, can still be overridden
++with a newer, or better, SDL. The statically linked one will only be used as
+ far as calling into the jump table in this case. But in cases where no override
+-is desired, the statically linked version will provide its own jump table, 
++is desired, the statically linked version will provide its own jump table,
+ and everyone is happy.
+ 
+ So now:
+-- Developers can statically link SDL, and users can still replace it. 
++- Developers can statically link SDL, and users can still replace it.
+   (We'd still rather you ship a shared library, though!)
+-- Developers can ship an SDL with their game, Valve can override it for, say, 
+-  new features on SteamOS, or distros can override it for their own needs, 
++- Developers can ship an SDL with their game, Valve can override it for, say,
++  new features on SteamOS, or distros can override it for their own needs,
+   but it'll also just work in the default case.
+-- Developers can ship the same package to everyone (Humble Bundle, GOG, etc), 
++- Developers can ship the same package to everyone (Humble Bundle, GOG, etc),
+   and it'll do the right thing.
+-- End users (and Valve) can update a game's SDL in almost any case, 
++- End users (and Valve) can update a game's SDL in almost any case,
+   to keep abandoned games running on newer platforms.
+-- Everyone develops with SDL exactly as they have been doing all along. 
++- Everyone develops with SDL exactly as they have been doing all along.
+   Same headers, same ABI. Just get the latest version to enable this magic.
+ 
+ 
+ A little more about SDL_InitDynamicAPI():
+ 
+-Internally, InitAPI does some locking to make sure everything waits until a 
+-single thread initializes everything (although even SDL_CreateThread() goes 
++Internally, InitAPI does some locking to make sure everything waits until a
++single thread initializes everything (although even SDL_CreateThread() goes
+ through here before spinning a thread, too), and then decides if it should use
+-an external SDL library. If not, it sets up the jump table using the current 
++an external SDL library. If not, it sets up the jump table using the current
+ SDL's function pointers (which might be statically linked into a program, or in
+-a shared library of its own). If so, it loads that library and looks for and 
++a shared library of its own). If so, it loads that library and looks for and
+ calls a single function:
+ 
+ ```c
+@@ -104,35 +104,35 @@ SInt32 SDL_DYNAPI_entry(Uint32 version, void *table, Uint32 tablesize);
+ ```
+ 
+ That function takes a version number (more on that in a moment), the address of
+-the jump table, and the size, in bytes, of the table. 
+-Now, we've got policy here: this table's layout never changes; new stuff gets 
+-added to the end. Therefore SDL_DYNAPI_entry() knows that it can provide all 
++the jump table, and the size, in bytes, of the table.
++Now, we've got policy here: this table's layout never changes; new stuff gets
++added to the end. Therefore SDL_DYNAPI_entry() knows that it can provide all
+ the needed functions if tablesize <= sizeof its own jump table. If tablesize is
+ bigger (say, SDL 2.0.4 is trying to load SDL 2.0.3), then we know to abort, but
+ if it's smaller, we know we can provide the entire API that the caller needs.
+ 
+-The version variable is a failsafe switch. 
+-Right now it's always 1. This number changes when there are major API changes 
+-(so we know if the tablesize might be smaller, or entries in it have changed). 
+-Right now SDL_DYNAPI_entry gives up if the version doesn't match, but it's not 
+-inconceivable to have a small dispatch library that only supplies this one 
++The version variable is a failsafe switch.
++Right now it's always 1. This number changes when there are major API changes
++(so we know if the tablesize might be smaller, or entries in it have changed).
++Right now SDL_DYNAPI_entry gives up if the version doesn't match, but it's not
++inconceivable to have a small dispatch library that only supplies this one
+ function and loads different, otherwise-incompatible SDL libraries and has the
+-right one initialize the jump table based on the version. For something that 
+-must generically catch lots of different versions of SDL over time, like the 
++right one initialize the jump table based on the version. For something that
++must generically catch lots of different versions of SDL over time, like the
+ Steam Client, this isn't a bad option.
+ 
+ Finally, I'm sure some people are reading this and thinking,
+-"I don't want that overhead in my project!"  
++"I don't want that overhead in my project!"
+ 
+-To which I would point out that the extra function call through the jump table 
+-probably wouldn't even show up in a profile, but lucky you: this can all be 
+-disabled. You can build SDL without this if you absolutely must, but we would 
+-encourage you not to do that. However, on heavily locked down platforms like 
++To which I would point out that the extra function call through the jump table
++probably wouldn't even show up in a profile, but lucky you: this can all be
++disabled. You can build SDL without this if you absolutely must, but we would
++encourage you not to do that. However, on heavily locked down platforms like
+ iOS, or maybe when debugging, it makes sense to disable it. The way this is
+-designed in SDL, you just have to change one #define, and the entire system 
+-vaporizes out, and SDL functions exactly like it always did. Most of it is 
+-macro magic, so the system is contained to one C file and a few headers. 
+-However, this is on by default and you have to edit a header file to turn it 
+-off. Our hopes is that if we make it easy to disable, but not too easy, 
+-everyone will ultimately be able to get what they want, but we've gently 
++designed in SDL, you just have to change one #define, and the entire system
++vaporizes out, and SDL functions exactly like it always did. Most of it is
++macro magic, so the system is contained to one C file and a few headers.
++However, this is on by default and you have to edit a header file to turn it
++off. Our hopes is that if we make it easy to disable, but not too easy,
++everyone will ultimately be able to get what they want, but we've gently
+ nudged everyone towards what we think is the best solution.
+diff --git a/docs/README-gdk.md b/docs/README-gdk.md
+index 5f6b18be3..b8ba2b433 100644
+--- a/docs/README-gdk.md
++++ b/docs/README-gdk.md
+@@ -1,155 +1,155 @@
+-GDK
+-=====
+-
+-This port allows SDL applications to run via Microsoft's Game Development Kit (GDK).
+-
+-Windows (GDK) and  Xbox One/Xbox Series (GDKX) are supported. Although most of the Xbox code is included in the public SDL source code, NDA access is required for a small number of source files. If you have access to GDKX, these required Xbox files are posted on the GDK forums [here](https://forums.xboxlive.com/questions/130003/).
+-
+-
+-Requirements
+-------------
+-
+-* Microsoft Visual Studio 2022 (in theory, it should also work in 2017 or 2019, but this has not been tested)
+-* Microsoft GDK June 2022 or newer (public release [here](https://github.com/microsoft/GDK/releases/tag/June_2022))
+-* To publish a package or successfully authenticate a user, you will need to create an app id/configure services in Partner Center. However, for local testing purposes (without authenticating on Xbox Live), the identifiers used by the GDK test programs in the included solution will work.
+-
+-
+-Windows GDK Status
+-------
+-
+-The Windows GDK port supports the full set of Win32 APIs, renderers, controllers, input devices, etc., as the normal Windows x64 build of SDL.
+-
+-* Additionally, the GDK port adds the following:
+-  * Compile-time platform detection for SDL programs. The `__GDK__` is `#define`d on every GDK platform, and the  `__WINGDK__` is `#define`d on Windows GDK, specifically. (This distinction exists because other GDK platforms support a smaller subset of functionality. This allows you to mark code for "any" GDK separate from Windows GDK.)
+-  * GDK-specific setup:
+-    * Initializing/uninitializing the game runtime, and initializing Xbox Live services
+-    * Creating a global task queue and setting it as the default for the process. When running any async operations, passing in `NULL` as the task queue will make the task get added to the global task queue.
+-  
+-  * An implementation on `WinMain` that performs the above GDK setup (you should link against SDL2main.lib, as in Windows x64). If you are unable to do this, you can instead manually call `SDL_GDKRunApp` from your entry point, passing in your `SDL_main` function and `NULL` as the parameters.
+-  * Global task queue callbacks are dispatched during `SDL_PumpEvents` (which is also called internally if using `SDL_PollEvent`).
+-  * You can get the handle of the global task queue through `SDL_GDKGetTaskQueue`, if needed. When done with the queue, be sure to use `XTaskQueueCloseHandle` to decrement the reference count (otherwise it will cause a resource leak).
+-  
+-* What doesn't work:
+-  * Compilation with anything other than through the included Visual C++ solution file
+-
+-## VisualC-GDK Solution
+-
+-The included `VisualC-GDK/SDL.sln` solution includes the following targets for the Gaming.Desktop.x64 configuration:
+-
+-* SDL2 (DLL) - This is the typical SDL2.dll, but for Gaming.Desktop.x64.
+-* SDL2main (lib) - This contains a drop-in implementation of `WinMain` that is used as the entry point for GDK programs.
+-* tests/testgamecontroller - Standard SDL test program demonstrating controller functionality.
+-* tests/testgdk - GDK-specific test program that demonstrates using the global task queue to login a user into Xbox Live.
+-  *NOTE*: As of the June 2022 GDK, you cannot test user logins without a valid Title ID and MSAAppId. You will need to manually change the identifiers in the `MicrosoftGame.config` to your valid IDs from Partner Center if you wish to test this.
+-* tests/testsprite2 - Standard SDL test program demonstrating sprite drawing functionality.
+-
+-If you set one of the test programs as a startup project, you can run it directly from Visual Studio.
+-
+-Windows GDK Setup, Detailed Steps
+----------------------
+-
+-These steps assume you already have a game using SDL that runs on Windows x64 along with a corresponding Visual Studio solution file for the x64 version. If you don't have this, it's easiest to use one of the test program vcxproj files in the `VisualC-GDK` directory as a starting point, though you will still need to do most of the steps below.
+-
+-### 1. Add a Gaming.Desktop.x64 Configuration ###
+-
+-In your game's existing Visual Studio Solution, go to Build > Configuration Manager. From the "Active solution platform" drop-down select "New...". From the drop-down list, select Gaming.Desktop.x64 and copy the settings from the x64 configuration.
+-
+-### 2. Build SDL2 and SDL2main for GDK ###
+-
+-Open `VisualC-GDK/SDL.sln` in Visual Studio, you need to build the SDL2 and SDL2main targets for the Gaming.Desktop.x64 platform (Release is recommended). You will need to copy/keep track of the `SDL2.dll`, `XCurl.dll` (which is output by Gaming.Desktop.x64), `SDL2.lib`, and `SDL2main.lib` output files for your game project.
+-
+-*Alternatively*, you could setup your solution file to instead reference the SDL2/SDL2main project file targets from the SDL source, and add those projects as a dependency. This would mean that SDL2 and SDL2main would both be built when your game is built. 
+-
+-### 3. Configuring Project Settings ###
+-
+-While the Gaming.Desktop.x64 configuration sets most of the required settings, there are some additional items to configure for your game project under the Gaming.Desktop.x64 Configuration:
+-
+-*  Under C/C++ > General > Additional Include Directories, make sure the `SDL/include` path is referenced
+-* Under Linker > General > Additional Library Directories, make sure to reference the path where the newly-built SDL2.lib and SDL2main.lib are
+-* Under Linker > Input > Additional Dependencies, you need the following:
+-  * `SDL2.lib`
+-  * `SDL2main.lib` (unless not using)
+-  * `xgameruntime.lib`
+-  * `../Microsoft.Xbox.Services.141.GDK.C.Thunks.lib`
+-* Note that in general, the GDK libraries depend on the MSVC C/C++ runtime, so there is no way to remove this dependency from a GDK program that links against GDK.
+-
+-### 4. Setting up SDL_main ###
+-
+-Rather than using your own implementation of `WinMain`, it's recommended that you instead `#include "SDL_main.h"` and declare a standard main function. If you are unable to do this, you can instead manually call `SDL_GDKRunApp` from your entry point, passing in your `SDL_main` function and `NULL` as the parameters.
+-
+-### 5. Required DLLs ###
+-
+-The game will not launch in the debugger unless required DLLs are included in the directory that contains the game's .exe file. You need to make sure that the following files are copied into the directory:
+-
+-* Your SDL2.dll
+-* "$(Console_GRDKExtLibRoot)Xbox.Services.API.C\DesignTime\CommonConfiguration\Neutral\Lib\Release\Microsoft.Xbox.Services.141.GDK.C.Thunks.dll"
+-* XCurl.dll
+-
+-You can either copy these in a post-build step, or you can add the dlls into the project and set its Configuration Properties > General > Item type to "Copy file," which will also copy them into the output directory.
+-
+-### 6. Setting up MicrosoftGame.config ###
+-
+-You can copy `VisualC-GDK/tests/testgdk/MicrosoftGame.config` and use that as a starting point in your project. Minimally, you will want to change the Executable Name attribute, the DefaultDisplayName, and the Description.
+-
+-This file must be copied into the same directory as the game's .exe file. As with the DLLs, you can either use a post-build step or the "Copy file" item type.
+-
+-For basic testing, you do not need to change anything else in `MicrosoftGame.config`. However, if you want to test any Xbox Live services (such as logging in users) _or_ publish a package, you will need to setup a Game app on Partner Center.
+-
+-Then, you need to set the following values to the values from Partner Center:
+-
+-* Identity tag - Name and Publisher attributes
+-* TitleId
+-* MSAAppId
+-
+-### 7. Adding Required Logos
+-
+-Several logo PNG files are required to be able to launch the game, even from the debugger. You can use the sample logos provided in `VisualC-GDK/logos`. As with the other files, they must be copied into the same directory as the game's .exe file.
+-
+-
+-### 8. Copying any Data Files ###
+-
+-When debugging GDK games, there is no way to specify a working directory. Therefore, any required game data must also be copied into the output directory, likely in a post-build step.
+-
+-
+-### 9. Build and Run from Visual Studio ###
+-
+-At this point, you should be able to build and run your game from the Visual Studio Debugger. If you get any linker errors, make sure you double-check that you referenced all the required libs.
+-
+-If you are testing Xbox Live functionality, it's likely you will need to change to the Sandbox for your title. To do this:
+-
+-1. Run "Desktop VS 2022 Gaming Command Prompt" from the Start Menu
+-2. Switch the sandbox name with:
+-   `XblPCSandbox SANDBOX.#`
+-3. (To switch back to the retail sandbox):
+-   `XblPCSandbox RETAIL`
+-
+-### 10. Packaging and Installing Locally
+-
+-You can use one of the test program's `PackageLayout.xml` as a starting point. Minimally, you will need to change the exe to the correct name and also reference any required game data. As with the other data files, it's easiest if you have this copy to the output directory, although it's not a requirement as you can specify relative paths to files.
+-
+-To create the package:
+-
+-1. Run "Desktop VS 2022 Gaming Command Prompt" from the Start Menu
+-2. `cd` to the directory containing the `PackageLayout.xml` with the correct paths (if you use the local path as in the sample package layout, this would be from your .exe output directory)
+-3. `mkdir Package` to create an output directory
+-4. To package the file into the `Package` directory, use:
+-    `makepkg pack /f PackageLayout.xml /lt /d . /nogameos /pc /pd Package`
+-5. To install the package, use:
+-   `wdapp install PACKAGENAME.msixvc`
+-6. Once the package is installed, you can run it from the start menu.
+-7. As with when running from Visual Studio, if you need to test any Xbox Live functionality you must switch to the correct sandbox.
+-
+-
+-Troubleshooting
+----------------
+-
+-#### Xbox Live Login does not work
+-
+-As of June 2022 GDK, you must have a valid Title Id and MSAAppId in order to test Xbox Live functionality such as user login. Make sure these are set correctly in the `MicrosoftGame.config`. This means that even testgdk will not let you login without setting these properties to valid values.
+-
+-Furthermore, confirm that your PC is set to the correct sandbox.
+-
+-
+-#### "The current user has already installed an unpackaged version of this app. A packaged version cannot replace this." error when installing
+-
+-Prior to June 2022 GDK, running from the Visual Studio debugger would still locally register the app (and it would appear on the start menu). To fix this, you have to uninstall it (it's simplest to right click on it from the start menu to uninstall it).
++GDK
++=====
++
++This port allows SDL applications to run via Microsoft's Game Development Kit (GDK).
++
++Windows (GDK) and  Xbox One/Xbox Series (GDKX) are supported. Although most of the Xbox code is included in the public SDL source code, NDA access is required for a small number of source files. If you have access to GDKX, these required Xbox files are posted on the GDK forums [here](https://forums.xboxlive.com/questions/130003/).
++
++
++Requirements
++------------
++
++* Microsoft Visual Studio 2022 (in theory, it should also work in 2017 or 2019, but this has not been tested)
++* Microsoft GDK June 2022 or newer (public release [here](https://github.com/microsoft/GDK/releases/tag/June_2022))
++* To publish a package or successfully authenticate a user, you will need to create an app id/configure services in Partner Center. However, for local testing purposes (without authenticating on Xbox Live), the identifiers used by the GDK test programs in the included solution will work.
++
++
++Windows GDK Status
++------
++
++The Windows GDK port supports the full set of Win32 APIs, renderers, controllers, input devices, etc., as the normal Windows x64 build of SDL.
++
++* Additionally, the GDK port adds the following:
++  * Compile-time platform detection for SDL programs. The `__GDK__` is `#define`d on every GDK platform, and the  `__WINGDK__` is `#define`d on Windows GDK, specifically. (This distinction exists because other GDK platforms support a smaller subset of functionality. This allows you to mark code for "any" GDK separate from Windows GDK.)
++  * GDK-specific setup:
++    * Initializing/uninitializing the game runtime, and initializing Xbox Live services
++    * Creating a global task queue and setting it as the default for the process. When running any async operations, passing in `NULL` as the task queue will make the task get added to the global task queue.
++
++  * An implementation on `WinMain` that performs the above GDK setup (you should link against SDL2main.lib, as in Windows x64). If you are unable to do this, you can instead manually call `SDL_GDKRunApp` from your entry point, passing in your `SDL_main` function and `NULL` as the parameters.
++  * Global task queue callbacks are dispatched during `SDL_PumpEvents` (which is also called internally if using `SDL_PollEvent`).
++  * You can get the handle of the global task queue through `SDL_GDKGetTaskQueue`, if needed. When done with the queue, be sure to use `XTaskQueueCloseHandle` to decrement the reference count (otherwise it will cause a resource leak).
++
++* What doesn't work:
++  * Compilation with anything other than through the included Visual C++ solution file
++
++## VisualC-GDK Solution
++
++The included `VisualC-GDK/SDL.sln` solution includes the following targets for the Gaming.Desktop.x64 configuration:
++
++* SDL2 (DLL) - This is the typical SDL2.dll, but for Gaming.Desktop.x64.
++* SDL2main (lib) - This contains a drop-in implementation of `WinMain` that is used as the entry point for GDK programs.
++* tests/testgamecontroller - Standard SDL test program demonstrating controller functionality.
++* tests/testgdk - GDK-specific test program that demonstrates using the global task queue to login a user into Xbox Live.
++  *NOTE*: As of the June 2022 GDK, you cannot test user logins without a valid Title ID and MSAAppId. You will need to manually change the identifiers in the `MicrosoftGame.config` to your valid IDs from Partner Center if you wish to test this.
++* tests/testsprite2 - Standard SDL test program demonstrating sprite drawing functionality.
++
++If you set one of the test programs as a startup project, you can run it directly from Visual Studio.
++
++Windows GDK Setup, Detailed Steps
++---------------------
++
++These steps assume you already have a game using SDL that runs on Windows x64 along with a corresponding Visual Studio solution file for the x64 version. If you don't have this, it's easiest to use one of the test program vcxproj files in the `VisualC-GDK` directory as a starting point, though you will still need to do most of the steps below.
++
++### 1. Add a Gaming.Desktop.x64 Configuration ###
++
++In your game's existing Visual Studio Solution, go to Build > Configuration Manager. From the "Active solution platform" drop-down select "New...". From the drop-down list, select Gaming.Desktop.x64 and copy the settings from the x64 configuration.
++
++### 2. Build SDL2 and SDL2main for GDK ###
++
++Open `VisualC-GDK/SDL.sln` in Visual Studio, you need to build the SDL2 and SDL2main targets for the Gaming.Desktop.x64 platform (Release is recommended). You will need to copy/keep track of the `SDL2.dll`, `XCurl.dll` (which is output by Gaming.Desktop.x64), `SDL2.lib`, and `SDL2main.lib` output files for your game project.
++
++*Alternatively*, you could setup your solution file to instead reference the SDL2/SDL2main project file targets from the SDL source, and add those projects as a dependency. This would mean that SDL2 and SDL2main would both be built when your game is built.
++
++### 3. Configuring Project Settings ###
++
++While the Gaming.Desktop.x64 configuration sets most of the required settings, there are some additional items to configure for your game project under the Gaming.Desktop.x64 Configuration:
++
++*  Under C/C++ > General > Additional Include Directories, make sure the `SDL/include` path is referenced
++* Under Linker > General > Additional Library Directories, make sure to reference the path where the newly-built SDL2.lib and SDL2main.lib are
++* Under Linker > Input > Additional Dependencies, you need the following:
++  * `SDL2.lib`
++  * `SDL2main.lib` (unless not using)
++  * `xgameruntime.lib`
++  * `../Microsoft.Xbox.Services.141.GDK.C.Thunks.lib`
++* Note that in general, the GDK libraries depend on the MSVC C/C++ runtime, so there is no way to remove this dependency from a GDK program that links against GDK.
++
++### 4. Setting up SDL_main ###
++
++Rather than using your own implementation of `WinMain`, it's recommended that you instead `#include "SDL_main.h"` and declare a standard main function. If you are unable to do this, you can instead manually call `SDL_GDKRunApp` from your entry point, passing in your `SDL_main` function and `NULL` as the parameters.
++
++### 5. Required DLLs ###
++
++The game will not launch in the debugger unless required DLLs are included in the directory that contains the game's .exe file. You need to make sure that the following files are copied into the directory:
++
++* Your SDL2.dll
++* "$(Console_GRDKExtLibRoot)Xbox.Services.API.C\DesignTime\CommonConfiguration\Neutral\Lib\Release\Microsoft.Xbox.Services.141.GDK.C.Thunks.dll"
++* XCurl.dll
++
++You can either copy these in a post-build step, or you can add the dlls into the project and set its Configuration Properties > General > Item type to "Copy file," which will also copy them into the output directory.
++
++### 6. Setting up MicrosoftGame.config ###
++
++You can copy `VisualC-GDK/tests/testgdk/MicrosoftGame.config` and use that as a starting point in your project. Minimally, you will want to change the Executable Name attribute, the DefaultDisplayName, and the Description.
++
++This file must be copied into the same directory as the game's .exe file. As with the DLLs, you can either use a post-build step or the "Copy file" item type.
++
++For basic testing, you do not need to change anything else in `MicrosoftGame.config`. However, if you want to test any Xbox Live services (such as logging in users) _or_ publish a package, you will need to setup a Game app on Partner Center.
++
++Then, you need to set the following values to the values from Partner Center:
++
++* Identity tag - Name and Publisher attributes
++* TitleId
++* MSAAppId
++
++### 7. Adding Required Logos
++
++Several logo PNG files are required to be able to launch the game, even from the debugger. You can use the sample logos provided in `VisualC-GDK/logos`. As with the other files, they must be copied into the same directory as the game's .exe file.
++
++
++### 8. Copying any Data Files ###
++
++When debugging GDK games, there is no way to specify a working directory. Therefore, any required game data must also be copied into the output directory, likely in a post-build step.
++
++
++### 9. Build and Run from Visual Studio ###
++
++At this point, you should be able to build and run your game from the Visual Studio Debugger. If you get any linker errors, make sure you double-check that you referenced all the required libs.
++
++If you are testing Xbox Live functionality, it's likely you will need to change to the Sandbox for your title. To do this:
++
++1. Run "Desktop VS 2022 Gaming Command Prompt" from the Start Menu
++2. Switch the sandbox name with:
++   `XblPCSandbox SANDBOX.#`
++3. (To switch back to the retail sandbox):
++   `XblPCSandbox RETAIL`
++
++### 10. Packaging and Installing Locally
++
++You can use one of the test program's `PackageLayout.xml` as a starting point. Minimally, you will need to change the exe to the correct name and also reference any required game data. As with the other data files, it's easiest if you have this copy to the output directory, although it's not a requirement as you can specify relative paths to files.
++
++To create the package:
++
++1. Run "Desktop VS 2022 Gaming Command Prompt" from the Start Menu
++2. `cd` to the directory containing the `PackageLayout.xml` with the correct paths (if you use the local path as in the sample package layout, this would be from your .exe output directory)
++3. `mkdir Package` to create an output directory
++4. To package the file into the `Package` directory, use:
++    `makepkg pack /f PackageLayout.xml /lt /d . /nogameos /pc /pd Package`
++5. To install the package, use:
++   `wdapp install PACKAGENAME.msixvc`
++6. Once the package is installed, you can run it from the start menu.
++7. As with when running from Visual Studio, if you need to test any Xbox Live functionality you must switch to the correct sandbox.
++
++
++Troubleshooting
++---------------
++
++#### Xbox Live Login does not work
++
++As of June 2022 GDK, you must have a valid Title Id and MSAAppId in order to test Xbox Live functionality such as user login. Make sure these are set correctly in the `MicrosoftGame.config`. This means that even testgdk will not let you login without setting these properties to valid values.
++
++Furthermore, confirm that your PC is set to the correct sandbox.
++
++
++#### "The current user has already installed an unpackaged version of this app. A packaged version cannot replace this." error when installing
++
++Prior to June 2022 GDK, running from the Visual Studio debugger would still locally register the app (and it would appear on the start menu). To fix this, you have to uninstall it (it's simplest to right click on it from the start menu to uninstall it).
+diff --git a/docs/README-gesture.md b/docs/README-gesture.md
+index 7e9f95bc1..69a66ad9f 100644
+--- a/docs/README-gesture.md
++++ b/docs/README-gesture.md
+@@ -2,7 +2,7 @@ Dollar Gestures
+ ===========================================================================
+ SDL provides an implementation of the $1 gesture recognition system. This allows for recording, saving, loading, and performing single stroke gestures.
+ 
+-Gestures can be performed with any number of fingers (the centroid of the fingers must follow the path of the gesture), but the number of fingers must be constant (a finger cannot go down in the middle of a gesture). The path of a gesture is considered the path from the time when the final finger went down, to the first time any finger comes up. 
++Gestures can be performed with any number of fingers (the centroid of the fingers must follow the path of the gesture), but the number of fingers must be constant (a finger cannot go down in the middle of a gesture). The path of a gesture is considered the path from the time when the final finger went down, to the first time any finger comes up.
+ 
+ Dollar gestures are assigned an Id based on a hash function. This is guaranteed to remain constant for a given gesture. There is a (small) chance that two different gestures will be assigned the same ID. In this case, simply re-recording one of the gestures should result in a different ID.
+ 
+@@ -42,7 +42,7 @@ Both functions return the number of gestures successfully saved.
+ 
+ Loading:
+ --------
+-To load templates from a file, call SDL_LoadDollarTemplates(touchId,src) where touchId is the id of the touch to load to (or -1 to load to all touch devices), and src is an SDL_RWops pointer to a gesture save file. 
++To load templates from a file, call SDL_LoadDollarTemplates(touchId,src) where touchId is the id of the touch to load to (or -1 to load to all touch devices), and src is an SDL_RWops pointer to a gesture save file.
+ 
+ SDL_LoadDollarTemplates returns the number of templates successfully loaded.
+ 
+@@ -51,7 +51,7 @@ SDL_LoadDollarTemplates returns the number of templates successfully loaded.
+ ===========================================================================
+ Multi Gestures
+ ===========================================================================
+-SDL provides simple support for pinch/rotate/swipe gestures. 
++SDL provides simple support for pinch/rotate/swipe gestures.
+ Every time a finger is moved an SDL_MULTIGESTURE event is sent with the following fields:
+ 
+ * event.mgesture.touchId - the Id of the touch on which the gesture was performed.
+diff --git a/docs/README-git.md b/docs/README-git.md
+index 3f03488ae..fd12fd9f6 100644
+--- a/docs/README-git.md
++++ b/docs/README-git.md
+@@ -1,19 +1,19 @@
+-git
+-=========
+-
+-The latest development version of SDL is available via git.
+-Git allows you to get up-to-the-minute fixes and enhancements;
+-as a developer works on a source tree, you can use "git" to mirror that
+-source tree instead of waiting for an official release. Please look
+-at the Git website ( https://git-scm.com/ ) for more
+-information on using git, where you can also download software for
+-macOS, Windows, and Unix systems.
+-
+-    git clone https://github.com/libsdl-org/SDL
+-
+-If you are building SDL via configure, you will need to run autogen.sh
+-before running configure.
+-
+-There is a web interface to the Git repository at:
+-	http://github.com/libsdl-org/SDL/
+-
++git
++=========
++
++The latest development version of SDL is available via git.
++Git allows you to get up-to-the-minute fixes and enhancements;
++as a developer works on a source tree, you can use "git" to mirror that
++source tree instead of waiting for an official release. Please look
++at the Git website ( https://git-scm.com/ ) for more
++information on using git, where you can also download software for
++macOS, Windows, and Unix systems.
++
++    git clone https://github.com/libsdl-org/SDL
++
++If you are building SDL via configure, you will need to run autogen.sh
++before running configure.
++
++There is a web interface to the Git repository at:
++	http://github.com/libsdl-org/SDL/
++
+diff --git a/docs/README-hg.md b/docs/README-hg.md
+index 4e35683bd..1b3901785 100644
+--- a/docs/README-hg.md
++++ b/docs/README-hg.md
+@@ -1,4 +1,4 @@
+-We are no longer hosted in Mercurial. Please see README-git.md for details.
+-
+-Thanks!
+-
++We are no longer hosted in Mercurial. Please see README-git.md for details.
++
++Thanks!
++
+diff --git a/docs/README-ios.md b/docs/README-ios.md
+index e13f8baae..90ef987a9 100644
+--- a/docs/README-ios.md
++++ b/docs/README-ios.md
+@@ -111,17 +111,17 @@ e.g.
+             return 1;
+         }
+     }
+-    
++
+     int main(int argc, char *argv[])
+     {
+         SDL_SetEventFilter(HandleAppEvents, NULL);
+-    
++
+         ... run your main loop
+-    
++
+         return 0;
+     }
+ 
+-    
++
+ Notes -- Accelerometer as Joystick
+ ==============================================================================
+ 
+@@ -185,7 +185,7 @@ Once your application is installed its directory tree looks like:
+             Preferences/
+         tmp/
+ 
+-When your SDL based iPhone application starts up, it sets the working directory to the main bundle (MySDLApp Home/MySDLApp.app), where your application resources are stored.  You cannot write to this directory.  Instead, I advise you to write document files to "../Documents/" and preferences to "../Library/Preferences".  
++When your SDL based iPhone application starts up, it sets the working directory to the main bundle (MySDLApp Home/MySDLApp.app), where your application resources are stored.  You cannot write to this directory.  Instead, I advise you to write document files to "../Documents/" and preferences to "../Library/Preferences".
+ 
+ More information on this subject is available here:
+ http://developer.apple.com/library/ios/#documentation/iPhone/Conceptual/iPhoneOSProgrammingGuide/Introduction/Introduction.html
+@@ -194,7 +194,7 @@ http://developer.apple.com/library/ios/#documentation/iPhone/Conceptual/iPhoneOS
+ Notes -- xcFramework
+ ==============================================================================
+ 
+-The SDL.xcodeproj file now includes a target to build SDL2.xcframework. An xcframework is a new (Xcode 11) uber-framework which can handle any combination of processor type and target OS platform. 
++The SDL.xcodeproj file now includes a target to build SDL2.xcframework. An xcframework is a new (Xcode 11) uber-framework which can handle any combination of processor type and target OS platform.
+ 
+ In the past, iOS devices were always an ARM variant processor, and the simulator was always i386 or x86_64, and thus libraries could be combined into a single framework for both simulator and device. With the introduction of the Apple Silicon ARM-based machines, regular frameworks would collide as CPU type was no longer sufficient to differentiate the platform. So Apple created the new xcframework library package.
+ 
+@@ -216,7 +216,7 @@ main(int argc, char *argv[])
+ }
+ #endif /* !SDL_MAIN_HANDLED */
+ 
+-Using an xcFramework is similar to using a regular framework. However, issues have been seen with the build system not seeing the headers in the xcFramework. To remedy this, add the path to the xcFramework in your app's target ==> Build Settings ==> Framework Search Paths and mark it recursive (this is critical). Also critical is to remove "*.framework" from Build Settings ==> Sub-Directories to Exclude in Recursive Searches. Clean the build folder, and on your next build the build system should be able to see any of these in your code, as expected: 
++Using an xcFramework is similar to using a regular framework. However, issues have been seen with the build system not seeing the headers in the xcFramework. To remedy this, add the path to the xcFramework in your app's target ==> Build Settings ==> Framework Search Paths and mark it recursive (this is critical). Also critical is to remove "*.framework" from Build Settings ==> Sub-Directories to Exclude in Recursive Searches. Clean the build folder, and on your next build the build system should be able to see any of these in your code, as expected:
+ 
+ #include "SDL_main.h"
+ #include <SDL.h>
+@@ -252,7 +252,7 @@ to your Info.plist:
+ <string>MyApp would like to remain connected to nearby bluetooth Game Controllers and Game Pads even when you're not using the app.</string>
+ 
+ 
+-Game Center 
++Game Center
+ ==============================================================================
+ 
+ Game Center integration might require that you break up your main loop in order to yield control back to the system. In other words, instead of running an endless main loop, you run each frame in a callback function, using:
+@@ -268,15 +268,15 @@ e.g.
+     {
+         ... do event handling, frame logic and rendering ...
+     }
+-    
++
+     int main(int argc, char *argv[])
+     {
+         ... initialize game ...
+-    
++
+     #if __IPHONEOS__
+         // Initialize the Game Center for scoring and matchmaking
+         InitGameCenter();
+-    
++
+         // Set up the game to run in the window animation callback on iOS
+         // so that Game Center and so forth works correctly.
+         SDL_iPhoneSetAnimationCallback(window, 1, ShowFrame, NULL);
+diff --git a/docs/README-kmsbsd.md b/docs/README-kmsbsd.md
+index 01db5e8aa..1aad38092 100644
+--- a/docs/README-kmsbsd.md
++++ b/docs/README-kmsbsd.md
+@@ -1,27 +1,27 @@
+-KMSDRM on *BSD
+-==================================================
+-
+-KMSDRM is supported on FreeBSD and OpenBSD. DragonFlyBSD works but requires being a root user. NetBSD isn't supported yet because the application will crash when creating the KMSDRM screen.
+-
+-WSCONS support has been brought back, but only as an input backend. It will not be brought back as a video backend to ease maintenance.
+-
+-OpenBSD note: Note that the video backend assumes that the user has read/write permissions to the /dev/drm* devices.
+-
+-
+-SDL2 WSCONS input backend features
+-===================================================
+-1. It is keymap-aware; it will work properly with different keymaps.
+-2. It has mouse support.
+-3. Accent input is supported.
+-4. Compose keys are supported.
+-5. AltGr and Meta Shift keys work as intended.
+-
+-Partially working or no input on OpenBSD/NetBSD.
+-==================================================
+-
+-The WSCONS input backend needs read/write access to the /dev/wskbd* devices, without which it will not work properly. /dev/wsmouse must also be read/write accessible, otherwise mouse input will not work.
+-
+-Partially working or no input on FreeBSD.
+-==================================================
+-
+-The evdev devices are only accessible to the root user by default. Edit devfs rules to allow access to such devices. The /dev/kbd* devices are also only accessible to the root user by default. Edit devfs rules to allow access to such devices.
++KMSDRM on *BSD
++==================================================
++
++KMSDRM is supported on FreeBSD and OpenBSD. DragonFlyBSD works but requires being a root user. NetBSD isn't supported yet because the application will crash when creating the KMSDRM screen.
++
++WSCONS support has been brought back, but only as an input backend. It will not be brought back as a video backend to ease maintenance.
++
++OpenBSD note: Note that the video backend assumes that the user has read/write permissions to the /dev/drm* devices.
++
++
++SDL2 WSCONS input backend features
++===================================================
++1. It is keymap-aware; it will work properly with different keymaps.
++2. It has mouse support.
++3. Accent input is supported.
++4. Compose keys are supported.
++5. AltGr and Meta Shift keys work as intended.
++
++Partially working or no input on OpenBSD/NetBSD.
++==================================================
++
++The WSCONS input backend needs read/write access to the /dev/wskbd* devices, without which it will not work properly. /dev/wsmouse must also be read/write accessible, otherwise mouse input will not work.
++
++Partially working or no input on FreeBSD.
++==================================================
++
++The evdev devices are only accessible to the root user by default. Edit devfs rules to allow access to such devices. The /dev/kbd* devices are also only accessible to the root user by default. Edit devfs rules to allow access to such devices.
+diff --git a/docs/README-linux.md b/docs/README-linux.md
+index 4634ecd88..83339bccc 100644
+--- a/docs/README-linux.md
++++ b/docs/README-linux.md
+@@ -5,7 +5,7 @@ By default SDL will only link against glibc, the rest of the features will be
+ enabled dynamically at runtime depending on the available features on the target
+ system. So, for example if you built SDL with XRandR support and the target
+ system does not have the XRandR libraries installed, it will be disabled
+-at runtime, and you won't get a missing library error, at least with the 
++at runtime, and you won't get a missing library error, at least with the
+ default configuration parameters.
+ 
+ 
+@@ -43,7 +43,7 @@ NOTES:
+   is missing, so it's safe to build in support even if the end user doesn't
+   have this library installed.
+ - DirectFB isn't included because the configure script (currently) fails to find
+-  it at all. You can do "sudo apt-get install libdirectfb-dev" and fix the 
++  it at all. You can do "sudo apt-get install libdirectfb-dev" and fix the
+   configure script to include DirectFB support. Send patches.  :)
+ 
+ 
+@@ -55,42 +55,42 @@ there's a few issues that may cause SDL to fail to detect your joystick. To
+ debug this, start by installing the evtest utility. On Ubuntu/Debian:
+ 
+     sudo apt-get install evtest
+-    
++
+ Then run:
+-    
++
+     sudo evtest
+-    
++
+ You'll hopefully see your joystick listed along with a name like "/dev/input/eventXX"
+ Now run:
+-    
++
+     cat /dev/input/event/XX
+ 
+ If you get a permission error, you need to set a udev rule to change the mode of
+-your device (see below)    
+-    
++your device (see below)
++
+ Also, try:
+-    
++
+     sudo udevadm info --query=all --name=input/eventXX
+-    
++
+ If you see a line stating ID_INPUT_JOYSTICK=1, great, if you don't see it,
+ you need to set up an udev rule to force this variable.
+ 
+-A combined rule for the Saitek Pro Flight Rudder Pedals to fix both issues looks 
++A combined rule for the Saitek Pro Flight Rudder Pedals to fix both issues looks
+ like:
+-    
++
+     SUBSYSTEM=="input", ATTRS{idProduct}=="0763", ATTRS{idVendor}=="06a3", MODE="0666", ENV{ID_INPUT_JOYSTICK}="1"
+     SUBSYSTEM=="input", ATTRS{idProduct}=="0764", ATTRS{idVendor}=="06a3", MODE="0666", ENV{ID_INPUT_JOYSTICK}="1"
+-   
++
+ You can set up similar rules for your device by changing the values listed in
+ idProduct and idVendor. To obtain these values, try:
+-    
++
+     sudo udevadm info -a --name=input/eventXX | grep idVendor
+     sudo udevadm info -a --name=input/eventXX | grep idProduct
+-    
+-If multiple values come up for each of these, the one you want is the first one of each.    
++
++If multiple values come up for each of these, the one you want is the first one of each.
+ 
+ On other systems which ship with an older udev (such as CentOS), you may need
+ to set up a rule such as:
+-    
++
+     SUBSYSTEM=="input", ENV{ID_CLASS}=="joystick", ENV{ID_INPUT_JOYSTICK}="1"
+ 
+diff --git a/docs/README-macos.md b/docs/README-macos.md
+index cc94ef3c6..634d456bf 100644
+--- a/docs/README-macos.md
++++ b/docs/README-macos.md
+@@ -74,10 +74,10 @@ NSApplicationDelegate implementation:
+         event.type = SDL_QUIT;
+         SDL_PushEvent(&event);
+     }
+-    
++
+     return NSTerminateCancel;
+ }
+-    
++
+ - (BOOL)application:(NSApplication *)theApplication openFile:(NSString *)filename
+ {
+     if (SDL_GetEventState(SDL_DROPFILE) == SDL_ENABLE) {
+@@ -86,7 +86,7 @@ NSApplicationDelegate implementation:
+         event.drop.file = SDL_strdup([filename UTF8String]);
+         return (SDL_PushEvent(&event) > 0);
+     }
+-    
++
+     return NO;
+ }
+ ```
+@@ -196,12 +196,12 @@ normally from the Finder.
+ 
+ The SDL Library is packaged as a framework bundle, an organized
+ relocatable folder hierarchy of executable code, interface headers,
+-and additional resources. For practical purposes, you can think of a 
++and additional resources. For practical purposes, you can think of a
+ framework as a more user and system-friendly shared library, whose library
+ file behaves more or less like a standard UNIX shared library.
+ 
+-To build the framework, simply open the framework project and build it. 
+-By default, the framework bundle "SDL.framework" is installed in 
++To build the framework, simply open the framework project and build it.
++By default, the framework bundle "SDL.framework" is installed in
+ /Library/Frameworks. Therefore, the testers and project stationary expect
+ it to be located there. However, it will function the same in any of the
+ following locations:
+@@ -253,7 +253,7 @@ Use `xcode-build` in the same directory as your .pbxproj file
+ You can send command line args to your app by either invoking it from
+ the command line (in *.app/Contents/MacOS) or by entering them in the
+ Executables" panel of the target settings.
+-    
++
+ # Implementation Notes
+ 
+ Some things that may be of interest about how it all works...
+diff --git a/docs/README-nacl.md b/docs/README-nacl.md
+index 53ada33c3..5b05f39f6 100644
+--- a/docs/README-nacl.md
++++ b/docs/README-nacl.md
+@@ -1,13 +1,13 @@
+ Native Client
+ ================================================================================
+ 
+-Requirements: 
++Requirements:
+ 
+-* Native Client SDK (https://developer.chrome.com/native-client), 
++* Native Client SDK (https://developer.chrome.com/native-client),
+   (tested with Pepper version 33 or higher).
+ 
+ The SDL backend for Chrome's Native Client has been tested only with the PNaCl
+-toolchain, which generates binaries designed to run on ARM and x86_32/64 
++toolchain, which generates binaries designed to run on ARM and x86_32/64
+ platforms. This does not mean it won't work with the other toolchains!
+ 
+ ================================================================================
+@@ -17,15 +17,15 @@ Building SDL for NaCl
+ Set up the right environment variables (see naclbuild.sh), then configure SDL with:
+ 
+     configure --host=pnacl --prefix some/install/destination
+-    
+-Then "make". 
+ 
+-As an example of how to create a deployable app a Makefile project is provided 
+-in test/nacl/Makefile, which includes some monkey patching of the common.mk file 
+-provided by NaCl, without which linking properly to SDL won't work (the search 
+-path can't be modified externally, so the linker won't find SDL's binaries unless 
++Then "make".
++
++As an example of how to create a deployable app a Makefile project is provided
++in test/nacl/Makefile, which includes some monkey patching of the common.mk file
++provided by NaCl, without which linking properly to SDL won't work (the search
++path can't be modified externally, so the linker won't find SDL's binaries unless
+ you dump them into the SDK path, which is inconvenient).
+-Also provided in test/nacl is the required support file, such as index.html, 
++Also provided in test/nacl is the required support file, such as index.html,
+ manifest.json, etc.
+ SDL apps for NaCl run on a worker thread using the ppapi_simple infrastructure.
+ This allows for blocking calls on all the relevant systems (OpenGL ES, filesystem),
+@@ -38,20 +38,20 @@ Running tests
+ ================================================================================
+ 
+ Due to the nature of NaCl programs, building and running SDL tests is not as
+-straightforward as one would hope. The script naclbuild.sh in build-scripts 
+-automates the process and should serve as a guide for users of SDL trying to build 
++straightforward as one would hope. The script naclbuild.sh in build-scripts
++automates the process and should serve as a guide for users of SDL trying to build
+ their own applications.
+ 
+ Basic usage:
+-    
++
+     ./naclbuild.sh path/to/pepper/toolchain (i.e. ~/naclsdk/pepper_35)
+-    
++
+ This will build testgles2.c by default.
+ 
+ If you want to build a different test, for example testrendercopyex.c:
+-    
++
+     SOURCES=~/sdl/SDL/test/testrendercopyex.c ./naclbuild.sh ~/naclsdk/pepper_35
+-    
++
+ Once the build finishes, you have to serve the contents with a web server (the
+ script will give you instructions on how to do that with Python).
+ 
+@@ -60,28 +60,28 @@ RWops and nacl_io
+ ================================================================================
+ 
+ SDL_RWops work transparently with nacl_io. Two functions control the mount points:
+-    
+-    int mount(const char* source, const char* target, 
+-                      const char* filesystemtype, 
++
++    int mount(const char* source, const char* target,
++                      const char* filesystemtype,
+                       unsigned long mountflags, const void *data);
+     int umount(const char *target);
+-    
+-    For convenience, SDL will by default mount an httpfs tree at / before calling 
++
++    For convenience, SDL will by default mount an httpfs tree at / before calling
+ the app's main function. Such setting can be overridden by calling:
+-    
++
+     umount("/");
+ 
+ And then mounting a different filesystem at /
+ 
+ It's important to consider that the asynchronous nature of file operations on a
+ browser is hidden from the application, effectively providing the developer with
+-a set of blocking file operations just like you get in a regular desktop 
+-environment, which eases the job of porting to Native Client, but also introduces 
+-a set of challenges of its own, in particular when big file sizes and slow 
++a set of blocking file operations just like you get in a regular desktop
++environment, which eases the job of porting to Native Client, but also introduces
++a set of challenges of its own, in particular when big file sizes and slow
+ connections are involved.
+ 
+ For more information on how nacl_io and mount points work, see:
+-    
++
+     https://developer.chrome.com/native-client/devguide/coding/nacl_io
+     https://src.chromium.org/chrome/trunk/src/native_client_sdk/src/libraries/nacl_io/nacl_io.h
+ 
+diff --git a/docs/README-ngage.md b/docs/README-ngage.md
+index 83c2e3384..e48096521 100644
+--- a/docs/README-ngage.md
++++ b/docs/README-ngage.md
+@@ -1,44 +1,44 @@
+-Nokia N-Gage
+-============
+-
+-SDL2 port for Symbian S60v1 and v2 with a main focus on the Nokia N-Gage
+-(Classic and QD) by [Michael Fitzmayer](https://github.com/mupfdev).
+-
+-Compiling
+----------
+-
+-SDL is part of the [N-Gage SDK.](https://github.com/ngagesdk) project.
+-The library is included in the
+-[toolchain](https://github.com/ngagesdk/ngage-toolchain) as a
+-sub-module.
+-
+-A complete example project based on SDL2 can be found in the GitHub
+-account of the SDK: [Wordle](https://github.com/ngagesdk/wordle).
+-
+-Current level of implementation
+--------------------------------
+-
+-The video driver currently provides full screen video support with
+-keyboard input.
+-
+-At the moment only the software renderer works.
+-
+-Audio is not yet implemented.
+-
+-Acknowledgements
+-----------------
+-
+-Thanks to Hannu Viitala, Kimmo Kinnunen and Markus Mertama for the
+-valuable insight into Symbian programming.  Without the SDL 1.2 port
+-which was specially developed for CDoom (Doom for the Nokia 9210), this
+-adaptation would not have been possible.
+-
+-I would like to thank my friends
+-[Razvan](https://twitter.com/bewarerazvan) and [Dan
+-Whelan](https://danwhelan.ie/), for their continuous support.  Without
+-you and the [N-Gage community](https://discord.gg/dbUzqJ26vs), I would
+-have lost my patience long ago.
+-
+-Last but not least, I would like to thank the development team of
+-[EKA2L1](https://12z1.com/) (an experimental Symbian OS emulator). Your
+-patience and support in troubleshooting helped me a lot.
++Nokia N-Gage
++============
++
++SDL2 port for Symbian S60v1 and v2 with a main focus on the Nokia N-Gage
++(Classic and QD) by [Michael Fitzmayer](https://github.com/mupfdev).
++
++Compiling
++---------
++
++SDL is part of the [N-Gage SDK.](https://github.com/ngagesdk) project.
++The library is included in the
++[toolchain](https://github.com/ngagesdk/ngage-toolchain) as a
++sub-module.
++
++A complete example project based on SDL2 can be found in the GitHub
++account of the SDK: [Wordle](https://github.com/ngagesdk/wordle).
++
++Current level of implementation
++-------------------------------
++
++The video driver currently provides full screen video support with
++keyboard input.
++
++At the moment only the software renderer works.
++
++Audio is not yet implemented.
++
++Acknowledgements
++----------------
++
++Thanks to Hannu Viitala, Kimmo Kinnunen and Markus Mertama for the
++valuable insight into Symbian programming.  Without the SDL 1.2 port
++which was specially developed for CDoom (Doom for the Nokia 9210), this
++adaptation would not have been possible.
++
++I would like to thank my friends
++[Razvan](https://twitter.com/bewarerazvan) and [Dan
++Whelan](https://danwhelan.ie/), for their continuous support.  Without
++you and the [N-Gage community](https://discord.gg/dbUzqJ26vs), I would
++have lost my patience long ago.
++
++Last but not least, I would like to thank the development team of
++[EKA2L1](https://12z1.com/) (an experimental Symbian OS emulator). Your
++patience and support in troubleshooting helped me a lot.
+diff --git a/docs/README-os2.md b/docs/README-os2.md
+index 1815b944d..46a4636fd 100644
+--- a/docs/README-os2.md
++++ b/docs/README-os2.md
+@@ -1,92 +1,92 @@
+-Simple DirectMedia Layer 2 for OS/2 & eComStation
+-================================================================================
+-SDL port for OS/2, authored by Andrey Vasilkin <digi@os2.snc.ru>, 2016
+-
+-
+-OpenGL and audio capture not supported by this port.
+-
+-Additional optional environment variables:
+-
+-SDL_AUDIO_SHARE
+-  Values: 0 or 1, default is 0
+-  Initializes the device as shareable or exclusively acquired.
+-
+-SDL_VIDEODRIVER
+-  Values: DIVE or VMAN, default is DIVE
+-  Use video subsystem: Direct interface video extensions (DIVE) or
+-  Video Manager (VMAN).
+-
+-You may significantly increase video output speed with OS4 kernel and patched
+-files vman.dll and dive.dll or with latest versions of ACPI support and video
+-driver Panorama.
+-
+-Latest versions of OS/4 kernel:
+-  http://gus.biysk.ru/os4/
+- (Info: https://www.os2world.com/wiki/index.php/Phoenix_OS/4)
+-
+-Patched files vman.dll and dive.dll:
+-  http://gus.biysk.ru/os4/test/pached_dll/PATCHED_DLL.RAR
+-
+-
+-Compiling:
+-----------
+-
+-Open Watcom 1.9 or newer is tested. For the new Open Watcom V2 fork, see:
+-https://github.com/open-watcom/ and https://open-watcom.github.io
+-WATCOM environment variable must to be set to the Open Watcom install
+-directory. To compile, run: wmake -f Makefile.os2
+-
+-
+-Installing:
+------------
+-
+-- eComStation:
+-
+-  If you have previously installed SDL2, make a Backup copy of SDL2.dll
+-  located in D:\ecs\dll (where D: is disk on which installed eComStation).
+-  Stop all programs running with SDL2. Copy SDL2.dll to D:\ecs\dll
+-
+-- OS/2:
+-
+-  Copy SDL2.dll to any directory on your LIBPATH.  If you have a previous
+-  version installed, close all SDL2 applications before replacing the old
+-  copy.  Also make sure that any other older versions of DLLs are removed
+-  from your system.
+-
+-
+-Joysticks in SDL2:
+-------------------
+-
+-The joystick code in SDL2 is a direct forward-port from the SDL-1.2 version.
+-Here is the original documentation from SDL-1.2:
+-
+-The Joystick detection only works for standard joysticks (2 buttons, 2 axes
+-and the like). Therefore, if you use a non-standard joystick, you should
+-specify its features in the SDL_OS2_JOYSTICK environment variable in a batch
+-file or CONFIG.SYS, so SDL applications can provide full capability to your
+-device. The syntax is:
+-
+-SET SDL_OS2_JOYSTICK=[JOYSTICK_NAME] [AXES] [BUTTONS] [HATS] [BALLS]
+-
+-So, it you have a Gravis GamePad with 4 axes, 2 buttons, 2 hats and 0 balls,
+-the line should be:
+-
+-SET SDL_OS2_JOYSTICK=Gravis_GamePad 4 2 2 0
+-
+-If you want to add spaces in your joystick name, just surround it with
+-quotes or double-quotes:
+-
+-SET SDL_OS2_JOYSTICK='Gravis GamePad' 4 2 2 0
+-
+-or
+-
+-SET SDL_OS2_JOYSTICK="Gravis GamePad" 4 2 2 0
+-
+-   Note however that Balls and Hats are not supported under OS/2, and the
+-value will be ignored... but it is wise to define these correctly because
+-in the future those can be supported.
+-
+-   Also the number of buttons is limited to 2 when using two joysticks,
+-4 when using one joystick with 4 axes, 6 when using a joystick with 3 axes
+-and 8 when using a joystick with 2 axes. Notice however these are limitations
+-of the Joystick Port hardware, not OS/2.
++Simple DirectMedia Layer 2 for OS/2 & eComStation
++================================================================================
++SDL port for OS/2, authored by Andrey Vasilkin <digi@os2.snc.ru>, 2016
++
++
++OpenGL and audio capture not supported by this port.
++
++Additional optional environment variables:
++
++SDL_AUDIO_SHARE
++  Values: 0 or 1, default is 0
++  Initializes the device as shareable or exclusively acquired.
++
++SDL_VIDEODRIVER
++  Values: DIVE or VMAN, default is DIVE
++  Use video subsystem: Direct interface video extensions (DIVE) or
++  Video Manager (VMAN).
++
++You may significantly increase video output speed with OS4 kernel and patched
++files vman.dll and dive.dll or with latest versions of ACPI support and video
++driver Panorama.
++
++Latest versions of OS/4 kernel:
++  http://gus.biysk.ru/os4/
++ (Info: https://www.os2world.com/wiki/index.php/Phoenix_OS/4)
++
++Patched files vman.dll and dive.dll:
++  http://gus.biysk.ru/os4/test/pached_dll/PATCHED_DLL.RAR
++
++
++Compiling:
++----------
++
++Open Watcom 1.9 or newer is tested. For the new Open Watcom V2 fork, see:
++https://github.com/open-watcom/ and https://open-watcom.github.io
++WATCOM environment variable must to be set to the Open Watcom install
++directory. To compile, run: wmake -f Makefile.os2
++
++
++Installing:
++-----------
++
++- eComStation:
++
++  If you have previously installed SDL2, make a Backup copy of SDL2.dll
++  located in D:\ecs\dll (where D: is disk on which installed eComStation).
++  Stop all programs running with SDL2. Copy SDL2.dll to D:\ecs\dll
++
++- OS/2:
++
++  Copy SDL2.dll to any directory on your LIBPATH.  If you have a previous
++  version installed, close all SDL2 applications before replacing the old
++  copy.  Also make sure that any other older versions of DLLs are removed
++  from your system.
++
++
++Joysticks in SDL2:
++------------------
++
++The joystick code in SDL2 is a direct forward-port from the SDL-1.2 version.
++Here is the original documentation from SDL-1.2:
++
++The Joystick detection only works for standard joysticks (2 buttons, 2 axes
++and the like). Therefore, if you use a non-standard joystick, you should
++specify its features in the SDL_OS2_JOYSTICK environment variable in a batch
++file or CONFIG.SYS, so SDL applications can provide full capability to your
++device. The syntax is:
++
++SET SDL_OS2_JOYSTICK=[JOYSTICK_NAME] [AXES] [BUTTONS] [HATS] [BALLS]
++
++So, it you have a Gravis GamePad with 4 axes, 2 buttons, 2 hats and 0 balls,
++the line should be:
++
++SET SDL_OS2_JOYSTICK=Gravis_GamePad 4 2 2 0
++
++If you want to add spaces in your joystick name, just surround it with
++quotes or double-quotes:
++
++SET SDL_OS2_JOYSTICK='Gravis GamePad' 4 2 2 0
++
++or
++
++SET SDL_OS2_JOYSTICK="Gravis GamePad" 4 2 2 0
++
++   Note however that Balls and Hats are not supported under OS/2, and the
++value will be ignored... but it is wise to define these correctly because
++in the future those can be supported.
++
++   Also the number of buttons is limited to 2 when using two joysticks,
++4 when using one joystick with 4 axes, 6 when using a joystick with 3 axes
++and 8 when using a joystick with 2 axes. Notice however these are limitations
++of the Joystick Port hardware, not OS/2.
+diff --git a/docs/README-pandora.md b/docs/README-pandora.md
+index a0277634b..68ea774e5 100644
+--- a/docs/README-pandora.md
++++ b/docs/README-pandora.md
+@@ -1,4 +1,4 @@
+-Pandora 
++Pandora
+ =====================================================================
+ 
+ ( http://openpandora.org/ )
+diff --git a/docs/README-ps2.md b/docs/README-ps2.md
+index b27b57d1a..f422da9ed 100644
+--- a/docs/README-ps2.md
++++ b/docs/README-ps2.md
+@@ -33,7 +33,7 @@ int main(int argc, char *argv[])
+ {
+ .....
+ ```
+-For a release binary is recommendable to reset the IOP always. 
++For a release binary is recommendable to reset the IOP always.
+ 
+ Remember to do a clean compilation everytime you enable or disable the `SDL_PS2_SKIP_IOP_RESET` otherwise the change won't be reflected.
+ 
+@@ -48,4 +48,4 @@ Remember to do a clean compilation everytime you enable or disable the `SDL_PS2_
+ ## To Do
+ - PS2 Screen Keyboard
+ - Dialogs
+-- Others
+\ No newline at end of file
++- Others
+diff --git a/docs/README-psp.md b/docs/README-psp.md
+index 0c84f866b..96ecd762d 100644
+--- a/docs/README-psp.md
++++ b/docs/README-psp.md
+@@ -1,7 +1,7 @@
+ PSP
+ ======
+ SDL2 port for the Sony PSP contributed by:
+-- Captian Lex 
++- Captian Lex
+ - Francisco Javier Trujillo Mata
+ - Wouter Wijsman
+ 
+@@ -33,4 +33,4 @@ cmake --install build
+ 
+ ## To Do
+ - PSP Screen Keyboard
+-- Dialogs
+\ No newline at end of file
++- Dialogs
+diff --git a/docs/README-raspberrypi.md b/docs/README-raspberrypi.md
+index d2eddb862..7f9bfb19a 100644
+--- a/docs/README-raspberrypi.md
++++ b/docs/README-raspberrypi.md
+@@ -20,9 +20,9 @@ Raspbian Build Dependencies
+ 
+ sudo apt-get install libudev-dev libasound2-dev libdbus-1-dev
+ 
+-You also need the VideoCore binary stuff that ships in /opt/vc for EGL and 
++You also need the VideoCore binary stuff that ships in /opt/vc for EGL and
+ OpenGL ES 2.x, it usually comes pre-installed, but in any case:
+-    
++
+ sudo apt-get install libraspberrypi0 libraspberrypi-bin libraspberrypi-dev
+ 
+ 
+@@ -45,7 +45,7 @@ will be placed in /opt/rpi-tools
+     sudo git clone --depth 1 https://github.com/raspberrypi/tools /opt/rpi-tools
+ 
+ You'll also need a Raspbian binary image.
+-Get it from: http://downloads.raspberrypi.org/raspbian_latest 
++Get it from: http://downloads.raspberrypi.org/raspbian_latest
+ After unzipping, you'll get file with a name like: "<date>-wheezy-raspbian.img"
+ Let's assume the sysroot will be built in /opt/rpi-sysroot.
+ 
+@@ -69,8 +69,8 @@ edit $SYSROOT/etc/ld.so.preload and comment out all lines in it.
+     sudo umount $SYSROOT/proc
+     sudo umount $SYSROOT/sys
+     sudo umount /mnt
+-    
+-There's one more fix required, as the libdl.so symlink uses an absolute path 
++
++There's one more fix required, as the libdl.so symlink uses an absolute path
+ which doesn't quite work in our setup.
+ 
+     sudo rm -rf $SYSROOT/usr/lib/arm-linux-gnueabihf/libdl.so
+@@ -86,13 +86,13 @@ The final step is compiling SDL itself.
+     make install
+ 
+ To be able to deploy this to /usr/local in the Raspbian system you need to fix up a few paths:
+-    
++
+     perl -w -pi -e "s#$PWD/rpi-sdl2-installed#/usr/local#g;" ./rpi-sdl2-installed/lib/libSDL2.la ./rpi-sdl2-installed/lib/pkgconfig/sdl2.pc ./rpi-sdl2-installed/bin/sdl2-config
+-    
++
+ Apps don't work or poor video/audio performance
+ -----------------------------------------------
+ 
+-If you get sound problems, buffer underruns, etc, run "sudo rpi-update" to 
++If you get sound problems, buffer underruns, etc, run "sudo rpi-update" to
+ update the RPi's firmware. Note that doing so will fix these problems, but it
+ will also render the CMA - Dynamic Memory Split functionality useless.
+ 
+@@ -101,7 +101,7 @@ low in general, specially if a 1080p TV is hooked up.
+ 
+ See here how to configure this setting: http://elinux.org/RPiconfig
+ 
+-Using a fixed gpu_mem=128 is the best option (specially if you updated the 
++Using a fixed gpu_mem=128 is the best option (specially if you updated the
+ firmware, using CMA probably won't work, at least it's the current case).
+ 
+ No input
+@@ -115,9 +115,9 @@ No HDMI Audio
+ -------------
+ 
+ If you notice that ALSA works but there's no audio over HDMI, try adding:
+-    
++
+     hdmi_drive=2
+-    
++
+ to your config.txt file and reboot.
+ 
+ Reference: http://www.raspberrypi.org/phpBB3/viewtopic.php?t=5062
+@@ -129,7 +129,7 @@ The Text Input API is supported, with translation of scan codes done via the
+ kernel symbol tables. For this to work, SDL needs access to a valid console.
+ If you notice there's no SDL_TEXTINPUT message being emitted, double check that
+ your app has read access to one of the following:
+-    
++
+ * /proc/self/fd/0
+ * /dev/tty
+ * /dev/tty[0...6]
+@@ -137,17 +137,17 @@ your app has read access to one of the following:
+ * /dev/console
+ 
+ This is usually not a problem if you run from the physical terminal (as opposed
+-to running from a pseudo terminal, such as via SSH). If running from a PTS, a 
++to running from a pseudo terminal, such as via SSH). If running from a PTS, a
+ quick workaround is to run your app as root or add yourself to the tty group,
+ then re-login to the system.
+ 
+     sudo usermod -aG tty `whoami`
+-    
++
+ The keyboard layout used by SDL is the same as the one the kernel uses.
+ To configure the layout on Raspbian:
+-    
++
+     sudo dpkg-reconfigure keyboard-configuration
+-    
++
+ To configure the locale, which controls which keys are interpreted as letters,
+ this determining the CAPS LOCK behavior:
+ 
+@@ -157,9 +157,9 @@ this determining the CAPS LOCK behavior:
+ OpenGL problems
+ ---------------
+ 
+-If you have desktop OpenGL headers installed at build time in your RPi or cross 
+-compilation environment, support for it will be built in. However, the chipset 
+-does not actually have support for it, which causes issues in certain SDL apps 
++If you have desktop OpenGL headers installed at build time in your RPi or cross
++compilation environment, support for it will be built in. However, the chipset
++does not actually have support for it, which causes issues in certain SDL apps
+ since the presence of OpenGL support supersedes the ES/ES2 variants.
+ The workaround is to disable OpenGL at configuration time:
+ 
+@@ -176,5 +176,5 @@ Notes
+ * When launching apps remotely (via SSH), SDL can prevent local keystrokes from
+   leaking into the console only if it has root privileges. Launching apps locally
+   does not suffer from this issue.
+-  
++
+ 
+diff --git a/docs/README-riscos.md b/docs/README-riscos.md
+index 76b27e0aa..e4e056b3b 100644
+--- a/docs/README-riscos.md
++++ b/docs/README-riscos.md
+@@ -1,41 +1,41 @@
+-RISC OS
+-=======
+-
+-Requirements:
+-
+-* RISC OS 3.5 or later.
+-* [SharedUnixLibrary](http://www.riscos.info/packages/LibraryDetails.html#SharedUnixLibraryarm).
+-* [DigitalRenderer](http://www.riscos.info/packages/LibraryDetails.html#DRendererarm), for audio support.
+-* [Iconv](http://www.netsurf-browser.org/projects/iconv/), for `SDL_iconv` and related functions.
+-
+-
+-Compiling:
+-----------
+-
+-Currently, SDL2 for RISC OS only supports compiling with GCCSDK under Linux. Both the autoconf and CMake build systems are supported.
+-
+-The following commands can be used to build SDL2 for RISC OS using autoconf:
+-
+-    ./configure --host=arm-unknown-riscos --prefix=$GCCSDK_INSTALL_ENV --disable-gcc-atomics
+-    make
+-    make install
+-
+-The following commands can be used to build SDL2 for RISC OS using CMake:
+-
+-    cmake -Bbuild-riscos -DCMAKE_TOOLCHAIN_FILE=$GCCSDK_INSTALL_ENV/toolchain-riscos.cmake -DRISCOS=ON -DCMAKE_INSTALL_PREFIX=$GCCSDK_INSTALL_ENV -DCMAKE_BUILD_TYPE=Release -DSDL_GCC_ATOMICS=OFF
+-    cmake --build build-riscos
+-    cmake --build build-riscos --target install
+-
+-
+-Current level of implementation
+--------------------------------
+-
+-The video driver currently provides full screen video support with keyboard and mouse input. Windowed mode is not yet supported, but is planned in the future. Only software rendering is supported.
+-
+-The filesystem APIs return either Unix-style paths or RISC OS-style paths based on the value of the `__riscosify_control` symbol, as is standard for UnixLib functions.
+-
+-The audio, loadso, thread and timer APIs are currently provided by UnixLib.
+-
+-GCC atomics are currently broken on some platforms, meaning it's currently necessary to compile with `--disable-gcc-atomics` using autotools or `-DSDL_GCC_ATOMICS=OFF` using CMake.
+-
+-The joystick, locale and power APIs are not yet implemented.
++RISC OS
++=======
++
++Requirements:
++
++* RISC OS 3.5 or later.
++* [SharedUnixLibrary](http://www.riscos.info/packages/LibraryDetails.html#SharedUnixLibraryarm).
++* [DigitalRenderer](http://www.riscos.info/packages/LibraryDetails.html#DRendererarm), for audio support.
++* [Iconv](http://www.netsurf-browser.org/projects/iconv/), for `SDL_iconv` and related functions.
++
++
++Compiling:
++----------
++
++Currently, SDL2 for RISC OS only supports compiling with GCCSDK under Linux. Both the autoconf and CMake build systems are supported.
++
++The following commands can be used to build SDL2 for RISC OS using autoconf:
++
++    ./configure --host=arm-unknown-riscos --prefix=$GCCSDK_INSTALL_ENV --disable-gcc-atomics
++    make
++    make install
++
++The following commands can be used to build SDL2 for RISC OS using CMake:
++
++    cmake -Bbuild-riscos -DCMAKE_TOOLCHAIN_FILE=$GCCSDK_INSTALL_ENV/toolchain-riscos.cmake -DRISCOS=ON -DCMAKE_INSTALL_PREFIX=$GCCSDK_INSTALL_ENV -DCMAKE_BUILD_TYPE=Release -DSDL_GCC_ATOMICS=OFF
++    cmake --build build-riscos
++    cmake --build build-riscos --target install
++
++
++Current level of implementation
++-------------------------------
++
++The video driver currently provides full screen video support with keyboard and mouse input. Windowed mode is not yet supported, but is planned in the future. Only software rendering is supported.
++
++The filesystem APIs return either Unix-style paths or RISC OS-style paths based on the value of the `__riscosify_control` symbol, as is standard for UnixLib functions.
++
++The audio, loadso, thread and timer APIs are currently provided by UnixLib.
++
++GCC atomics are currently broken on some platforms, meaning it's currently necessary to compile with `--disable-gcc-atomics` using autotools or `-DSDL_GCC_ATOMICS=OFF` using CMake.
++
++The joystick, locale and power APIs are not yet implemented.
+diff --git a/docs/README-touch.md b/docs/README-touch.md
+index 09188b81d..66c1b2b32 100644
+--- a/docs/README-touch.md
++++ b/docs/README-touch.md
+@@ -8,7 +8,7 @@ The linux touch system is currently based off event streams, and proc/bus/device
+ Mac:
+ The Mac and iPhone APIs are pretty. If your touch device supports them then you'll be fine. If it doesn't, then there isn't much we can do.
+ 
+-iPhone: 
++iPhone:
+ Works out of box.
+ 
+ Windows:
+diff --git a/docs/README-versions.md b/docs/README-versions.md
+index 097dba1c7..d54bf40c1 100644
+--- a/docs/README-versions.md
++++ b/docs/README-versions.md
+@@ -1,60 +1,60 @@
+-# Versioning
+-
+-## Since 2.23.0
+-
+-SDL follows an "odd/even" versioning policy, similar to GLib, GTK, Flatpak
+-and older versions of the Linux kernel:
+-
+-* The major version (first part) increases when backwards compatibility
+-    is broken, which will happen infrequently.
+-
+-* If the minor version (second part) is divisible by 2
+-    (for example 2.24.x, 2.26.x), this indicates a version of SDL that
+-    is believed to be stable and suitable for production use.
+-
+-    * In stable releases, the patchlevel or micro version (third part)
+-        indicates bugfix releases. Bugfix releases should not add or
+-        remove ABI, so the ".0" release (for example 2.24.0) should be
+-        forwards-compatible with all the bugfix releases from the
+-        same cycle (for example 2.24.1).
+-
+-    * The minor version increases when new API or ABI is added, or when
+-        other significant changes are made. Newer minor versions are
+-        backwards-compatible, but not fully forwards-compatible.
+-        For example, programs built against SDL 2.24.x should work fine
+-        with SDL 2.26.x, but programs built against SDL 2.26.x will not
+-        necessarily work with 2.24.x.
+-
+-* If the minor version (second part) is not divisible by 2
+-    (for example 2.23.x, 2.25.x), this indicates a development prerelease
+-    of SDL that is not suitable for stable software distributions.
+-    Use with caution.
+-
+-    * The patchlevel or micro version (third part) increases with
+-        each prerelease.
+-
+-    * Each prerelease might add new API and/or ABI.
+-
+-    * Prereleases are backwards-compatible with older stable branches.
+-        For example, 2.25.x will be backwards-compatible with 2.24.x.
+-
+-    * Prereleases are not guaranteed to be backwards-compatible with
+-        each other. For example, new API or ABI added in 2.25.1
+-        might be removed or changed in 2.25.2.
+-        If this would be a problem for you, please do not use prereleases.
+-
+-    * Only upgrade to a prerelease if you can guarantee that you will
+-        promptly upgrade to the stable release that follows it.
+-        For example, do not upgrade to 2.23.x unless you will be able to
+-        upgrade to 2.24.0 when it becomes available.
+-
+-    * Software distributions that have a freeze policy (in particular Linux
+-        distributions with a release cycle, such as Debian and Fedora)
+-        should usually only package stable releases, and not prereleases.
+-
+-## Before 2.23.0
+-
+-Older versions of SDL followed a similar policy, but instead of the
+-odd/even rule applying to the minor version, it applied to the patchlevel
+-(micro version, third part). For example, 2.0.22 was a stable release
+-and 2.0.21 was a prerelease.
++# Versioning
++
++## Since 2.23.0
++
++SDL follows an "odd/even" versioning policy, similar to GLib, GTK, Flatpak
++and older versions of the Linux kernel:
++
++* The major version (first part) increases when backwards compatibility
++    is broken, which will happen infrequently.
++
++* If the minor version (second part) is divisible by 2
++    (for example 2.24.x, 2.26.x), this indicates a version of SDL that
++    is believed to be stable and suitable for production use.
++
++    * In stable releases, the patchlevel or micro version (third part)
++        indicates bugfix releases. Bugfix releases should not add or
++        remove ABI, so the ".0" release (for example 2.24.0) should be
++        forwards-compatible with all the bugfix releases from the
++        same cycle (for example 2.24.1).
++
++    * The minor version increases when new API or ABI is added, or when
++        other significant changes are made. Newer minor versions are
++        backwards-compatible, but not fully forwards-compatible.
++        For example, programs built against SDL 2.24.x should work fine
++        with SDL 2.26.x, but programs built against SDL 2.26.x will not
++        necessarily work with 2.24.x.
++
++* If the minor version (second part) is not divisible by 2
++    (for example 2.23.x, 2.25.x), this indicates a development prerelease
++    of SDL that is not suitable for stable software distributions.
++    Use with caution.
++
++    * The patchlevel or micro version (third part) increases with
++        each prerelease.
++
++    * Each prerelease might add new API and/or ABI.
++
++    * Prereleases are backwards-compatible with older stable branches.
++        For example, 2.25.x will be backwards-compatible with 2.24.x.
++
++    * Prereleases are not guaranteed to be backwards-compatible with
++        each other. For example, new API or ABI added in 2.25.1
++        might be removed or changed in 2.25.2.
++        If this would be a problem for you, please do not use prereleases.
++
++    * Only upgrade to a prerelease if you can guarantee that you will
++        promptly upgrade to the stable release that follows it.
++        For example, do not upgrade to 2.23.x unless you will be able to
++        upgrade to 2.24.0 when it becomes available.
++
++    * Software distributions that have a freeze policy (in particular Linux
++        distributions with a release cycle, such as Debian and Fedora)
++        should usually only package stable releases, and not prereleases.
++
++## Before 2.23.0
++
++Older versions of SDL followed a similar policy, but instead of the
++odd/even rule applying to the minor version, it applied to the patchlevel
++(micro version, third part). For example, 2.0.22 was a stable release
++and 2.0.21 was a prerelease.
+diff --git a/docs/README-visualc.md b/docs/README-visualc.md
+index 759752a56..fd34b35e1 100644
+--- a/docs/README-visualc.md
++++ b/docs/README-visualc.md
+@@ -1,114 +1,114 @@
+-Using SDL with Microsoft Visual C++
+-===================================
+-
+-### by Lion Kimbro with additions by James Turk
+-
+-You can either use the precompiled libraries from the [SDL](https://www.libsdl.org/download.php) web site, or you can build SDL
+-yourself.
+-
+-### Building SDL
+-
+-0. To build SDL, your machine must, at a minimum, have the DirectX9.0c SDK installed. It may or may not be retrievable from
+-the [Microsoft](https://www.microsoft.com) website, so you might need to locate it [online](https://duckduckgo.com/?q=directx9.0c+sdk+download&t=h_&ia=web).
+-_Editor's note: I've been able to successfully build SDL using Visual Studio 2019 **without** the DX9.0c SDK_
+-
+-1. Open the Visual Studio solution file at `./VisualC/SDL.sln`.
+-
+-2. Your IDE will likely prompt you to upgrade this solution file to whatever later version of the IDE you're using. In the `Retarget Projects` dialog,
+-all of the affected project files should be checked allowing you to use the latest `Windows SDK Version` you have installed, along with
+-the `Platform Toolset`.
+-   
+-If you choose *NOT* to upgrade to use the latest `Windows SDK Version` or `Platform Toolset`, then you'll need the `Visual Studio 2010 Platform Toolset`.
+-
+-3. Build the `.dll` and `.lib` files by right clicking on each project in turn (Projects are listed in the _Workspace_ 
+-panel in the _FileView_ tab), and selecting `Build`.
+-
+-You may get a few warnings, but you should not get any errors.
+-
+-Later, we will refer to the following `.lib` and `.dll` files that have just been generated:
+-
+--   `./VisualC/Win32/Debug/SDL2.dll` or `./VisualC/Win32/Release/SDL2.dll`
+--   `./VisualC/Win32/Debug/SDL2.lib` or `./VisualC/Win32/Release/SDL2.lib`
+--   `./VisualC/Win32/Debug/SDL2main.lib` or `./VisualC/Win32/Release/SDL2main.lib`
+-
+-_Note for the `x64` versions, just replace `Win32` in the path with `x64`_
+-
+-### Creating a Project with SDL
+-
+-- Create a project as a `Win32 Application`.
+-
+-- Create a C++ file for your project.
+-
+-- Set the C runtime to `Multi-threaded DLL` in the menu:
+-`Project|Settings|C/C++                  tab|Code Generation|Runtime Library `.
+-
+-- Add the SDL `include` directory to your list of includes in the menu:
+-`Project|Settings|C/C++ tab|Preprocessor|Additional include directories `
+-
+-*VC7 Specific: Instead of doing this, I find it easier to add the
+-include and library directories to the list that VC7 keeps. Do this by
+-selecting Tools|Options|Projects|VC++ Directories and under the "Show
+-Directories For:" dropbox select "Include Files", and click the "New
+-Directory Icon" and add the [SDLROOT]\\include directory (e.g. If you
+-installed to c:\\SDL\\ add c:\\SDL\\include). Proceed to change the
+-dropbox selection to "Library Files" and add [SDLROOT]\\lib.*
+-
+-The "include directory" I am referring to is the `./include` folder.
+-
+-Now we're going to use the files that we had created earlier in the *Build SDL* step.
+-
+-Copy the following file into your Project directory:
+-
+--   `SDL2.dll`
+-
+-Add the following files to your project (It is not necessary to copy them to your project directory):
+-
+--   `SDL2.lib`
+--   `SDL2main.lib`
+-
+-To add them to your project, right click on your project, and select
+-`Add files to project`.
+-
+-**Instead of adding the files to your project, it is more desirable to add them to the linker options: Project|Properties|Linker|Command Line
+-and type the names of the libraries to link with in the "Additional Options:" box. Note: This must be done for each build configuration
+-(e.g. Release,Debug).**
+-
+-### Hello SDL2
+-
+-Here's a sample SDL snippet to verify everything is setup in your IDE:
+-
+-```
+-    #include "SDL.h"
+-
+-    int main( int argc, char* argv[] )
+-    {
+-        const int WIDTH = 640;
+-        const int HEIGHT = 480;
+-        SDL_Window* window = NULL;
+-        SDL_Renderer* renderer = NULL;
+-
+-        SDL_Init(SDL_INIT_VIDEO);
+-        window = SDL_CreateWindow("SDL2 Test", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, WIDTH, HEIGHT, SDL_WINDOW_SHOWN);
+-        renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+- 
+-        SDL_DestroyRenderer(renderer);
+-        SDL_DestroyWindow(window);
+-        SDL_Quit();
+-        return 0;
+-    }
+- ```               
+-
+-### That's it!
+-
+-I hope that this document has helped you get through the most difficult part of using the SDL: installing it. 
+-Suggestions for improvements should be posted to the [Github Issues](https://github.com/libsdl-org/SDL/issues).
+-
+-### Credits
+-
+-Thanks to [Paulus Esterhazy](mailto:pesterhazy@gmx.net), for the work on VC++ port.
+-
+-This document was originally called "VisualC.txt", and was written by [Sam Lantinga](mailto:slouken@libsdl.org).
+-
+-Later, it was converted to HTML and expanded into the document that you see today by [Lion Kimbro](mailto:snowlion@sprynet.com).
+-
+-Minor Fixes and Visual C++ 7 Information (In Green) was added by [James Turk](mailto:james@conceptofzero.net)
++Using SDL with Microsoft Visual C++
++===================================
++
++### by Lion Kimbro with additions by James Turk
++
++You can either use the precompiled libraries from the [SDL](https://www.libsdl.org/download.php) web site, or you can build SDL
++yourself.
++
++### Building SDL
++
++0. To build SDL, your machine must, at a minimum, have the DirectX9.0c SDK installed. It may or may not be retrievable from
++the [Microsoft](https://www.microsoft.com) website, so you might need to locate it [online](https://duckduckgo.com/?q=directx9.0c+sdk+download&t=h_&ia=web).
++_Editor's note: I've been able to successfully build SDL using Visual Studio 2019 **without** the DX9.0c SDK_
++
++1. Open the Visual Studio solution file at `./VisualC/SDL.sln`.
++
++2. Your IDE will likely prompt you to upgrade this solution file to whatever later version of the IDE you're using. In the `Retarget Projects` dialog,
++all of the affected project files should be checked allowing you to use the latest `Windows SDK Version` you have installed, along with
++the `Platform Toolset`.
++
++If you choose *NOT* to upgrade to use the latest `Windows SDK Version` or `Platform Toolset`, then you'll need the `Visual Studio 2010 Platform Toolset`.
++
++3. Build the `.dll` and `.lib` files by right clicking on each project in turn (Projects are listed in the _Workspace_
++panel in the _FileView_ tab), and selecting `Build`.
++
++You may get a few warnings, but you should not get any errors.
++
++Later, we will refer to the following `.lib` and `.dll` files that have just been generated:
++
++-   `./VisualC/Win32/Debug/SDL2.dll` or `./VisualC/Win32/Release/SDL2.dll`
++-   `./VisualC/Win32/Debug/SDL2.lib` or `./VisualC/Win32/Release/SDL2.lib`
++-   `./VisualC/Win32/Debug/SDL2main.lib` or `./VisualC/Win32/Release/SDL2main.lib`
++
++_Note for the `x64` versions, just replace `Win32` in the path with `x64`_
++
++### Creating a Project with SDL
++
++- Create a project as a `Win32 Application`.
++
++- Create a C++ file for your project.
++
++- Set the C runtime to `Multi-threaded DLL` in the menu:
++`Project|Settings|C/C++                  tab|Code Generation|Runtime Library `.
++
++- Add the SDL `include` directory to your list of includes in the menu:
++`Project|Settings|C/C++ tab|Preprocessor|Additional include directories `
++
++*VC7 Specific: Instead of doing this, I find it easier to add the
++include and library directories to the list that VC7 keeps. Do this by
++selecting Tools|Options|Projects|VC++ Directories and under the "Show
++Directories For:" dropbox select "Include Files", and click the "New
++Directory Icon" and add the [SDLROOT]\\include directory (e.g. If you
++installed to c:\\SDL\\ add c:\\SDL\\include). Proceed to change the
++dropbox selection to "Library Files" and add [SDLROOT]\\lib.*
++
++The "include directory" I am referring to is the `./include` folder.
++
++Now we're going to use the files that we had created earlier in the *Build SDL* step.
++
++Copy the following file into your Project directory:
++
++-   `SDL2.dll`
++
++Add the following files to your project (It is not necessary to copy them to your project directory):
++
++-   `SDL2.lib`
++-   `SDL2main.lib`
++
++To add them to your project, right click on your project, and select
++`Add files to project`.
++
++**Instead of adding the files to your project, it is more desirable to add them to the linker options: Project|Properties|Linker|Command Line
++and type the names of the libraries to link with in the "Additional Options:" box. Note: This must be done for each build configuration
++(e.g. Release,Debug).**
++
++### Hello SDL2
++
++Here's a sample SDL snippet to verify everything is setup in your IDE:
++
++```
++    #include "SDL.h"
++
++    int main( int argc, char* argv[] )
++    {
++        const int WIDTH = 640;
++        const int HEIGHT = 480;
++        SDL_Window* window = NULL;
++        SDL_Renderer* renderer = NULL;
++
++        SDL_Init(SDL_INIT_VIDEO);
++        window = SDL_CreateWindow("SDL2 Test", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, WIDTH, HEIGHT, SDL_WINDOW_SHOWN);
++        renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
++
++        SDL_DestroyRenderer(renderer);
++        SDL_DestroyWindow(window);
++        SDL_Quit();
++        return 0;
++    }
++ ```
++
++### That's it!
++
++I hope that this document has helped you get through the most difficult part of using the SDL: installing it.
++Suggestions for improvements should be posted to the [Github Issues](https://github.com/libsdl-org/SDL/issues).
++
++### Credits
++
++Thanks to [Paulus Esterhazy](mailto:pesterhazy@gmx.net), for the work on VC++ port.
++
++This document was originally called "VisualC.txt", and was written by [Sam Lantinga](mailto:slouken@libsdl.org).
++
++Later, it was converted to HTML and expanded into the document that you see today by [Lion Kimbro](mailto:snowlion@sprynet.com).
++
++Minor Fixes and Visual C++ 7 Information (In Green) was added by [James Turk](mailto:james@conceptofzero.net)
+diff --git a/docs/README-vita.md b/docs/README-vita.md
+index 503fef7d5..3dbaf1cd4 100644
+--- a/docs/README-vita.md
++++ b/docs/README-vita.md
+@@ -1,33 +1,33 @@
+-PS Vita
+-=======
+-SDL port for the Sony Playstation Vita and Sony Playstation TV
+-
+-Credit to
+-* xerpi, cpasjuste and rsn8887 for initial (vita2d) port
+-* vitasdk/dolcesdk devs
+-* CBPS discord (Namely Graphene and SonicMastr)
+-
+-Building
+---------
+-To build for the PSVita, make sure you have vitasdk and cmake installed and run:
+-```
+-   cmake -S. -Bbuild -DCMAKE_TOOLCHAIN_FILE=${VITASDK}/share/vita.toolchain.cmake -DCMAKE_BUILD_TYPE=Release
+-   cmake --build build
+-   cmake --install build
+-```
+-
+-
+-Notes
+------
+-* gles1/gles2 support and renderers are disabled by default and can be enabled by configuring with `-DVIDEO_VITA_PVR=ON`
+-  These renderers support 720p and 1080i resolutions. These can be specified with: 
+-  `SDL_setenv("VITA_RESOLUTION", "720", 1);` and `SDL_setenv("VITA_RESOLUTION", "1080", 1);`
+-* Desktop GL 1.X and 2.X support and renderers are also disabled by default and also can be enabled with `-DVIDEO_VITA_PVR=ON` as long as gl4es4vita is present in your SDK.
+-  They support the same resolutions as the gles1/gles2 backends and require specifying `SDL_setenv("VITA_PVR_OGL", "1", 1);`
+-  anytime before video subsystem initialization.
+-* gles2 support via PIB is disabled by default and can be enabled by configuring with `-DVIDEO_VITA_PIB=ON`
+-* By default SDL emits mouse events for touch events on every touchscreen.  
+-  Vita has two touchscreens, so it's recommended to use `SDL_SetHint(SDL_HINT_TOUCH_MOUSE_EVENTS, "0");` and handle touch events instead.
+-  Individual touchscreens can be disabled with:
+-  `SDL_setenv("VITA_DISABLE_TOUCH_FRONT", "1", 1);` and `SDL_setenv("VITA_DISABLE_TOUCH_BACK", "1", 1);`
+-* Support for L2/R2/R3/R3 buttons, haptic feedback and gamepad led only available on PSTV, or when using external ds4 gamepad on vita.
++PS Vita
++=======
++SDL port for the Sony Playstation Vita and Sony Playstation TV
++
++Credit to
++* xerpi, cpasjuste and rsn8887 for initial (vita2d) port
++* vitasdk/dolcesdk devs
++* CBPS discord (Namely Graphene and SonicMastr)
++
++Building
++--------
++To build for the PSVita, make sure you have vitasdk and cmake installed and run:
++```
++   cmake -S. -Bbuild -DCMAKE_TOOLCHAIN_FILE=${VITASDK}/share/vita.toolchain.cmake -DCMAKE_BUILD_TYPE=Release
++   cmake --build build
++   cmake --install build
++```
++
++
++Notes
++-----
++* gles1/gles2 support and renderers are disabled by default and can be enabled by configuring with `-DVIDEO_VITA_PVR=ON`
++  These renderers support 720p and 1080i resolutions. These can be specified with:
++  `SDL_setenv("VITA_RESOLUTION", "720", 1);` and `SDL_setenv("VITA_RESOLUTION", "1080", 1);`
++* Desktop GL 1.X and 2.X support and renderers are also disabled by default and also can be enabled with `-DVIDEO_VITA_PVR=ON` as long as gl4es4vita is present in your SDK.
++  They support the same resolutions as the gles1/gles2 backends and require specifying `SDL_setenv("VITA_PVR_OGL", "1", 1);`
++  anytime before video subsystem initialization.
++* gles2 support via PIB is disabled by default and can be enabled by configuring with `-DVIDEO_VITA_PIB=ON`
++* By default SDL emits mouse events for touch events on every touchscreen.
++  Vita has two touchscreens, so it's recommended to use `SDL_SetHint(SDL_HINT_TOUCH_MOUSE_EVENTS, "0");` and handle touch events instead.
++  Individual touchscreens can be disabled with:
++  `SDL_setenv("VITA_DISABLE_TOUCH_FRONT", "1", 1);` and `SDL_setenv("VITA_DISABLE_TOUCH_BACK", "1", 1);`
++* Support for L2/R2/R3/R3 buttons, haptic feedback and gamepad led only available on PSTV, or when using external ds4 gamepad on vita.
+diff --git a/docs/README-windows.md b/docs/README-windows.md
+index ed0c93e2c..cd29c1f92 100644
+--- a/docs/README-windows.md
++++ b/docs/README-windows.md
+@@ -1,58 +1,58 @@
+-# Windows
+-
+-## LLVM and Intel C++ compiler support
+-
+-SDL will build with the Visual Studio project files with LLVM-based compilers, such as the Intel oneAPI C++
+-compiler, but you'll have to manually add the "-msse3" command line option
+-to at least the SDL_audiocvt.c source file, and possibly others. This may
+-not be necessary if you build SDL with CMake instead of the included Visual
+-Studio solution.
+-
+-Details are here: https://github.com/libsdl-org/SDL/issues/5186
+-
+-
+-## OpenGL ES 2.x support
+-
+-SDL has support for OpenGL ES 2.x under Windows via two alternative
+-implementations.
+-
+-The most straightforward method consists in running your app in a system with
+-a graphic card paired with a relatively recent (as of November of 2013) driver
+-which supports the WGL_EXT_create_context_es2_profile extension. Vendors known
+-to ship said extension on Windows currently include nVidia and Intel.
+-
+-The other method involves using the
+-[ANGLE library](https://code.google.com/p/angleproject/). If an OpenGL ES 2.x
+-context is requested and no WGL_EXT_create_context_es2_profile extension is
+-found, SDL will try to load the libEGL.dll library provided by ANGLE.
+-
+-To obtain the ANGLE binaries, you can either compile from source from
+-https://chromium.googlesource.com/angle/angle or copy the relevant binaries
+-from a recent Chrome/Chromium install for Windows. The files you need are:
+-
+-- libEGL.dll
+-- libGLESv2.dll
+-- d3dcompiler_46.dll (supports Windows Vista or later, better shader
+-  compiler) *or* d3dcompiler_43.dll (supports Windows XP or later)
+-    
+-If you compile ANGLE from source, you can configure it so it does not need the
+-d3dcompiler_* DLL at all (for details on this, see their documentation).
+-However, by default SDL will try to preload the d3dcompiler_46.dll to
+-comply with ANGLE's requirements. If you wish SDL to preload
+-d3dcompiler_43.dll (to support Windows XP) or to skip this step at all, you
+-can use the SDL_HINT_VIDEO_WIN_D3DCOMPILER hint (see SDL_hints.h for more
+-details).
+-
+-Known Bugs:
+-
+-- SDL_GL_SetSwapInterval is currently a no op when using ANGLE. It appears
+-  that there's a bug in the library which prevents the window contents from
+-  refreshing if this is set to anything other than the default value.
+-  
+-## Vulkan Surface Support
+-
+-Support for creating Vulkan surfaces is configured on by default. To disable
+-it change the value of `SDL_VIDEO_VULKAN` to 0 in `SDL_config_windows.h`. You
+-must install the [Vulkan SDK](https://www.lunarg.com/vulkan-sdk/) in order to
+-use Vulkan graphics in your application.
+-
++# Windows
++
++## LLVM and Intel C++ compiler support
++
++SDL will build with the Visual Studio project files with LLVM-based compilers, such as the Intel oneAPI C++
++compiler, but you'll have to manually add the "-msse3" command line option
++to at least the SDL_audiocvt.c source file, and possibly others. This may
++not be necessary if you build SDL with CMake instead of the included Visual
++Studio solution.
++
++Details are here: https://github.com/libsdl-org/SDL/issues/5186
++
++
++## OpenGL ES 2.x support
++
++SDL has support for OpenGL ES 2.x under Windows via two alternative
++implementations.
++
++The most straightforward method consists in running your app in a system with
++a graphic card paired with a relatively recent (as of November of 2013) driver
++which supports the WGL_EXT_create_context_es2_profile extension. Vendors known
++to ship said extension on Windows currently include nVidia and Intel.
++
++The other method involves using the
++[ANGLE library](https://code.google.com/p/angleproject/). If an OpenGL ES 2.x
++context is requested and no WGL_EXT_create_context_es2_profile extension is
++found, SDL will try to load the libEGL.dll library provided by ANGLE.
++
++To obtain the ANGLE binaries, you can either compile from source from
++https://chromium.googlesource.com/angle/angle or copy the relevant binaries
++from a recent Chrome/Chromium install for Windows. The files you need are:
++
++- libEGL.dll
++- libGLESv2.dll
++- d3dcompiler_46.dll (supports Windows Vista or later, better shader
++  compiler) *or* d3dcompiler_43.dll (supports Windows XP or later)
++
++If you compile ANGLE from source, you can configure it so it does not need the
++d3dcompiler_* DLL at all (for details on this, see their documentation).
++However, by default SDL will try to preload the d3dcompiler_46.dll to
++comply with ANGLE's requirements. If you wish SDL to preload
++d3dcompiler_43.dll (to support Windows XP) or to skip this step at all, you
++can use the SDL_HINT_VIDEO_WIN_D3DCOMPILER hint (see SDL_hints.h for more
++details).
++
++Known Bugs:
++
++- SDL_GL_SetSwapInterval is currently a no op when using ANGLE. It appears
++  that there's a bug in the library which prevents the window contents from
++  refreshing if this is set to anything other than the default value.
++
++## Vulkan Surface Support
++
++Support for creating Vulkan surfaces is configured on by default. To disable
++it change the value of `SDL_VIDEO_VULKAN` to 0 in `SDL_config_windows.h`. You
++must install the [Vulkan SDK](https://www.lunarg.com/vulkan-sdk/) in order to
++use Vulkan graphics in your application.
++
+diff --git a/docs/README-winrt.md b/docs/README-winrt.md
+index c05c77e02..f4a91172f 100644
+--- a/docs/README-winrt.md
++++ b/docs/README-winrt.md
+@@ -21,7 +21,7 @@ Requirements
+     (The "Community" editions of Visual C++ do, however, support both
+     desktop/Win32 and WinRT development).
+ * A valid Microsoft account - This requirement is not imposed by SDL, but
+-  rather by Microsoft's Visual C++ toolchain.  This is required to launch or 
++  rather by Microsoft's Visual C++ toolchain.  This is required to launch or
+   debug apps.
+ 
+ 
+@@ -44,8 +44,8 @@ Here is a rough list of what works, and what doesn't:
+     SDL_GetPerformanceFrequency(), etc.)
+   * file I/O via SDL_RWops
+   * mouse input  (unsupported on Windows Phone)
+-  * audio, via SDL's WASAPI backend (if you want to record, your app must 
+-    have "Microphone" capabilities enabled in its manifest, and the user must 
++  * audio, via SDL's WASAPI backend (if you want to record, your app must
++    have "Microphone" capabilities enabled in its manifest, and the user must
+     not have blocked access. Otherwise, capture devices will fail to work,
+     presenting as a device disconnect shortly after opening it.)
+   * .DLL file loading.  Libraries *MUST* be packaged inside applications.  Loading
+@@ -55,7 +55,7 @@ Here is a rough list of what works, and what doesn't:
+     SDL_GameController APIs, and is backed by Microsoft's XInput API.  Please
+     note, however, that Windows limits game-controller support in UWP apps to,
+     "Xbox compatible controllers" (many controllers that work in Win32 apps,
+-    do not work in UWP, due to restrictions in UWP itself.) 
++    do not work in UWP, due to restrictions in UWP itself.)
+   * multi-touch input
+   * app events.  SDL_APP_WILLENTER* and SDL_APP_DIDENTER* events get sent out as
+     appropriate.
+@@ -199,7 +199,7 @@ libraries such that, when the app is built:
+ 
+ 1. each library gets built for the appropriate CPU architecture(s) and WinRT
+    platform(s).
+-2. each library's output, such as .dll files, get copied to the app's build 
++2. each library's output, such as .dll files, get copied to the app's build
+    output.
+ 
+ To set this up for SDL/WinRT, you'll need to run through the following steps:
+@@ -245,12 +245,12 @@ To change these settings:
+ 7. edit the "Additional Include Directories" setting, and add a path to SDL's
+    "include" directory
+ 8. **Optional: to enable compilation of C code:** change the setting for
+-   "Consume Windows Runtime Extension" from "Yes (/ZW)" to "No".  If you're 
+-   working with a completely C++ based project, this step can usually be 
++   "Consume Windows Runtime Extension" from "Yes (/ZW)" to "No".  If you're
++   working with a completely C++ based project, this step can usually be
+    omitted.
+-9. **Optional: to disable precompiled headers (which can produce 
+-   'stdafx.h'-related build errors, if setup incorrectly:** in the left-hand 
+-   list, select "Precompiled Headers", then change the setting for "Precompiled 
++9. **Optional: to disable precompiled headers (which can produce
++   'stdafx.h'-related build errors, if setup incorrectly:** in the left-hand
++   list, select "Precompiled Headers", then change the setting for "Precompiled
+    Header" from "Use (/Yu)" to "Not Using Precompiled Headers".
+ 10. close the dialog, saving settings, by clicking the "OK" button
+ 
+@@ -267,7 +267,7 @@ A few files should be included directly in your app's MSVC project, specifically
+ 
+ To include these files for C/C++ projects:
+ 
+-1. right-click on your project (again, in Visual C++'s Solution Explorer), 
++1. right-click on your project (again, in Visual C++'s Solution Explorer),
+    navigate to "Add", then choose "Existing Item...".
+ 2. navigate to the directory containing SDL's source code, then into its
+    subdirectory, 'src/main/winrt/'.  Select, then add, the following files:
+@@ -282,8 +282,8 @@ To include these files for C/C++ projects:
+ 7. change the setting for "Consume Windows Runtime Extension" to "Yes (/ZW)".
+ 8. click the OK button.  This will close the dialog.
+ 
+-**NOTE: C++/CX compilation is currently required in at least one file of your 
+-app's project.  This is to make sure that Visual C++'s linker builds a 'Windows 
++**NOTE: C++/CX compilation is currently required in at least one file of your
++app's project.  This is to make sure that Visual C++'s linker builds a 'Windows
+ Metadata' file (.winmd) for your app.  Not doing so can lead to build errors.**
+ 
+ For non-C++ projects, you will need to call SDL_WinRTRunApp from your language's
+@@ -293,37 +293,37 @@ first <PropertyGroup> block in your Visual Studio project file.
+ 
+ ### 6. Add app code and assets ###
+ 
+-At this point, you can add in SDL-specific source code.  Be sure to include a 
+-C-style main function (ie: `int main(int argc, char *argv[])`).  From there you 
+-should be able to create a single `SDL_Window` (WinRT apps can only have one 
+-window, at present), as well as an `SDL_Renderer`.  Direct3D will be used to 
+-draw content.  Events are received via SDL's usual event functions 
+-(`SDL_PollEvent`, etc.)  If you have a set of existing source files and assets, 
+-you can start adding them to the project now.  If not, or if you would like to 
+-make sure that you're setup correctly, some short and simple sample code is 
++At this point, you can add in SDL-specific source code.  Be sure to include a
++C-style main function (ie: `int main(int argc, char *argv[])`).  From there you
++should be able to create a single `SDL_Window` (WinRT apps can only have one
++window, at present), as well as an `SDL_Renderer`.  Direct3D will be used to
++draw content.  Events are received via SDL's usual event functions
++(`SDL_PollEvent`, etc.)  If you have a set of existing source files and assets,
++you can start adding them to the project now.  If not, or if you would like to
++make sure that you're setup correctly, some short and simple sample code is
+ provided below.
+ 
+ 
+ #### 6.A. ... when creating a new app ####
+ 
+-If you are creating a new app (rather than porting an existing SDL-based app), 
+-or if you would just like a simple app to test SDL/WinRT with before trying to 
+-get existing code working, some working SDL/WinRT code is provided below.  To 
++If you are creating a new app (rather than porting an existing SDL-based app),
++or if you would just like a simple app to test SDL/WinRT with before trying to
++get existing code working, some working SDL/WinRT code is provided below.  To
+ set this up:
+ 
+ 1. right click on your app's project
+ 2. select Add, then New Item.  An "Add New Item" dialog will show up.
+ 3. from the left-hand list, choose "Visual C++"
+ 4. from the middle/main list, choose "C++ File (.cpp)"
+-5. near the bottom of the dialog, next to "Name:", type in a name for your 
++5. near the bottom of the dialog, next to "Name:", type in a name for your
+ source file, such as, "main.cpp".
+-6. click on the Add button.  This will close the dialog, add the new file to 
++6. click on the Add button.  This will close the dialog, add the new file to
+ your project, and open the file in Visual C++'s text editor.
+ 7. Copy and paste the following code into the new file, then save it.
+ 
+ ```c
+ #include <SDL.h>
+-    
++
+ int main(int argc, char **argv)
+ {
+     SDL_DisplayMode mode;
+@@ -331,7 +331,7 @@ int main(int argc, char **argv)
+     SDL_Renderer * renderer = NULL;
+     SDL_Event evt;
+     SDL_bool keep_going = SDL_TRUE;
+-  
++
+     if (SDL_Init(SDL_INIT_VIDEO) != 0) {
+         return 1;
+     } else if (SDL_GetCurrentDisplayMode(0, &mode) != 0) {
+@@ -339,14 +339,14 @@ int main(int argc, char **argv)
+     } else if (SDL_CreateWindowAndRenderer(mode.w, mode.h, SDL_WINDOW_FULLSCREEN, &window, &renderer) != 0) {
+         return 1;
+     }
+-    
++
+     while (keep_going) {
+         while (SDL_PollEvent(&evt)) {
+             if ((evt.type == SDL_KEYDOWN) && (evt.key.keysym.sym == SDLK_ESCAPE)) {
+                 keep_going = SDL_FALSE;
+-            } 
++            }
+         }
+-    
++
+         SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
+         SDL_RenderClear(renderer);
+         SDL_RenderPresent(renderer);
+@@ -359,41 +359,41 @@ int main(int argc, char **argv)
+ 
+ #### 6.B. Adding code and assets ####
+ 
+-If you have existing code and assets that you'd like to add, you should be able 
++If you have existing code and assets that you'd like to add, you should be able
+ to add them now.  The process for adding a set of files is as such.
+ 
+ 1. right click on the app's project
+ 2. select Add, then click on "New Item..."
+-3. open any source, header, or asset files as appropriate.  Support for C and 
++3. open any source, header, or asset files as appropriate.  Support for C and
+ C++ is available.
+ 
+-Do note that WinRT only supports a subset of the APIs that are available to 
+-Win32-based apps.  Many portions of the Win32 API and the C runtime are not 
++Do note that WinRT only supports a subset of the APIs that are available to
++Win32-based apps.  Many portions of the Win32 API and the C runtime are not
+ available.
+ 
+-A list of unsupported C APIs can be found at 
++A list of unsupported C APIs can be found at
+ <http://msdn.microsoft.com/en-us/library/windows/apps/jj606124.aspx>
+ 
+-General information on using the C runtime in WinRT can be found at 
++General information on using the C runtime in WinRT can be found at
+ <https://msdn.microsoft.com/en-us/library/hh972425.aspx>
+ 
+-A list of supported Win32 APIs for WinRT apps can be found at 
+-<http://msdn.microsoft.com/en-us/library/windows/apps/br205757.aspx>.  To note, 
+-the list of supported Win32 APIs for Windows Phone 8.0 is different.  
+-That list can be found at 
++A list of supported Win32 APIs for WinRT apps can be found at
++<http://msdn.microsoft.com/en-us/library/windows/apps/br205757.aspx>.  To note,
++the list of supported Win32 APIs for Windows Phone 8.0 is different.
++That list can be found at
+ <http://msdn.microsoft.com/en-us/library/windowsphone/develop/jj662956(v=vs.105).aspx>
+ 
+ 
+ ### 7. Build and run your app ###
+ 
+-Your app project should now be setup, and you should be ready to build your app.  
+-To run it on the local machine, open the Debug menu and choose "Start 
+-Debugging".  This will build your app, then run your app full-screen.  To switch 
+-out of your app, press the Windows key.  Alternatively, you can choose to run 
+-your app in a window.  To do this, before building and running your app, find 
+-the drop-down menu in Visual C++'s toolbar that says, "Local Machine".  Expand 
+-this by clicking on the arrow on the right side of the list, then click on 
+-Simulator.  Once you do that, any time you build and run the app, the app will 
++Your app project should now be setup, and you should be ready to build your app.
++To run it on the local machine, open the Debug menu and choose "Start
++Debugging".  This will build your app, then run your app full-screen.  To switch
++out of your app, press the Windows key.  Alternatively, you can choose to run
++your app in a window.  To do this, before building and running your app, find
++the drop-down menu in Visual C++'s toolbar that says, "Local Machine".  Expand
++this by clicking on the arrow on the right side of the list, then click on
++Simulator.  Once you do that, any time you build and run the app, the app will
+ launch in window, rather than full-screen.
+ 
+ 
+@@ -406,37 +406,37 @@ Windows 8.x that ran primarily on ARM-based tablet computers.
+ 
+ To build and run the app on ARM-based, "Windows RT" devices, you'll need to:
+ 
+-- install Microsoft's "Remote Debugger" on the device.  Visual C++ installs and 
++- install Microsoft's "Remote Debugger" on the device.  Visual C++ installs and
+   debugs ARM-based apps via IP networks.
+-- change a few options on the development machine, both to make sure it builds 
+-  for ARM (rather than x86 or x64), and to make sure it knows how to find the 
++- change a few options on the development machine, both to make sure it builds
++  for ARM (rather than x86 or x64), and to make sure it knows how to find the
+   Windows RT device (on the network).
+ 
+-Microsoft's Remote Debugger can be found at 
+-<https://msdn.microsoft.com/en-us/library/hh441469.aspx>.  Please note 
+-that separate versions of this debugger exist for different versions of Visual 
++Microsoft's Remote Debugger can be found at
++<https://msdn.microsoft.com/en-us/library/hh441469.aspx>.  Please note
++that separate versions of this debugger exist for different versions of Visual
+ C++, one each for MSVC 2015, 2013, and 2012.
+ 
+ To setup Visual C++ to launch your app on an ARM device:
+ 
+-1. make sure the Remote Debugger is running on your ARM device, and that it's on 
++1. make sure the Remote Debugger is running on your ARM device, and that it's on
+    the same IP network as your development machine.
+-2. from Visual C++'s toolbar, find a drop-down menu that says, "Win32".  Click 
++2. from Visual C++'s toolbar, find a drop-down menu that says, "Win32".  Click
+    it, then change the value to "ARM".
+-3. make sure Visual C++ knows the hostname or IP address of the ARM device.  To 
++3. make sure Visual C++ knows the hostname or IP address of the ARM device.  To
+    do this:
+     1. open the app project's properties
+     2. select "Debugging"
+-    3. next to "Machine Name", enter the hostname or IP address of the ARM 
++    3. next to "Machine Name", enter the hostname or IP address of the ARM
+        device
+     4. if, and only if, you've turned off authentication in the Remote Debugger,
+        then change the setting for "Require Authentication" to No
+     5. click "OK"
+-4. build and run the app (from Visual C++).  The first time you do this, a 
+-   prompt will show up on the ARM device, asking for a Microsoft Account.  You 
+-   do, unfortunately, need to log in here, and will need to follow the 
+-   subsequent registration steps in order to launch the app.  After you do so, 
+-   if the app didn't already launch, try relaunching it again from within Visual 
++4. build and run the app (from Visual C++).  The first time you do this, a
++   prompt will show up on the ARM device, asking for a Microsoft Account.  You
++   do, unfortunately, need to log in here, and will need to follow the
++   subsequent registration steps in order to launch the app.  After you do so,
++   if the app didn't already launch, try relaunching it again from within Visual
+    C++.
+ 
+ 
+-- 
+2.17.1
+

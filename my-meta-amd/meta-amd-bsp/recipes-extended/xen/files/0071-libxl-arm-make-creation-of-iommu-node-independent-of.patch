@@ -1,0 +1,68 @@
+From b926dbcccaa92831dda37576f768ddab9ec8a701 Mon Sep 17 00:00:00 2001
+From: Viresh Kumar <viresh.kumar@linaro.org>
+Date: Fri, 9 Sep 2022 20:13:28 +0530
+Subject: [PATCH 071/221] libxl: arm: make creation of iommu node independent
+ of disk device
+
+The iommu node will be required for other virtio device types too, not
+just disk device.
+
+Move the call to make_xen_iommu_node(), out of the disk device specific
+block and rename "iommu_created" variable to "iommu_needed", and set it
+to true for virtio disk device.
+
+Signed-off-by: Viresh Kumar <viresh.kumar@linaro.org>
+Reviewed-by: Anthony PERARD <anthony.perard@citrix.com>
+Reviewed-by: Oleksandr Tyshchenko <oleksandr_tyshchenko@epam.com>
+---
+ tools/libs/light/libxl_arm.c | 17 ++++++++++-------
+ 1 file changed, 10 insertions(+), 7 deletions(-)
+
+diff --git a/tools/libs/light/libxl_arm.c b/tools/libs/light/libxl_arm.c
+index 500904d2fa..fa3d61f1e8 100644
+--- a/tools/libs/light/libxl_arm.c
++++ b/tools/libs/light/libxl_arm.c
+@@ -1157,7 +1157,7 @@ static int libxl__prepare_dtb(libxl__gc *gc, libxl_domain_config *d_config,
+     size_t fdt_size = 0;
+     int pfdt_size = 0;
+     libxl_domain_build_info *const info = &d_config->b_info;
+-    bool iommu_created;
++    bool iommu_needed = false;
+     unsigned int i;
+ 
+     const libxl_version_info *vers;
+@@ -1265,22 +1265,25 @@ next_resize:
+         if (d_config->num_pcidevs)
+             FDT( make_vpci_node(gc, fdt, ainfo, dom) );
+ 
+-        iommu_created = false;
+         for (i = 0; i < d_config->num_disks; i++) {
+             libxl_device_disk *disk = &d_config->disks[i];
+ 
+             if (disk->specification == LIBXL_DISK_SPECIFICATION_VIRTIO) {
+-                if (disk->backend_domid != LIBXL_TOOLSTACK_DOMID &&
+-                    !iommu_created) {
+-                    FDT( make_xen_iommu_node(gc, fdt) );
+-                    iommu_created = true;
+-                }
++                if (disk->backend_domid != LIBXL_TOOLSTACK_DOMID)
++                    iommu_needed = true;
+ 
+                 FDT( make_virtio_mmio_node(gc, fdt, disk->base, disk->irq,
+                                            disk->backend_domid) );
+             }
+         }
+ 
++        /*
++         * The iommu node should be created only once for all virtio-mmio
++         * devices.
++         */
++        if (iommu_needed)
++            FDT( make_xen_iommu_node(gc, fdt) );
++
+         if (pfdt)
+             FDT( copy_partial_fdt(gc, fdt, pfdt) );
+ 
+-- 
+2.17.1
+

@@ -1,0 +1,46 @@
+From 649fd6b2a698490c31181a510eaa7641a0a86d62 Mon Sep 17 00:00:00 2001
+From: Xenia Ragiadakou <xenia.ragiadakou@amd.com>
+Date: Tue, 11 Jul 2023 10:59:13 +0300
+Subject: [PATCH 086/106] x86/hvm: report s3 resume correctly in acpi pm1
+ status register
+
+[Why]
+Linux kernel will check PM1 status registers during resume.
+But the wake event is not reported, neither the wake reason.
+
+[How]
+Set wake and power button status bits as qemu does in
+acpi_notify_wakeup for wake up reason: QEMU_WAKEUP_REASON_OTHER.
+
+Signed-off-by: Ken Xue <Ken.Xue@amd.com>
+Signed-off-by: Xenia Ragiadakou <xenia.ragiadakou@amd.com>
+Change-Id: Ib3d6f2e3863b9e1d84f527302a1ae97439bd9807
+---
+ xen/arch/x86/hvm/hvm.c | 11 +++++++++++
+ 1 file changed, 11 insertions(+)
+
+diff --git a/xen/arch/x86/hvm/hvm.c b/xen/arch/x86/hvm/hvm.c
+index a70b351373..d05a8ac2bc 100644
+--- a/xen/arch/x86/hvm/hvm.c
++++ b/xen/arch/x86/hvm/hvm.c
+@@ -4096,6 +4096,17 @@ static void hvm_s3_resume(struct domain *d)
+     {
+         struct vcpu *v;
+ 
++        /* Set Wake Status bit and pretend that resume was triggered by
++           pressing power button. */
++        if ( has_vpm(d) )
++        {
++            PMTState *s = &d->arch.hvm.pl_time->vpmt;
++            spin_lock(&s->lock);
++            d->arch.hvm.acpi.pm1a_sts |= ACPI_BITMASK_WAKE_STATUS |
++                ACPI_BITMASK_POWER_BUTTON_STATUS;
++            spin_unlock(&s->lock);
++        }
++
+         for_each_vcpu( d, v )
+             hvm_set_guest_tsc(v, 0);
+         domain_unpause(d);
+-- 
+2.25.1
+

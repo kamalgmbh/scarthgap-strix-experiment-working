@@ -1,0 +1,53 @@
+From 8301856bd956558161aa0c71623c85403ebdca35 Mon Sep 17 00:00:00 2001
+From: Jan Beulich <jbeulich@suse.com>
+Date: Mon, 12 Dec 2022 12:21:01 +0100
+Subject: [PATCH 098/221] x86/tboot: correct IOMMU (VT-d) interaction
+
+First of all using is_idle_domain() on the subject domain in the body of
+for_each_domain() is pointless. Replace that conditional by one checking
+that a domain actually has IOMMU support enabled for it, and that we're
+actually on a VT-d system (both are largely cosmetic / documentary with
+how things work elsewhere, but still).
+
+Reported-by: Andrew Cooper <andrew.cooper3@citrix.com>
+Signed-off-by: Jan Beulich <jbeulich@suse.com>
+Reviewed-by: Jason Andryuk <jandryuk@gmail.com>
+Reviewed-by: Andrew Cooper <andrew.cooper3@citrix.com>
+---
+ xen/arch/x86/tboot.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/xen/arch/x86/tboot.c b/xen/arch/x86/tboot.c
+index 569732cffe..68bee222dd 100644
+--- a/xen/arch/x86/tboot.c
++++ b/xen/arch/x86/tboot.c
+@@ -31,6 +31,8 @@ static vmac_t frametable_mac; /* MAC for frame table during S3 */
+ static uint64_t __initdata txt_heap_base, __initdata txt_heap_size;
+ static uint64_t __initdata sinit_base, __initdata sinit_size;
+ 
++static bool __ro_after_init is_vtd;
++
+ /*
+  * TXT configuration registers (offsets from TXT_{PUB, PRIV}_CONFIG_REGS_BASE)
+  */
+@@ -201,7 +203,7 @@ static void tboot_gen_domain_integrity(const uint8_t key[TB_KEY_SIZE],
+         }
+         spin_unlock(&d->page_alloc_lock);
+ 
+-        if ( !is_idle_domain(d) )
++        if ( is_iommu_enabled(d) && is_vtd )
+         {
+             const struct domain_iommu *dio = dom_iommu(d);
+ 
+@@ -413,6 +415,8 @@ int __init cf_check tboot_parse_dmar_table(acpi_table_handler dmar_handler)
+     if ( txt_heap_base == 0 )
+         return 1;
+ 
++    is_vtd = true;
++
+     /* walk heap to SinitMleData */
+     pa = txt_heap_base;
+     /* skip BiosData */
+-- 
+2.17.1
+

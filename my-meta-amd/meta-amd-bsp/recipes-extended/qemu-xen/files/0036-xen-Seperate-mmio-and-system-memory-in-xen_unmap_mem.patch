@@ -1,0 +1,91 @@
+From 55203053e1443a4d65ec6899e7e4e86debc98be5 Mon Sep 17 00:00:00 2001
+From: Huang Rui <ray.huang@amd.com>
+Date: Thu, 27 Jul 2023 23:14:00 +0800
+Subject: [PATCH 36/70] xen: Seperate mmio and system memory in
+ xen_unmap_memory_section
+
+The system memory is using xc_domain_remove_from_physmap to remove
+physical address mapping. And mmio is using xc_domain_memory_mapping to
+unmap the addresses.
+
+Co-Developed-by: Pierre-Eric Pelloux-Prayer <pierre-eric.pelloux-prayer@amd.com>
+Signed-off-by: Huang Rui <ray.huang@amd.com>
+---
+ include/exec/memory.h       |  1 +
+ include/hw/xen/xen_native.h | 28 +++++++++++++---------------
+ 2 files changed, 14 insertions(+), 15 deletions(-)
+
+diff --git a/include/exec/memory.h b/include/exec/memory.h
+index 05b9fb3715..7e0ad0e348 100644
+--- a/include/exec/memory.h
++++ b/include/exec/memory.h
+@@ -764,6 +764,7 @@ struct MemoryRegion {
+     bool rom_device;
+     bool flush_coalesced_mmio;
+     bool is_hostmem;
++    bool is_mmio;
+     uint8_t dirty_log_mask;
+     bool is_iommu;
+     RAMBlock *ram_block;
+diff --git a/include/hw/xen/xen_native.h b/include/hw/xen/xen_native.h
+index 0da8d6f570..3240bcf301 100644
+--- a/include/hw/xen/xen_native.h
++++ b/include/hw/xen/xen_native.h
+@@ -488,8 +488,8 @@ static inline void xen_map_memory_section(domid_t dom,
+         unsigned int nr_pfns = size >> XC_PAGE_SHIFT;
+         int i, rc, *errs;
+         void *hva = section->mr->ram_block->host + section->offset_within_region;
+-        bool is_mmio = false;
+ 
++	section->mr->is_mmio = false;
+         hpfns = g_malloc(nr_pfns * sizeof(*hpfns));
+         gpfns = g_malloc(nr_pfns * sizeof(*gpfns));
+         errs = g_malloc(nr_pfns * sizeof(*errs));
+@@ -538,11 +538,12 @@ static inline void xen_map_memory_section(domid_t dom,
+ 	if (rc)
+ 	    xc_domain_iomem_permission(xen_xc, gdom, hpfns[0], nr_pfns, 0);
+ 	else
+-	    is_mmio = true;
++	    section->mr->is_mmio = true;
+ 
+   out:
+         fprintf(stderr, "%s: dom=%d fd=%d hva=%p gpfn=0x%lx hpfn=0x%lx size=0x%lx is_mmio=%d rc=%d\n",
+-                __func__, dom, section->mr->ram_block->fd, hva, gpfns[0], hpfns[0], size, is_mmio, rc);
++                __func__, dom, section->mr->ram_block->fd, hva, gpfns[0],
++		hpfns[0], size, section->mr->is_mmio, rc);
+ 
+         g_free(hpfns);
+         g_free(gpfns);
+@@ -578,20 +579,17 @@ static inline void xen_unmap_memory_section(domid_t dom,
+         xen_pfn_t start_gpfn = start_addr >> XC_PAGE_SHIFT;
+         unsigned int i, nr_pfns = size >> XC_PAGE_SHIFT;
+ 
+-        for (i = 0; i < nr_pfns; i++) {
+-            rc = xc_domain_remove_from_physmap(xen_xc, dom, start_gpfn + i);
+-            if (rc) {
+-                printf("xc_domain_remove_from_physmap failed %d/%d - rc=%d\n", i, nr_pfns, rc);
+-                printf("    addr=0x%lx-0x%lx\n", start_addr, end_addr);
+-                break;
++	if (!section->mr->is_mmio) {
++	    for (i = 0; i < nr_pfns; i++) {
++                rc = xc_domain_remove_from_physmap(xen_xc, dom, start_gpfn + i);
++                if (rc) {
++                    printf("xc_domain_remove_from_physmap failed %d/%d - rc=%d\n", i, nr_pfns, rc);
++                    printf("    addr=0x%lx-0x%lx\n", start_addr, end_addr);
++                    break;
++                }
+             }
+-        }
+-
+-        rc = 0; /* Pretend everything went fine. */
+-        goto out;
+ 
+-        /* Success */
+-        if (rc == 0) {
++            rc = 0; /* Pretend everything went fine. */
+             goto out;
+         } else {
+             xen_pfn_t *hpfns, *gpfns;
+-- 
+2.17.1
+

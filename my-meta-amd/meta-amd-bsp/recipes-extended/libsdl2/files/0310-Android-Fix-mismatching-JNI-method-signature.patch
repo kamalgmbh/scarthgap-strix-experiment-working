@@ -1,0 +1,50 @@
+From b970dd1beb83892d988a192e67c452fbe0bbf6eb Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Bart=C5=82omiej=20Dach?= <dach.bartlomiej@gmail.com>
+Date: Sat, 25 Mar 2023 20:52:15 +0100
+Subject: [PATCH 310/458] Android: Fix mismatching JNI method signature
+
+Another regression from commit dca3fd8307c2c9ebda8d8ea623bbbf19649f5e22,
+which was a backport of commit de3909a190f6e1a3f11776ce42927f99b0381675
+from SDL3 to SDL2. This time the regression is much less apparent,
+however, due to two reasons:
+
+- It only appears when the SDL project is ran on an actual device
+  due to magic stringage.
+
+- More importantly, the regression was partially hidden due to
+  the nature of de3909a190f6e1a3f11776ce42927f99b0381675.
+
+  The commit which was backported added a single `I` to the JNI method
+  signature in `SDL_android.c`, representing the added `int axis_mask`
+  parameter. The parameter was added to both SDL2 and SDL3.
+
+  However, notably, that `I` was added *after* commit
+  fcafe40948fe308cc9552df5a3d625ee2725de5a, which removed the
+  `int nballs` parameter from the joystick API, but only from the SDL3
+  branch.
+
+  Therefore, in totality, what should really have been a merge conflict,
+  was obscured by the fact that the SDL3 branch ended up having
+  a net-identical JNI signature to the SDL2 branch, due to having
+  one bool param removed and one added - while, in fact, the SDL2 branch
+  needed one bool param added and none removed.
+---
+ src/core/android/SDL_android.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/core/android/SDL_android.c b/src/core/android/SDL_android.c
+index 2913970df..34dfdedf0 100644
+--- a/src/core/android/SDL_android.c
++++ b/src/core/android/SDL_android.c
+@@ -278,7 +278,7 @@ static JNINativeMethod SDLControllerManager_tab[] = {
+     { "onNativePadUp", "(II)I", SDL_JAVA_CONTROLLER_INTERFACE(onNativePadUp) },
+     { "onNativeJoy", "(IIF)V", SDL_JAVA_CONTROLLER_INTERFACE(onNativeJoy) },
+     { "onNativeHat", "(IIII)V", SDL_JAVA_CONTROLLER_INTERFACE(onNativeHat) },
+-    { "nativeAddJoystick", "(ILjava/lang/String;Ljava/lang/String;IIZIIII)I", SDL_JAVA_CONTROLLER_INTERFACE(nativeAddJoystick) },
++    { "nativeAddJoystick", "(ILjava/lang/String;Ljava/lang/String;IIZIIIII)I", SDL_JAVA_CONTROLLER_INTERFACE(nativeAddJoystick) },
+     { "nativeRemoveJoystick", "(I)I", SDL_JAVA_CONTROLLER_INTERFACE(nativeRemoveJoystick) },
+     { "nativeAddHaptic", "(ILjava/lang/String;)I", SDL_JAVA_CONTROLLER_INTERFACE(nativeAddHaptic) },
+     { "nativeRemoveHaptic", "(I)I", SDL_JAVA_CONTROLLER_INTERFACE(nativeRemoveHaptic) }
+-- 
+2.17.1
+

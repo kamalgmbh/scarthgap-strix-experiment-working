@@ -1,0 +1,59 @@
+From 381312a02a2f56de5b2279a415e6ca9ef14cfcdd Mon Sep 17 00:00:00 2001
+From: Francisco Javier Trujillo Mata <fjtrujy@gmail.com>
+Date: Fri, 13 Jan 2023 16:37:54 +0100
+Subject: [PATCH 154/458] Use filesystem drivers
+
+---
+ src/main/ps2/SDL_ps2_main.c | 25 +++----------------------
+ 1 file changed, 3 insertions(+), 22 deletions(-)
+
+diff --git a/src/main/ps2/SDL_ps2_main.c b/src/main/ps2/SDL_ps2_main.c
+index d3fb6171f..b237eea8c 100644
+--- a/src/main/ps2/SDL_ps2_main.c
++++ b/src/main/ps2/SDL_ps2_main.c
+@@ -17,9 +17,7 @@
+ #include <sifrpc.h>
+ #include <iopcontrol.h>
+ #include <sbv_patches.h>
+-#include <ps2_fileXio_driver.h>
+-#include <ps2_memcard_driver.h>
+-#include <ps2_usb_driver.h>
++#include <ps2_filesystem_driver.h>
+ 
+ #ifdef main
+ #undef main
+@@ -45,29 +43,12 @@ static void prepare_IOP()
+ 
+ static void init_drivers()
+ {
+-    init_memcard_driver(true);
+-    init_usb_driver(true);
++	init_ps2_filesystem_driver();
+ }
+ 
+ static void deinit_drivers()
+ {
+-    deinit_usb_driver(true);
+-    deinit_memcard_driver(true);
+-}
+-
+-static void waitUntilDeviceIsReady(char *path)
+-{
+-    struct stat buffer;
+-    int ret = -1;
+-    int retries = 50;
+-
+-    while (ret != 0 && retries > 0) {
+-        ret = stat(path, &buffer);
+-        /* Wait until the device is ready */
+-        nopdelay();
+-
+-        retries--;
+-    }
++	deinit_ps2_filesystem_driver();
+ }
+ 
+ int main(int argc, char *argv[])
+-- 
+2.17.1
+

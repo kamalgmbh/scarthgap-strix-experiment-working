@@ -1,0 +1,74 @@
+From 51c5b8b9afe9c6c63f6f2a55f467118c40cff976 Mon Sep 17 00:00:00 2001
+From: Michal Orzel <michal.orzel@amd.com>
+Date: Wed, 7 Dec 2022 12:16:49 +0100
+Subject: [PATCH 073/221] xen: remove trigraphs from comments
+
+MISRA C rule 4.2 states that trigraphs (sequences of two question marks
+followed by a specified third character [=/'()!<>-]) should not be used.
+This applies to both code and comments. Thankfully, we do not use them
+in the code, but still there are some comments where they are
+accidentally used. Fix it.
+
+With regards to the comments and respective macros in pci_regs.h, these
+were inherited from Linux. Let's knowingly accept the divergence.
+
+Signed-off-by: Michal Orzel <michal.orzel@amd.com>
+Reviewed-by: Jan Beulich <jbeulich@suse.com>
+Acked-by: Stefano Stabellini <sstabellini@kernel.org>
+---
+ xen/arch/x86/x86_emulate/x86_emulate.h |  2 +-
+ xen/include/public/arch-x86_64.h       |  2 +-
+ xen/include/xen/pci_regs.h             | 12 ++++++------
+ 3 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/xen/arch/x86/x86_emulate/x86_emulate.h b/xen/arch/x86/x86_emulate/x86_emulate.h
+index 4732855c40..bb7af967ff 100644
+--- a/xen/arch/x86/x86_emulate/x86_emulate.h
++++ b/xen/arch/x86/x86_emulate/x86_emulate.h
+@@ -228,7 +228,7 @@ struct x86_emulate_ops
+      * All functions:
+      *  @ctxt:  [IN ] Emulation context info as passed to the emulator.
+      * All memory-access functions:
+-     *  @seg:   [IN ] Segment being dereferenced (specified as x86_seg_??).
++     *  @seg:   [IN ] Segment being dereferenced (specified as x86_seg_?).
+      *  @offset:[IN ] Offset within segment.
+      *  @p_data:[IN ] Pointer to i/o data buffer (length is @bytes)
+      * Read functions:
+diff --git a/xen/include/public/arch-x86_64.h b/xen/include/public/arch-x86_64.h
+index 5db52de695..acf705f25e 100644
+--- a/xen/include/public/arch-x86_64.h
++++ b/xen/include/public/arch-x86_64.h
+@@ -22,5 +22,5 @@
+  * A similar callback occurs if the segment selectors are invalid.
+  * failsafe_address is used as the value of eip.
+  *
+- * On x86_64, event_selector and failsafe_selector are ignored (???).
++ * On x86_64, event_selector and failsafe_selector are ignored (?!?).
+  */
+diff --git a/xen/include/xen/pci_regs.h b/xen/include/xen/pci_regs.h
+index ee8e82be36..a90aff1712 100644
+--- a/xen/include/xen/pci_regs.h
++++ b/xen/include/xen/pci_regs.h
+@@ -246,13 +246,13 @@
+ #define  PCI_PM_CTRL_STATE_MASK	0x0003	/* Current power state (D0 to D3) */
+ #define  PCI_PM_CTRL_NO_SOFT_RESET	0x0008	/* No reset for D3hot->D0 */
+ #define  PCI_PM_CTRL_PME_ENABLE	0x0100	/* PME pin enable */
+-#define  PCI_PM_CTRL_DATA_SEL_MASK	0x1e00	/* Data select (??) */
+-#define  PCI_PM_CTRL_DATA_SCALE_MASK	0x6000	/* Data scale (??) */
++#define  PCI_PM_CTRL_DATA_SEL_MASK	0x1e00	/* Data select (?) */
++#define  PCI_PM_CTRL_DATA_SCALE_MASK	0x6000	/* Data scale (?) */
+ #define  PCI_PM_CTRL_PME_STATUS	0x8000	/* PME pin status */
+-#define PCI_PM_PPB_EXTENSIONS	6	/* PPB support extensions (??) */
+-#define  PCI_PM_PPB_B2_B3	0x40	/* Stop clock when in D3hot (??) */
+-#define  PCI_PM_BPCC_ENABLE	0x80	/* Bus power/clock control enable (??) */
+-#define PCI_PM_DATA_REGISTER	7	/* (??) */
++#define PCI_PM_PPB_EXTENSIONS	6	/* PPB support extensions (?) */
++#define  PCI_PM_PPB_B2_B3	0x40	/* Stop clock when in D3hot (?) */
++#define  PCI_PM_BPCC_ENABLE	0x80	/* Bus power/clock control enable (?) */
++#define PCI_PM_DATA_REGISTER	7	/* (?) */
+ #define PCI_PM_SIZEOF		8
+ 
+ /* AGP registers */
+-- 
+2.17.1
+

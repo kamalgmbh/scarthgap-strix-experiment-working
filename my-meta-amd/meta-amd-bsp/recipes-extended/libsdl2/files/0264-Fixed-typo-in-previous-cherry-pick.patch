@@ -1,0 +1,26 @@
+From f47a08ab84ebab3778b5f72a2b968dc3d633c341 Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Wed, 1 Mar 2023 16:47:48 -0800
+Subject: [PATCH 264/458] Fixed typo in previous cherry-pick
+
+---
+ src/joystick/SDL_gamecontroller.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/joystick/SDL_gamecontroller.c b/src/joystick/SDL_gamecontroller.c
+index 281c3aa76..8d3f66afd 100644
+--- a/src/joystick/SDL_gamecontroller.c
++++ b/src/joystick/SDL_gamecontroller.c
+@@ -830,8 +830,8 @@ static ControllerMapping_t *SDL_PrivateGetControllerMappingForGUID(SDL_JoystickG
+ #ifdef __ANDROID__
+     } else {
+         mapping = SDL_CreateMappingForAndroidController(guid);
+-    }
+ #endif
++    }
+     return mapping;
+ }
+ 
+-- 
+2.17.1
+

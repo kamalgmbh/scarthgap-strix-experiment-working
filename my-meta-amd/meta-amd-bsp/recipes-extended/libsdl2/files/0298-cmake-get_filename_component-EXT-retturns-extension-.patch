@@ -1,0 +1,26 @@
+From ce4c54e2b2b283d561e5e617f007a5300bdb9660 Mon Sep 17 00:00:00 2001
+From: Anonymous Maarten <anonymous.maarten@gmail.com>
+Date: Wed, 15 Mar 2023 14:55:56 +0100
+Subject: [PATCH 298/458] cmake: get_filename_component(EXT) retturns extension
+ including leading dot
+
+---
+ CMakeLists.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index bb43fbbee..fe7d3ce3b 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -3297,7 +3297,7 @@ endif()
+ if(APPLE)
+   foreach(SOURCE_FILE ${SOURCE_FILES})
+     get_filename_component(FILE_EXTENSION ${SOURCE_FILE} EXT)
+-    if(FILE_EXTENSION STREQUAL "m")
++    if(FILE_EXTENSION STREQUAL ".m")
+       set_property(SOURCE ${SOURCE_FILE} APPEND_STRING PROPERTY COMPILE_FLAGS " -x objective-c")
+     endif()
+   endforeach()
+-- 
+2.17.1
+

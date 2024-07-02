@@ -1,0 +1,51 @@
+From f90a265f5b6a10f558294e4d33642868fdabc416 Mon Sep 17 00:00:00 2001
+From: Jan Beulich <jbeulich@suse.com>
+Date: Thu, 22 Dec 2022 10:06:57 +0100
+Subject: [PATCH 161/221] x86/PV: drop dead paging_update_paging_modes() call
+ during Dom0 construction
+
+The function won't ever be invoked, as paging_mode_enabled() always
+returns false here due to the immediately preceding clearing of
+d->arch.paging.mode. While compilers recognize this and eliminate the
+call, make this explicit in the source (which likely 9a28170f2da2 ["pvh
+dom0: construct_dom0 changes"] should have done right away, albeit even
+before that the call looks to have been pointless - shadow mode enabling
+has occurred later virtually forever).
+
+While there also update an adjacent partly stale comment.
+
+Signed-off-by: Jan Beulich <jbeulich@suse.com>
+Reviewed-by: Andrew Cooper <andrew.cooper3@citrix.com>
+---
+ xen/arch/x86/pv/dom0_build.c | 8 ++------
+ 1 file changed, 2 insertions(+), 6 deletions(-)
+
+diff --git a/xen/arch/x86/pv/dom0_build.c b/xen/arch/x86/pv/dom0_build.c
+index a62f0fa2ef..a26832ad5d 100644
+--- a/xen/arch/x86/pv/dom0_build.c
++++ b/xen/arch/x86/pv/dom0_build.c
+@@ -10,7 +10,6 @@
+ #include <xen/init.h>
+ #include <xen/libelf.h>
+ #include <xen/multiboot.h>
+-#include <xen/paging.h>
+ #include <xen/pfn.h>
+ #include <xen/sched.h>
+ #include <xen/softirq.h>
+@@ -804,11 +803,8 @@ int __init dom0_construct_pv(struct domain *d,
+ 
+     d->arch.paging.mode = 0;
+ 
+-    /* Set up CR3 value for write_ptbase */
+-    if ( paging_mode_enabled(d) )
+-        paging_update_paging_modes(v);
+-    else
+-        update_cr3(v);
++    /* Set up CR3 value for switch_cr3_cr4(). */
++    update_cr3(v);
+ 
+     /* We run on dom0's page tables for the final part of the build process. */
+     switch_cr3_cr4(cr3_pa(v->arch.cr3), read_cr4());
+-- 
+2.17.1
+

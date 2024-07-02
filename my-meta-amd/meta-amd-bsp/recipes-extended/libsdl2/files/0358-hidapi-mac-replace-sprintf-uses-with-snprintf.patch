@@ -1,0 +1,30 @@
+From 0f2322acfcace6d2e27073d8b59717cedf33b561 Mon Sep 17 00:00:00 2001
+From: Ozkan Sezer <sezeroz@gmail.com>
+Date: Mon, 24 Apr 2023 18:55:14 +0300
+Subject: [PATCH 358/458] hidapi/mac: replace sprintf uses with snprintf.
+
+Reference issues:
+-  https://github.com/libusb/hidapi/pull/509
+-  https://github.com/libusb/hidapi/pull/511
+
+(cherry picked from commit ae9119c36bdcf2214d83c6d35c436d22b5fd03cb)
+---
+ src/hidapi/mac/hid.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/hidapi/mac/hid.c b/src/hidapi/mac/hid.c
+index e8c0d0994..c6541682c 100644
+--- a/src/hidapi/mac/hid.c
++++ b/src/hidapi/mac/hid.c
+@@ -855,7 +855,7 @@ hid_device * HID_API_EXPORT hid_open_path(const char *path, int bExclusive)
+ 				
+ 				/* Create the Run Loop Mode for this device.
+ 				 printing the reference seems to work. */
+-				sprintf(str, "HIDAPI_%p", os_dev);
++				snprintf(str, sizeof(str), "HIDAPI_%p", os_dev);
+ 				dev->run_loop_mode = 
+ 				CFStringCreateWithCString(NULL, str, kCFStringEncodingASCII);
+ 				
+-- 
+2.17.1
+

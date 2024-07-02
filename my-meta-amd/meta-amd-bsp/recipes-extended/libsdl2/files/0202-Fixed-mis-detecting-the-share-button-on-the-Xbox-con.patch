@@ -1,0 +1,28 @@
+From 71fb4e3d76671cf8bdeb8c3bc2a36c1bb2874ffe Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Wed, 8 Feb 2023 14:16:21 -0800
+Subject: [PATCH 202/458] Fixed mis-detecting the share button on the Xbox
+ controller over NDIS
+
+(cherry picked from commit 00e02de77b615d5faf94af709760fd0f2e749a39)
+---
+ src/joystick/hidapi/SDL_hidapi_xboxone.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/src/joystick/hidapi/SDL_hidapi_xboxone.c b/src/joystick/hidapi/SDL_hidapi_xboxone.c
+index 62304358d..7019b41e6 100644
+--- a/src/joystick/hidapi/SDL_hidapi_xboxone.c
++++ b/src/joystick/hidapi/SDL_hidapi_xboxone.c
+@@ -655,6 +655,9 @@ static void HIDAPI_DriverXboxOne_HandleStatePacket(SDL_Joystick *joystick, SDL_D
+ {
+     Sint16 axis;
+ 
++    /* Some controllers have larger packets over NDIS, but the real size is in data[3] */
++    size = SDL_min(data[3], size);
++
+     /* Enable paddles on the Xbox Elite controller when connected over USB */
+     if (ctx->has_paddles && !ctx->has_unmapped_state && size == 50) {
+         Uint8 packet[] = { 0x4d, 0x00, 0x00, 0x02, 0x07, 0x00 };
+-- 
+2.17.1
+

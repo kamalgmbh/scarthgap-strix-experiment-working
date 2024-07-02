@@ -1,0 +1,164 @@
+From 22df57297988b4605151bf96fa154a4516a98b5f Mon Sep 17 00:00:00 2001
+From: Ozkan Sezer <sezeroz@gmail.com>
+Date: Mon, 13 Feb 2023 21:50:40 +0300
+Subject: [PATCH 215/458] look for clock_gettime() in libc first, then in librt
+ if not found.
+
+---
+ CMakeLists.txt | 10 +++++-----
+ configure      | 39 +++++++++++++++++++--------------------
+ configure.ac   | 11 +++++------
+ 3 files changed, 29 insertions(+), 31 deletions(-)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 6a941a1d4..7970eacb1 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -1617,14 +1617,14 @@ elseif(UNIX AND NOT APPLE AND NOT RISCOS AND NOT HAIKU)
+   CheckPTHREAD()
+ 
+   if(SDL_CLOCK_GETTIME)
+-    check_library_exists(rt clock_gettime "" FOUND_CLOCK_GETTIME_LIBRT)
+-    if(FOUND_CLOCK_GETTIME_LIBRT)
+-      list(APPEND EXTRA_LIBS rt)
++    check_library_exists(c clock_gettime "" FOUND_CLOCK_GETTIME_LIBC)
++    if(FOUND_CLOCK_GETTIME_LIBC)
+       set(HAVE_CLOCK_GETTIME 1)
+     else()
+-      check_library_exists(c clock_gettime "" FOUND_CLOCK_GETTIME_LIBC)
+-      if(FOUND_CLOCK_GETTIME_LIBC)
++      check_library_exists(rt clock_gettime "" FOUND_CLOCK_GETTIME_LIBRT)
++      if(FOUND_CLOCK_GETTIME_LIBRT)
+         set(HAVE_CLOCK_GETTIME 1)
++        list(APPEND EXTRA_LIBS rt)
+       endif()
+     endif()
+   endif()
+diff --git a/configure b/configure
+index 926afb6aa..21878a5f7 100755
+--- a/configure
++++ b/configure
+@@ -28404,14 +28404,14 @@ else $as_nop
+ fi
+ 
+     if test x$enable_clock_gettime = xyes; then
+-        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for clock_gettime in -lrt" >&5
+-printf %s "checking for clock_gettime in -lrt... " >&6; }
+-if test ${ac_cv_lib_rt_clock_gettime+y}
++        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for clock_gettime in -lc" >&5
++printf %s "checking for clock_gettime in -lc... " >&6; }
++if test ${ac_cv_lib_c_clock_gettime+y}
+ then :
+   printf %s "(cached) " >&6
+ else $as_nop
+   ac_check_lib_save_LIBS=$LIBS
+-LIBS="-lrt  $LIBS"
++LIBS="-lc  $LIBS"
+ cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+ /* end confdefs.h.  */
+ 
+@@ -28429,17 +28429,17 @@ return clock_gettime ();
+ _ACEOF
+ if ac_fn_c_try_link "$LINENO"
+ then :
+-  ac_cv_lib_rt_clock_gettime=yes
++  ac_cv_lib_c_clock_gettime=yes
+ else $as_nop
+-  ac_cv_lib_rt_clock_gettime=no
++  ac_cv_lib_c_clock_gettime=no
+ fi
+ rm -f core conftest.err conftest.$ac_objext conftest.beam \
+     conftest$ac_exeext conftest.$ac_ext
+ LIBS=$ac_check_lib_save_LIBS
+ fi
+-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_rt_clock_gettime" >&5
+-printf "%s\n" "$ac_cv_lib_rt_clock_gettime" >&6; }
+-if test "x$ac_cv_lib_rt_clock_gettime" = xyes
++{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_c_clock_gettime" >&5
++printf "%s\n" "$ac_cv_lib_c_clock_gettime" >&6; }
++if test "x$ac_cv_lib_c_clock_gettime" = xyes
+ then :
+   have_clock_gettime=yes
+ fi
+@@ -28448,16 +28448,15 @@ fi
+ 
+ printf "%s\n" "#define HAVE_CLOCK_GETTIME 1" >>confdefs.h
+ 
+-            EXTRA_LDFLAGS="$EXTRA_LDFLAGS -lrt"
+         else
+-            { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for clock_gettime in -lc" >&5
+-printf %s "checking for clock_gettime in -lc... " >&6; }
+-if test ${ac_cv_lib_c_clock_gettime+y}
++            { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for clock_gettime in -lrt" >&5
++printf %s "checking for clock_gettime in -lrt... " >&6; }
++if test ${ac_cv_lib_rt_clock_gettime+y}
+ then :
+   printf %s "(cached) " >&6
+ else $as_nop
+   ac_check_lib_save_LIBS=$LIBS
+-LIBS="-lc  $LIBS"
++LIBS="-lrt  $LIBS"
+ cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+ /* end confdefs.h.  */
+ 
+@@ -28475,26 +28474,26 @@ return clock_gettime ();
+ _ACEOF
+ if ac_fn_c_try_link "$LINENO"
+ then :
+-  ac_cv_lib_c_clock_gettime=yes
++  ac_cv_lib_rt_clock_gettime=yes
+ else $as_nop
+-  ac_cv_lib_c_clock_gettime=no
++  ac_cv_lib_rt_clock_gettime=no
+ fi
+ rm -f core conftest.err conftest.$ac_objext conftest.beam \
+     conftest$ac_exeext conftest.$ac_ext
+ LIBS=$ac_check_lib_save_LIBS
+ fi
+-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_c_clock_gettime" >&5
+-printf "%s\n" "$ac_cv_lib_c_clock_gettime" >&6; }
+-if test "x$ac_cv_lib_c_clock_gettime" = xyes
++{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_rt_clock_gettime" >&5
++printf "%s\n" "$ac_cv_lib_rt_clock_gettime" >&6; }
++if test "x$ac_cv_lib_rt_clock_gettime" = xyes
+ then :
+   have_clock_gettime=yes
+ fi
+ 
+             if test x$have_clock_gettime = xyes; then
++                EXTRA_LDFLAGS="$EXTRA_LDFLAGS -lrt"
+ 
+ printf "%s\n" "#define HAVE_CLOCK_GETTIME 1" >>confdefs.h
+ 
+-               EXTRA_LDFLAGS="$EXTRA_LDFLAGS"
+             fi
+         fi
+     fi
+diff --git a/configure.ac b/configure.ac
+index a4fe1ae66..4f41b3aaa 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -3681,15 +3681,14 @@ CheckClockGettime()
+ [AS_HELP_STRING([--enable-clock_gettime], [use clock_gettime() instead of gettimeofday() on UNIX [default=yes]])],
+                   , enable_clock_gettime=yes)
+     if test x$enable_clock_gettime = xyes; then
+-        AC_CHECK_LIB(rt, clock_gettime, have_clock_gettime=yes)
++        AC_CHECK_LIB(c, clock_gettime, have_clock_gettime=yes)
+         if test x$have_clock_gettime = xyes; then
+-            AC_DEFINE(HAVE_CLOCK_GETTIME, 1, [ ])
+-            EXTRA_LDFLAGS="$EXTRA_LDFLAGS -lrt"
++           AC_DEFINE(HAVE_CLOCK_GETTIME, 1, [ ])
+         else
+-            AC_CHECK_LIB(c, clock_gettime, have_clock_gettime=yes)
++            AC_CHECK_LIB(rt, clock_gettime, have_clock_gettime=yes)
+             if test x$have_clock_gettime = xyes; then
+-               AC_DEFINE(HAVE_CLOCK_GETTIME, 1, [ ])
+-               EXTRA_LDFLAGS="$EXTRA_LDFLAGS"
++                EXTRA_LDFLAGS="$EXTRA_LDFLAGS -lrt"
++                AC_DEFINE(HAVE_CLOCK_GETTIME, 1, [ ])
+             fi
+         fi
+     fi
+-- 
+2.17.1
+

@@ -1,0 +1,232 @@
+From 3124e6b7f293bd177bffee926f72ec25480d5422 Mon Sep 17 00:00:00 2001
+From: Xenia Ragiadakou <xenia.ragiadakou@amd.com>
+Date: Tue, 11 Jun 2024 20:52:56 +0300
+Subject: [PATCH 70/70] hw/i386: xen: get memory regions via machine options
+
+The first 0x10000000 starting from virtio-pcie-base is the ecam config space,
+while the rest of virtio-pcie-size can be used as the mmio64 address space
+for virtio pci devices.
+The virtio-pcie-base is statically set on xen side to 0xc000000000 and
+the virtio-pcie-size to 0x2000000000.
+IO ports and 32bit mmio address space is not available for virtio pci devices.
+
+Signed-off-by: Xenia Ragiadakou <xenia.ragiadakou@amd.com>
+Change-Id: I0678c6d3ba32f217a2fe7497643f66d2726a5a91
+---
+ hw/i386/xen/xen-pvh.c   | 144 +++++++++++++++++++++++++++++++---------
+ hw/xen/xen-pvh-common.c |   9 ++-
+ 2 files changed, 120 insertions(+), 33 deletions(-)
+
+diff --git a/hw/i386/xen/xen-pvh.c b/hw/i386/xen/xen-pvh.c
+index 674edd8701..25c9f4cc19 100644
+--- a/hw/i386/xen/xen-pvh.c
++++ b/hw/i386/xen/xen-pvh.c
+@@ -8,6 +8,7 @@
+ 
+ #include "qemu/osdep.h"
+ #include "qapi/error.h"
++#include "qapi/visitor.h"
+ #include "qemu/error-report.h"
+ #include "hw/boards.h"
+ #include "sysemu/sysemu.h"
+@@ -20,38 +21,26 @@ OBJECT_DECLARE_SIMPLE_TYPE(XenPVHx86State, XEN_PVH_X86)
+ 
+ #define PVH_MAX_CPUS 128
+ 
++#define PVH_MACHINE_LOWMEM_BASE "ram-low-base"
++#define PVH_MACHINE_LOWMEM_SIZE "ram-low-size"
++#define PVH_MACHINE_HIGHMEM_BASE "ram-high-base"
++#define PVH_MACHINE_HIGHMEM_SIZE "ram-high-size"
++#define PVH_MACHINE_VIRTIO_PCIE_BASE "virtio-pcie-base"
++#define PVH_MACHINE_VIRTIO_PCIE_SIZE "virtio-pcie-size"
++
+ struct XenPVHx86State {
+     /*< private >*/
+     MachineState parent;
+ 
+     DeviceState *cpu[PVH_MAX_CPUS];
+     XenPVHCommonState pvh;
+-};
+ 
+-enum {
+-    PVH_MEM,
+-    PVH_MEM_HIGH,
+-    PVH_LAPIC,
+-    PVH_LAPIC_MSI,
+-    PVH_PCI_ECAM,
+-    PVH_PCI_MMIO,
+-    PVH_PCI_MMIO_HIGH,
+-};
+-
+-/*
+- * This table describes the x86 PVH memory-map.
+- * TODO: Probe Xen for the memory-map.
+- */
+-static const MemMapEntry base_memmap[] = {
+-    [PVH_MEM]           =  {               0, 0x80000000U },     /* 2 GB */
+-    [PVH_LAPIC]         =  {     0xFEC00000U, 0 },               /* Unmapped */
+-    [PVH_LAPIC_MSI]     =  {     0xFEE00000U, 0x100000 },
+-    [PVH_PCI_ECAM]      =  {   0xE0000000ULL, 0x10000000 },      /* 256 MB */
+-    [PVH_PCI_MMIO]      =  {   0xC0000000ULL, 0x20000000 },      /* 512 MB */
+-
+-    /* Highmem.  */
+-    [PVH_MEM_HIGH]      =  {  0x100000000ULL, 0xBF00000000ULL }, /* 764 GB */
+-    [PVH_PCI_MMIO_HIGH] =  { 0xC000000000ULL, 0x4000000000ULL }, /* 256 GB */
++    uint64_t lowmem_base;
++    uint64_t lowmem_size;
++    uint64_t highmem_base;
++    uint64_t highmem_size;
++    uint64_t virtio_pcie_base;
++    uint64_t virtio_pcie_size;
+ };
+ 
+ static void xenpvh_cpu_new(MachineState *ms,
+@@ -76,11 +65,15 @@ static void xenpvh_init(MachineState *machine)
+     int i;
+ 
+     /* Describe the memory map.  */
+-    xp->pvh.cfg.ram_low = base_memmap[PVH_MEM];
+-    xp->pvh.cfg.ram_high = base_memmap[PVH_MEM_HIGH];
+-    xp->pvh.cfg.pci.ecam = base_memmap[PVH_PCI_ECAM];
+-    xp->pvh.cfg.pci.mmio = base_memmap[PVH_PCI_MMIO];
+-    xp->pvh.cfg.pci.mmio_high = base_memmap[PVH_PCI_MMIO_HIGH];
++    xp->pvh.cfg.ram_low.base = xp->lowmem_base;
++    xp->pvh.cfg.ram_low.size = xp->lowmem_size;
++    xp->pvh.cfg.ram_high.base = xp->highmem_base;
++    xp->pvh.cfg.ram_high.size = xp->highmem_size;
++    xp->pvh.cfg.pci.ecam.base = xp->virtio_pcie_base;
++    xp->pvh.cfg.pci.ecam.size = 0x10000000;
++    xp->pvh.cfg.pci.mmio.size = 0;
++    xp->pvh.cfg.pci.mmio_high.base = xp->virtio_pcie_base + 0x10000000;
++    xp->pvh.cfg.pci.mmio_high.size = xp->virtio_pcie_size - 0x10000000;
+     /* GSI's 16 - 20 are used for legacy PCIe INTX IRQs.  */
+     xp->pvh.cfg.pci.intx_irq_base = 16;
+ 
+@@ -92,6 +85,84 @@ static void xenpvh_init(MachineState *machine)
+     xen_pvh_common_init(machine, &xp->pvh, sysmem);
+ }
+ 
++static void pvh_machine_set_lowmem_base(Object *obj, Visitor *v,
++                                        const char *name, void *opaque,
++                                        Error **errp)
++{
++    XenPVHx86State *xp = XEN_PVH_X86(obj);
++    uint64_t value;
++
++    if (!visit_type_size(v, name, &value, errp)) {
++        return;
++    }
++    xp->lowmem_base = value;
++}
++
++static void pvh_machine_set_lowmem_size(Object *obj, Visitor *v,
++                                        const char *name, void *opaque,
++                                        Error **errp)
++{
++    XenPVHx86State *xp = XEN_PVH_X86(obj);
++    uint64_t value;
++
++    if (!visit_type_size(v, name, &value, errp)) {
++        return;
++    }
++    xp->lowmem_size = value;
++}
++
++static void pvh_machine_set_highmem_base(Object *obj, Visitor *v,
++                                         const char *name, void *opaque,
++                                         Error **errp)
++{
++    XenPVHx86State *xp = XEN_PVH_X86(obj);
++    uint64_t value;
++
++    if (!visit_type_size(v, name, &value, errp)) {
++        return;
++    }
++    xp->highmem_base = value;
++}
++
++static void pvh_machine_set_highmem_size(Object *obj, Visitor *v,
++                                         const char *name, void *opaque,
++                                         Error **errp)
++{
++    XenPVHx86State *xp = XEN_PVH_X86(obj);
++    uint64_t value;
++
++    if (!visit_type_size(v, name, &value, errp)) {
++        return;
++    }
++    xp->highmem_size = value;
++}
++
++static void pvh_machine_set_virtio_pcie_base(Object *obj, Visitor *v,
++                                             const char *name, void *opaque,
++                                             Error **errp)
++{
++    XenPVHx86State *xp = XEN_PVH_X86(obj);
++    uint64_t value;
++
++    if (!visit_type_size(v, name, &value, errp)) {
++        return;
++    }
++    xp->virtio_pcie_base = value;
++}
++
++static void pvh_machine_set_virtio_pcie_size(Object *obj, Visitor *v,
++                                             const char *name, void *opaque,
++                                             Error **errp)
++{
++    XenPVHx86State *xp = XEN_PVH_X86(obj);
++    uint64_t value;
++
++    if (!visit_type_size(v, name, &value, errp)) {
++        return;
++    }
++    xp->virtio_pcie_size = value;
++}
++
+ static void xenpvh_machine_class_init(ObjectClass *oc, void *data)
+ {
+     MachineClass *mc = MACHINE_CLASS(oc);
+@@ -103,6 +174,19 @@ static void xenpvh_machine_class_init(ObjectClass *oc, void *data)
+     mc->default_machine_opts = "accel=xen";
+     /* Set explicitly here to make sure that real ram_size is passed */
+     mc->default_ram_size = 0;
++
++    object_class_property_add(oc, PVH_MACHINE_LOWMEM_BASE, "uint64_t",
++                              NULL, pvh_machine_set_lowmem_base, NULL, NULL);
++    object_class_property_add(oc, PVH_MACHINE_LOWMEM_SIZE, "uint64_t",
++                              NULL, pvh_machine_set_lowmem_size, NULL, NULL);
++    object_class_property_add(oc, PVH_MACHINE_HIGHMEM_BASE, "uint64_t",
++                              NULL, pvh_machine_set_highmem_base, NULL, NULL);
++    object_class_property_add(oc, PVH_MACHINE_HIGHMEM_SIZE, "uint64_t",
++                              NULL, pvh_machine_set_highmem_size, NULL, NULL);
++    object_class_property_add(oc, PVH_MACHINE_VIRTIO_PCIE_BASE, "uint64_t",
++                              NULL, pvh_machine_set_virtio_pcie_base, NULL, NULL);
++    object_class_property_add(oc, PVH_MACHINE_VIRTIO_PCIE_SIZE, "uint64_t",
++                              NULL, pvh_machine_set_virtio_pcie_size, NULL, NULL);
+ }
+ 
+ static const TypeInfo xenpvh_machine_type = {
+diff --git a/hw/xen/xen-pvh-common.c b/hw/xen/xen-pvh-common.c
+index d1fa6c1170..d87fa8f592 100644
+--- a/hw/xen/xen-pvh-common.c
++++ b/hw/xen/xen-pvh-common.c
+@@ -88,9 +88,12 @@ static inline void xenpvh_gpex_init(MachineState *ms,
+     memory_region_add_subregion(sysmem, ecam_base, &s->pci.ecam_alias);
+ 
+     mmio_reg = sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 1);
+-    memory_region_init_alias(&s->pci.mmio_alias, OBJECT(dev), "pcie-mmio",
+-                             mmio_reg, mmio_base, mmio_size);
+-    memory_region_add_subregion(sysmem, mmio_base, &s->pci.mmio_alias);
++
++    if (mmio_size) {
++        memory_region_init_alias(&s->pci.mmio_alias, OBJECT(dev), "pcie-mmio",
++                                 mmio_reg, mmio_base, mmio_size);
++        memory_region_add_subregion(sysmem, mmio_base, &s->pci.mmio_alias);
++    }
+ 
+     if (mmio_high_size) {
+         memory_region_init_alias(&s->pci.mmio_high_alias, OBJECT(dev),
+-- 
+2.17.1
+

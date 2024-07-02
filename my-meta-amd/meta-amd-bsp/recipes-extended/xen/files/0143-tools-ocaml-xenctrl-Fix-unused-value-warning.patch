@@ -1,0 +1,32 @@
+From 2e173b8383928e8d98d67ce57ec069eb612def60 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Edwin=20T=C3=B6r=C3=B6k?= <edvin.torok@citrix.com>
+Date: Fri, 16 Dec 2022 18:25:16 +0000
+Subject: [PATCH 143/221] tools/ocaml/xenctrl: Fix unused value warning
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Fixes: 8b3c06a3e5 ("tools/ocaml/xenctrl: OCaml 5 support, fix use-after-free")
+Signed-off-by: Edwin Török <edwin.torok@cloud.com>
+Acked-by: Christian Lindig <christian.lindig@citrix.com>
+Acked-by: Andrew Cooper <andrew.cooper3@citrix.com>
+---
+ tools/ocaml/libs/xc/xenctrl.ml | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/tools/ocaml/libs/xc/xenctrl.ml b/tools/ocaml/libs/xc/xenctrl.ml
+index 9a80ae5e28..7442bbbfc5 100644
+--- a/tools/ocaml/libs/xc/xenctrl.ml
++++ b/tools/ocaml/libs/xc/xenctrl.ml
+@@ -182,7 +182,7 @@ let get_handle () = !handle
+ 
+ let close_handle () =
+ 	match !handle with
+-	| Some h -> handle := None
++	| Some _ -> handle := None
+ 	| None -> ()
+ 
+ let with_intf f =
+-- 
+2.17.1
+

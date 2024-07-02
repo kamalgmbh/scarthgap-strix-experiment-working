@@ -1,0 +1,25 @@
+From 5007b963639bff2fa3359abbfe20d53ea9111fd9 Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Sun, 28 May 2023 19:23:56 -0700
+Subject: [PATCH 403/458] Fixed build warning
+
+---
+ src/joystick/windows/SDL_rawinputjoystick.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/joystick/windows/SDL_rawinputjoystick.c b/src/joystick/windows/SDL_rawinputjoystick.c
+index baeb3ff37..776e5c3e8 100644
+--- a/src/joystick/windows/SDL_rawinputjoystick.c
++++ b/src/joystick/windows/SDL_rawinputjoystick.c
+@@ -1608,7 +1608,7 @@ static void RAWINPUT_UpdateOtherAPIs(SDL_Joystick *joystick)
+     if (!ctx->wgi_correlated) {
+         SDL_bool new_correlation_count = 0;
+         if (RAWINPUT_MissingWindowsGamingInputSlot()) {
+-            Uint8 correlation_id;
++            Uint8 correlation_id = 0;
+             WindowsGamingInputGamepadState *slot_idx = NULL;
+             if (RAWINPUT_GuessWindowsGamingInputSlot(&match_state_xinput, &correlation_id, &slot_idx, xinput_correlated)) {
+                 /* we match exactly one WindowsGamingInput device */
+-- 
+2.17.1
+

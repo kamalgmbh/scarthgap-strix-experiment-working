@@ -1,0 +1,122 @@
+From 9938ac72bf88902375e59cd84eee6e3ae5fda986 Mon Sep 17 00:00:00 2001
+From: Lei Huang <Lei.Huang@amd.com>
+Date: Tue, 7 May 2024 09:20:17 +0800
+Subject: [PATCH 16/16] virtio-gpu: support blob type cursor
+
+[Why]
+The linux vm cursor buf is created by xservice
+with dumb buf which, in host side, calls in to
+virgl_cmd_create_resource_2d via the virtio-gpu protocol.
+
+But Android VM only uses native ctx blob as cursor buf.
+and virgl_renderer_get_cursor_data does not support blob
+resource yet.
+
+[How]
+handle cursor_data when blob buf res is mapped.
+
+Jira ID: SWDEV-441993
+
+Change-Id: I97be82d206be1af981756d124bf2c3985bf7f6bb
+Signed-off-by: Lei Huang <Lei.Huang@amd.com>
+---
+ src/virglrenderer.c  | 17 +++++++++++------
+ src/vrend_renderer.c | 38 ++++++++++++++++++++++++++++++++++++++
+ src/vrend_renderer.h |  3 +++
+ 3 files changed, 52 insertions(+), 6 deletions(-)
+
+diff --git a/src/virglrenderer.c b/src/virglrenderer.c
+index 5af457f4..f5aa43a1 100644
+--- a/src/virglrenderer.c
++++ b/src/virglrenderer.c
+@@ -718,13 +718,18 @@ static const struct proxy_renderer_cbs proxy_cbs = {
+ void *virgl_renderer_get_cursor_data(uint32_t resource_id, uint32_t *width, uint32_t *height)
+ {
+    struct virgl_resource *res = virgl_resource_lookup(resource_id);
+-   if (!res || !res->pipe_resource)
+-      return NULL;
+ 
+-   vrend_renderer_force_ctx_0();
+-   return vrend_renderer_get_cursor_contents(res->pipe_resource,
+-                                             width,
+-                                             height);
++   if (!res)
++       return NULL;
++   if (res->pipe_resource) {
++       vrend_renderer_force_ctx_0();
++       return vrend_renderer_get_cursor_contents(res->pipe_resource, width, height);
++   }
++
++   if (res->mapped) {
++       return vrend_renderer_get_blob_cursor_contents(res, width, height);
++   }
++   return NULL;
+ }
+ 
+ static bool
+diff --git a/src/vrend_renderer.c b/src/vrend_renderer.c
+index 14a48805..42e50117 100644
+--- a/src/vrend_renderer.c
++++ b/src/vrend_renderer.c
+@@ -12663,6 +12663,44 @@ GLint64 vrend_renderer_get_timestamp(void)
+    return v;
+ }
+ 
++/* Can not get a valid width and height in blob mem,
++ * and cursor_alloc in qemu's virtio-gpu.c, set width = 64,
++ * height = 64, and a decision is made in virtio_gpu_gl_update_cursor_data,
++ * So the default width and height are defined here
++ */
++#define QEMU_CURSOR_WIDTH 64
++#define QEMU_CURSOR_HEIGHT 64
++
++void *vrend_renderer_get_blob_cursor_contents(struct virgl_resource *res,
++                                              uint32_t *width,
++                                              uint32_t *height)
++{
++    uint32_t size;
++    char *data;
++
++    if (!width || !height || !res->map_size)
++        return NULL;
++
++    *width = QEMU_CURSOR_WIDTH;
++    *height = QEMU_CURSOR_HEIGHT;
++
++    size = QEMU_CURSOR_WIDTH * QEMU_CURSOR_HEIGHT * sizeof(uint32_t);
++    data = malloc(size);
++
++    if (!data) {
++        free(data);
++        return NULL;
++    }
++
++    memset(data, 0x00, size);
++    if (res->map_size > size)
++        virgl_warn("WARNING: VM cursor size is larger than the size supported by qemu\n");
++    else
++        size = res->map_size;
++    memcpy(data, res->mapped, size);
++    return data;
++}
++
+ void *vrend_renderer_get_cursor_contents(struct pipe_resource *pres,
+                                          uint32_t *width,
+                                          uint32_t *height)
+diff --git a/src/vrend_renderer.h b/src/vrend_renderer.h
+index 1589b14c..ee33b0f7 100644
+--- a/src/vrend_renderer.h
++++ b/src/vrend_renderer.h
+@@ -479,6 +479,9 @@ void vrend_render_condition(struct vrend_context *ctx,
+ void *vrend_renderer_get_cursor_contents(struct pipe_resource *pres,
+                                          uint32_t *width,
+                                          uint32_t *height);
++void *vrend_renderer_get_blob_cursor_contents(struct virgl_resource *res,
++                                              uint32_t *width,
++                                              uint32_t *height);
+ 
+ void vrend_renderer_fill_caps(uint32_t set, uint32_t version,
+                               union virgl_caps *caps);
+-- 
+2.17.1
+

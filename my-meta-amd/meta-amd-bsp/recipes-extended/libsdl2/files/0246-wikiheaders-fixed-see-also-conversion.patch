@@ -1,0 +1,37 @@
+From 858ae9900efc308c483f76c3df5f257160a66bf2 Mon Sep 17 00:00:00 2001
+From: "Ryan C. Gordon" <icculus@icculus.org>
+Date: Fri, 24 Feb 2023 11:45:43 -0500
+Subject: [PATCH 246/458] wikiheaders: fixed see-also conversion
+
+(cherry picked from commit d748a454a86d6250b724fe94066eb98fbf4eea05)
+---
+ build-scripts/wikiheaders.pl | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/build-scripts/wikiheaders.pl b/build-scripts/wikiheaders.pl
+index 64f3763b1..bb6dfa198 100755
+--- a/build-scripts/wikiheaders.pl
++++ b/build-scripts/wikiheaders.pl
+@@ -923,6 +923,7 @@ if ($copy_direction == 1) {  # --copy-to-headers
+                 s/\A(\:|\* )//;
+                 s/\(\)\Z//;  # Convert "SDL_Func()" to "SDL_Func"
+                 s/\[\[(.*?)\]\]/$1/;  # in case some wikilinks remain.
++                s/\[(.*?)\]\(.*?\)/$1/;  # in case some wikilinks remain.
+                 s/\A\/*//;
+                 $str .= "\\sa $_\n";
+             }
+@@ -1510,10 +1511,10 @@ if ($copy_direction == 1) {  # --copy-to-headers
+             my @desclines = split /\n/, $v;
+             my $nextstr = '';
+             foreach (@desclines) {
+-print("DESCLINE: '$_'\n");
+                 s/\A(\:|\* )//;
+                 s/\(\)\Z//;  # Convert "SDL_Func()" to "SDL_Func"
+                 s/\[\[(.*?)\]\]/$1/;  # in case some wikilinks remain.
++                s/\[(.*?)\]\(.*?\)/$1/;  # in case some wikilinks remain.
+                 s/\A\*\s*\Z//;
+                 s/\A\/*//;
+                 s/\A\.BR\s+//;  # dewikify added this, but we want to handle it.
+-- 
+2.17.1
+

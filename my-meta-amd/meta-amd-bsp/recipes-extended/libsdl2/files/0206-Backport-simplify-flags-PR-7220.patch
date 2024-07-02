@@ -1,0 +1,1494 @@
+From 17515f4aef5cf7df21e78bb05c1a055c6bbc978f Mon Sep 17 00:00:00 2001
+From: Sylvain <sylvain.becker@gmail.com>
+Date: Sat, 4 Feb 2023 15:51:37 +0100
+Subject: [PATCH 206/458] Backport simplify flags PR #7220
+
+---
+ src/SDL.c                                 | 38 +++++------
+ src/audio/SDL_audiotypecvt.c              | 80 +++++++++++------------
+ src/audio/directsound/SDL_directsound.c   |  4 +-
+ src/core/linux/SDL_evdev.c                |  2 +-
+ src/cpuinfo/SDL_cpuinfo.c                 |  2 +-
+ src/events/SDL_keyboard.c                 |  2 +-
+ src/events/SDL_mouse.c                    |  6 +-
+ src/haptic/SDL_haptic.c                   | 10 +--
+ src/joystick/hidapi/SDL_hidapi_gamecube.c |  4 +-
+ src/joystick/hidapi/SDL_hidapi_ps4.c      | 16 ++---
+ src/joystick/hidapi/SDL_hidapi_ps5.c      | 18 ++---
+ src/joystick/hidapi/SDL_hidapi_shield.c   |  2 +-
+ src/joystick/hidapi/SDL_hidapi_steam.c    |  2 +-
+ src/joystick/hidapi/SDL_hidapi_xboxone.c  |  4 +-
+ src/joystick/windows/SDL_dinputjoystick.c |  4 +-
+ src/render/SDL_render.c                   |  4 +-
+ src/render/direct3d11/SDL_render_d3d11.c  |  2 +-
+ src/render/direct3d12/SDL_render_d3d12.c  |  2 +-
+ src/stdlib/SDL_iconv.c                    |  2 +-
+ src/test/SDL_test_common.c                |  2 +-
+ src/test/SDL_test_font.c                  |  2 +-
+ src/thread/ngage/SDL_systhread.cpp        |  2 +-
+ src/video/SDL_blit_0.c                    | 28 ++++----
+ src/video/SDL_egl.c                       |  2 +-
+ src/video/SDL_video.c                     | 14 ++--
+ src/video/android/SDL_androidwindow.c     |  2 +-
+ src/video/cocoa/SDL_cocoakeyboard.m       |  2 +-
+ src/video/cocoa/SDL_cocoawindow.m         |  8 +--
+ src/video/riscos/SDL_riscosevents.c       |  8 +--
+ src/video/uikit/SDL_uikitview.m           |  4 +-
+ src/video/vita/SDL_vitavideo.c            |  6 +-
+ src/video/wayland/SDL_waylandvideo.c      |  2 +-
+ src/video/wayland/SDL_waylandwindow.c     |  2 +-
+ src/video/windows/SDL_windowsevents.c     | 30 ++++-----
+ src/video/windows/SDL_windowskeyboard.c   |  6 +-
+ src/video/windows/SDL_windowswindow.c     |  6 +-
+ src/video/x11/SDL_x11events.c             |  6 +-
+ src/video/x11/SDL_x11window.c             |  9 +--
+ test/controllermap.c                      |  4 +-
+ test/testime.c                            |  2 +-
+ 40 files changed, 176 insertions(+), 175 deletions(-)
+
+diff --git a/src/SDL.c b/src/SDL.c
+index 28ab83245..10cbeaaa0 100644
+--- a/src/SDL.c
++++ b/src/SDL.c
+@@ -182,12 +182,12 @@ int SDL_InitSubSystem(Uint32 flags)
+     SDL_DBus_Init();
+ #endif
+ 
+-    if ((flags & SDL_INIT_GAMECONTROLLER)) {
++    if (flags & SDL_INIT_GAMECONTROLLER) {
+         /* game controller implies joystick */
+         flags |= SDL_INIT_JOYSTICK;
+     }
+ 
+-    if ((flags & (SDL_INIT_VIDEO | SDL_INIT_JOYSTICK | SDL_INIT_AUDIO))) {
++    if (flags & (SDL_INIT_VIDEO | SDL_INIT_JOYSTICK | SDL_INIT_AUDIO)) {
+         /* video or joystick or audio implies events */
+         flags |= SDL_INIT_EVENTS;
+     }
+@@ -197,7 +197,7 @@ int SDL_InitSubSystem(Uint32 flags)
+ #endif
+ 
+ #if SDL_VIDEO_DRIVER_WINDOWS
+-    if ((flags & (SDL_INIT_HAPTIC | SDL_INIT_JOYSTICK))) {
++    if (flags & (SDL_INIT_HAPTIC | SDL_INIT_JOYSTICK)) {
+         if (SDL_HelperWindowCreate() < 0) {
+             goto quit_and_error;
+         }
+@@ -209,7 +209,7 @@ int SDL_InitSubSystem(Uint32 flags)
+ #endif
+ 
+     /* Initialize the event subsystem */
+-    if ((flags & SDL_INIT_EVENTS)) {
++    if (flags & SDL_INIT_EVENTS) {
+ #if !SDL_EVENTS_DISABLED
+         if (SDL_PrivateShouldInitSubsystem(SDL_INIT_EVENTS)) {
+             if (SDL_EventsInit() < 0) {
+@@ -225,7 +225,7 @@ int SDL_InitSubSystem(Uint32 flags)
+     }
+ 
+     /* Initialize the timer subsystem */
+-    if ((flags & SDL_INIT_TIMER)) {
++    if (flags & SDL_INIT_TIMER) {
+ #if !SDL_TIMERS_DISABLED && !SDL_TIMER_DUMMY
+         if (SDL_PrivateShouldInitSubsystem(SDL_INIT_TIMER)) {
+             if (SDL_TimerInit() < 0) {
+@@ -241,7 +241,7 @@ int SDL_InitSubSystem(Uint32 flags)
+     }
+ 
+     /* Initialize the video subsystem */
+-    if ((flags & SDL_INIT_VIDEO)) {
++    if (flags & SDL_INIT_VIDEO) {
+ #if !SDL_VIDEO_DISABLED
+         if (SDL_PrivateShouldInitSubsystem(SDL_INIT_VIDEO)) {
+             if (SDL_VideoInit(NULL) < 0) {
+@@ -257,7 +257,7 @@ int SDL_InitSubSystem(Uint32 flags)
+     }
+ 
+     /* Initialize the audio subsystem */
+-    if ((flags & SDL_INIT_AUDIO)) {
++    if (flags & SDL_INIT_AUDIO) {
+ #if !SDL_AUDIO_DISABLED
+         if (SDL_PrivateShouldInitSubsystem(SDL_INIT_AUDIO)) {
+             if (SDL_AudioInit(NULL) < 0) {
+@@ -273,7 +273,7 @@ int SDL_InitSubSystem(Uint32 flags)
+     }
+ 
+     /* Initialize the joystick subsystem */
+-    if ((flags & SDL_INIT_JOYSTICK)) {
++    if (flags & SDL_INIT_JOYSTICK) {
+ #if !SDL_JOYSTICK_DISABLED
+         if (SDL_PrivateShouldInitSubsystem(SDL_INIT_JOYSTICK)) {
+             if (SDL_JoystickInit() < 0) {
+@@ -288,7 +288,7 @@ int SDL_InitSubSystem(Uint32 flags)
+ #endif
+     }
+ 
+-    if ((flags & SDL_INIT_GAMECONTROLLER)) {
++    if (flags & SDL_INIT_GAMECONTROLLER) {
+ #if !SDL_JOYSTICK_DISABLED
+         if (SDL_PrivateShouldInitSubsystem(SDL_INIT_GAMECONTROLLER)) {
+             if (SDL_GameControllerInit() < 0) {
+@@ -304,7 +304,7 @@ int SDL_InitSubSystem(Uint32 flags)
+     }
+ 
+     /* Initialize the haptic subsystem */
+-    if ((flags & SDL_INIT_HAPTIC)) {
++    if (flags & SDL_INIT_HAPTIC) {
+ #if !SDL_HAPTIC_DISABLED
+         if (SDL_PrivateShouldInitSubsystem(SDL_INIT_HAPTIC)) {
+             if (SDL_HapticInit() < 0) {
+@@ -320,7 +320,7 @@ int SDL_InitSubSystem(Uint32 flags)
+     }
+ 
+     /* Initialize the sensor subsystem */
+-    if ((flags & SDL_INIT_SENSOR)) {
++    if (flags & SDL_INIT_SENSOR) {
+ #if !SDL_SENSOR_DISABLED
+         if (SDL_PrivateShouldInitSubsystem(SDL_INIT_SENSOR)) {
+             if (SDL_SensorInit() < 0) {
+@@ -360,7 +360,7 @@ void SDL_QuitSubSystem(Uint32 flags)
+ 
+     /* Shut down requested initialized subsystems */
+ #if !SDL_SENSOR_DISABLED
+-    if ((flags & SDL_INIT_SENSOR)) {
++    if (flags & SDL_INIT_SENSOR) {
+         if (SDL_PrivateShouldQuitSubsystem(SDL_INIT_SENSOR)) {
+             SDL_SensorQuit();
+         }
+@@ -369,7 +369,7 @@ void SDL_QuitSubSystem(Uint32 flags)
+ #endif
+ 
+ #if !SDL_JOYSTICK_DISABLED
+-    if ((flags & SDL_INIT_GAMECONTROLLER)) {
++    if (flags & SDL_INIT_GAMECONTROLLER) {
+         /* game controller implies joystick */
+         flags |= SDL_INIT_JOYSTICK;
+ 
+@@ -379,7 +379,7 @@ void SDL_QuitSubSystem(Uint32 flags)
+         SDL_PrivateSubsystemRefCountDecr(SDL_INIT_GAMECONTROLLER);
+     }
+ 
+-    if ((flags & SDL_INIT_JOYSTICK)) {
++    if (flags & SDL_INIT_JOYSTICK) {
+         /* joystick implies events */
+         flags |= SDL_INIT_EVENTS;
+ 
+@@ -391,7 +391,7 @@ void SDL_QuitSubSystem(Uint32 flags)
+ #endif
+ 
+ #if !SDL_HAPTIC_DISABLED
+-    if ((flags & SDL_INIT_HAPTIC)) {
++    if (flags & SDL_INIT_HAPTIC) {
+         if (SDL_PrivateShouldQuitSubsystem(SDL_INIT_HAPTIC)) {
+             SDL_HapticQuit();
+         }
+@@ -400,7 +400,7 @@ void SDL_QuitSubSystem(Uint32 flags)
+ #endif
+ 
+ #if !SDL_AUDIO_DISABLED
+-    if ((flags & SDL_INIT_AUDIO)) {
++    if (flags & SDL_INIT_AUDIO) {
+         /* audio implies events */
+         flags |= SDL_INIT_EVENTS;
+ 
+@@ -412,7 +412,7 @@ void SDL_QuitSubSystem(Uint32 flags)
+ #endif
+ 
+ #if !SDL_VIDEO_DISABLED
+-    if ((flags & SDL_INIT_VIDEO)) {
++    if (flags & SDL_INIT_VIDEO) {
+         /* video implies events */
+         flags |= SDL_INIT_EVENTS;
+ 
+@@ -424,7 +424,7 @@ void SDL_QuitSubSystem(Uint32 flags)
+ #endif
+ 
+ #if !SDL_TIMERS_DISABLED && !SDL_TIMER_DUMMY
+-    if ((flags & SDL_INIT_TIMER)) {
++    if (flags & SDL_INIT_TIMER) {
+         if (SDL_PrivateShouldQuitSubsystem(SDL_INIT_TIMER)) {
+             SDL_TimerQuit();
+         }
+@@ -433,7 +433,7 @@ void SDL_QuitSubSystem(Uint32 flags)
+ #endif
+ 
+ #if !SDL_EVENTS_DISABLED
+-    if ((flags & SDL_INIT_EVENTS)) {
++    if (flags & SDL_INIT_EVENTS) {
+         if (SDL_PrivateShouldQuitSubsystem(SDL_INIT_EVENTS)) {
+             SDL_EventsQuit();
+         }
+diff --git a/src/audio/SDL_audiotypecvt.c b/src/audio/SDL_audiotypecvt.c
+index 372b88853..7ffa4dd19 100644
+--- a/src/audio/SDL_audiotypecvt.c
++++ b/src/audio/SDL_audiotypecvt.c
+@@ -294,10 +294,10 @@ static void SDLCALL SDL_Convert_S8_to_F32_SSE2(SDL_AudioCVT *cvt, SDL_AudioForma
+ 
+     src -= 15;
+     dst -= 15; /* adjust to read SSE blocks from the start. */
+-    SDL_assert(!i || ((((size_t)dst) & 15) == 0));
++    SDL_assert(!i || !(((size_t)dst) & 15));
+ 
+     /* Make sure src is aligned too. */
+-    if ((((size_t)src) & 15) == 0) {
++    if (!(((size_t)src) & 15)) {
+         /* Aligned! Do SSE blocks as long as we have 16 bytes available. */
+         const __m128i *mmsrc = (const __m128i *)src;
+         const __m128i zero = _mm_setzero_si128();
+@@ -358,10 +358,10 @@ static void SDLCALL SDL_Convert_U8_to_F32_SSE2(SDL_AudioCVT *cvt, SDL_AudioForma
+ 
+     src -= 15;
+     dst -= 15; /* adjust to read SSE blocks from the start. */
+-    SDL_assert(!i || ((((size_t)dst) & 15) == 0));
++    SDL_assert(!i || !(((size_t)dst) & 15));
+ 
+     /* Make sure src is aligned too. */
+-    if ((((size_t)src) & 15) == 0) {
++    if (!(((size_t)src) & 15)) {
+         /* Aligned! Do SSE blocks as long as we have 16 bytes available. */
+         const __m128i *mmsrc = (const __m128i *)src;
+         const __m128i zero = _mm_setzero_si128();
+@@ -424,10 +424,10 @@ static void SDLCALL SDL_Convert_S16_to_F32_SSE2(SDL_AudioCVT *cvt, SDL_AudioForm
+ 
+     src -= 7;
+     dst -= 7; /* adjust to read SSE blocks from the start. */
+-    SDL_assert(!i || ((((size_t)dst) & 15) == 0));
++    SDL_assert(!i || !(((size_t)dst) & 15));
+ 
+     /* Make sure src is aligned too. */
+-    if ((((size_t)src) & 15) == 0) {
++    if (!(((size_t)src) & 15)) {
+         /* Aligned! Do SSE blocks as long as we have 16 bytes available. */
+         const __m128 divby32768 = _mm_set1_ps(DIVBY32768);
+         while (i >= 8) {                                               /* 8 * 16-bit */
+@@ -477,10 +477,10 @@ static void SDLCALL SDL_Convert_U16_to_F32_SSE2(SDL_AudioCVT *cvt, SDL_AudioForm
+ 
+     src -= 7;
+     dst -= 7; /* adjust to read SSE blocks from the start. */
+-    SDL_assert(!i || ((((size_t)dst) & 15) == 0));
++    SDL_assert(!i || !(((size_t)dst) & 15));
+ 
+     /* Make sure src is aligned too. */
+-    if ((((size_t)src) & 15) == 0) {
++    if (!(((size_t)src) & 15)) {
+         /* Aligned! Do SSE blocks as long as we have 16 bytes available. */
+         const __m128 divby32768 = _mm_set1_ps(DIVBY32768);
+         const __m128 minus1 = _mm_set1_ps(-1.0f);
+@@ -529,10 +529,10 @@ static void SDLCALL SDL_Convert_S32_to_F32_SSE2(SDL_AudioCVT *cvt, SDL_AudioForm
+         *dst = ((float)(*src >> 8)) * DIVBY8388607;
+     }
+ 
+-    SDL_assert(!i || ((((size_t)dst) & 15) == 0));
++    SDL_assert(!i || !(((size_t)dst) & 15));
+ 
+     /* Make sure src is aligned too. */
+-    if ((((size_t)src) & 15) == 0) {
++    if (!(((size_t)src) & 15)) {
+         /* Aligned! Do SSE blocks as long as we have 16 bytes available. */
+         const __m128 divby8388607 = _mm_set1_ps(DIVBY8388607);
+         const __m128i *mmsrc = (const __m128i *)src;
+@@ -579,10 +579,10 @@ static void SDLCALL SDL_Convert_F32_to_S8_SSE2(SDL_AudioCVT *cvt, SDL_AudioForma
+         }
+     }
+ 
+-    SDL_assert(!i || ((((size_t)dst) & 15) == 0));
++    SDL_assert(!i || !(((size_t)dst) & 15));
+ 
+     /* Make sure src is aligned too. */
+-    if ((((size_t)src) & 15) == 0) {
++    if (!(((size_t)src) & 15)) {
+         /* Aligned! Do SSE blocks as long as we have 16 bytes available. */
+         const __m128 one = _mm_set1_ps(1.0f);
+         const __m128 negone = _mm_set1_ps(-1.0f);
+@@ -642,10 +642,10 @@ static void SDLCALL SDL_Convert_F32_to_U8_SSE2(SDL_AudioCVT *cvt, SDL_AudioForma
+         }
+     }
+ 
+-    SDL_assert(!i || ((((size_t)dst) & 15) == 0));
++    SDL_assert(!i || !(((size_t)dst) & 15));
+ 
+     /* Make sure src is aligned too. */
+-    if ((((size_t)src) & 15) == 0) {
++    if (!(((size_t)src) & 15)) {
+         /* Aligned! Do SSE blocks as long as we have 16 bytes available. */
+         const __m128 one = _mm_set1_ps(1.0f);
+         const __m128 negone = _mm_set1_ps(-1.0f);
+@@ -705,10 +705,10 @@ static void SDLCALL SDL_Convert_F32_to_S16_SSE2(SDL_AudioCVT *cvt, SDL_AudioForm
+         }
+     }
+ 
+-    SDL_assert(!i || ((((size_t)dst) & 15) == 0));
++    SDL_assert(!i || !(((size_t)dst) & 15));
+ 
+     /* Make sure src is aligned too. */
+-    if ((((size_t)src) & 15) == 0) {
++    if (!(((size_t)src) & 15)) {
+         /* Aligned! Do SSE blocks as long as we have 16 bytes available. */
+         const __m128 one = _mm_set1_ps(1.0f);
+         const __m128 negone = _mm_set1_ps(-1.0f);
+@@ -766,10 +766,10 @@ static void SDLCALL SDL_Convert_F32_to_U16_SSE2(SDL_AudioCVT *cvt, SDL_AudioForm
+         }
+     }
+ 
+-    SDL_assert(!i || ((((size_t)dst) & 15) == 0));
++    SDL_assert(!i || !(((size_t)dst) & 15));
+ 
+     /* Make sure src is aligned too. */
+-    if ((((size_t)src) & 15) == 0) {
++    if (!(((size_t)src) & 15)) {
+         /* Aligned! Do SSE blocks as long as we have 16 bytes available. */
+         /* This calculates differently than the scalar path because SSE2 can't
+            pack int32 data down to unsigned int16. _mm_packs_epi32 does signed
+@@ -835,8 +835,8 @@ static void SDLCALL SDL_Convert_F32_to_S32_SSE2(SDL_AudioCVT *cvt, SDL_AudioForm
+         }
+     }
+ 
+-    SDL_assert(!i || ((((size_t)dst) & 15) == 0));
+-    SDL_assert(!i || ((((size_t)src) & 15) == 0));
++    SDL_assert(!i || !(((size_t)dst) & 15));
++    SDL_assert(!i || !(((size_t)src) & 15));
+ 
+     {
+         /* Aligned! Do SSE blocks as long as we have 16 bytes available. */
+@@ -890,10 +890,10 @@ static void SDLCALL SDL_Convert_S8_to_F32_NEON(SDL_AudioCVT *cvt, SDL_AudioForma
+ 
+     src -= 15;
+     dst -= 15; /* adjust to read NEON blocks from the start. */
+-    SDL_assert(!i || ((((size_t)dst) & 15) == 0));
++    SDL_assert(!i || !(((size_t)dst) & 15));
+ 
+     /* Make sure src is aligned too. */
+-    if ((((size_t)src) & 15) == 0) {
++    if (!(((size_t)src) & 15)) {
+         /* Aligned! Do NEON blocks as long as we have 16 bytes available. */
+         const int8_t *mmsrc = (const int8_t *)src;
+         const float32x4_t divby128 = vdupq_n_f32(DIVBY128);
+@@ -946,10 +946,10 @@ static void SDLCALL SDL_Convert_U8_to_F32_NEON(SDL_AudioCVT *cvt, SDL_AudioForma
+ 
+     src -= 15;
+     dst -= 15; /* adjust to read NEON blocks from the start. */
+-    SDL_assert(!i || ((((size_t)dst) & 15) == 0));
++    SDL_assert(!i || !(((size_t)dst) & 15));
+ 
+     /* Make sure src is aligned too. */
+-    if ((((size_t)src) & 15) == 0) {
++    if (!(((size_t)src) & 15)) {
+         /* Aligned! Do NEON blocks as long as we have 16 bytes available. */
+         const uint8_t *mmsrc = (const uint8_t *)src;
+         const float32x4_t divby128 = vdupq_n_f32(DIVBY128);
+@@ -1003,10 +1003,10 @@ static void SDLCALL SDL_Convert_S16_to_F32_NEON(SDL_AudioCVT *cvt, SDL_AudioForm
+ 
+     src -= 7;
+     dst -= 7; /* adjust to read NEON blocks from the start. */
+-    SDL_assert(!i || ((((size_t)dst) & 15) == 0));
++    SDL_assert(!i || !(((size_t)dst) & 15));
+ 
+     /* Make sure src is aligned too. */
+-    if ((((size_t)src) & 15) == 0) {
++    if (!(((size_t)src) & 15)) {
+         /* Aligned! Do NEON blocks as long as we have 16 bytes available. */
+         const float32x4_t divby32768 = vdupq_n_f32(DIVBY32768);
+         while (i >= 8) {                                            /* 8 * 16-bit */
+@@ -1052,10 +1052,10 @@ static void SDLCALL SDL_Convert_U16_to_F32_NEON(SDL_AudioCVT *cvt, SDL_AudioForm
+ 
+     src -= 7;
+     dst -= 7; /* adjust to read NEON blocks from the start. */
+-    SDL_assert(!i || ((((size_t)dst) & 15) == 0));
++    SDL_assert(!i || !(((size_t)dst) & 15));
+ 
+     /* Make sure src is aligned too. */
+-    if ((((size_t)src) & 15) == 0) {
++    if (!(((size_t)src) & 15)) {
+         /* Aligned! Do NEON blocks as long as we have 16 bytes available. */
+         const float32x4_t divby32768 = vdupq_n_f32(DIVBY32768);
+         const float32x4_t negone = vdupq_n_f32(-1.0f);
+@@ -1100,10 +1100,10 @@ static void SDLCALL SDL_Convert_S32_to_F32_NEON(SDL_AudioCVT *cvt, SDL_AudioForm
+         *dst = ((float)(*src >> 8)) * DIVBY8388607;
+     }
+ 
+-    SDL_assert(!i || ((((size_t)dst) & 15) == 0));
++    SDL_assert(!i || !(((size_t)dst) & 15));
+ 
+     /* Make sure src is aligned too. */
+-    if ((((size_t)src) & 15) == 0) {
++    if (!(((size_t)src) & 15)) {
+         /* Aligned! Do NEON blocks as long as we have 16 bytes available. */
+         const float32x4_t divby8388607 = vdupq_n_f32(DIVBY8388607);
+         const int32_t *mmsrc = (const int32_t *)src;
+@@ -1150,10 +1150,10 @@ static void SDLCALL SDL_Convert_F32_to_S8_NEON(SDL_AudioCVT *cvt, SDL_AudioForma
+         }
+     }
+ 
+-    SDL_assert(!i || ((((size_t)dst) & 15) == 0));
++    SDL_assert(!i || !(((size_t)dst) & 15));
+ 
+     /* Make sure src is aligned too. */
+-    if ((((size_t)src) & 15) == 0) {
++    if (!(((size_t)src) & 15)) {
+         /* Aligned! Do NEON blocks as long as we have 16 bytes available. */
+         const float32x4_t one = vdupq_n_f32(1.0f);
+         const float32x4_t negone = vdupq_n_f32(-1.0f);
+@@ -1215,10 +1215,10 @@ static void SDLCALL SDL_Convert_F32_to_U8_NEON(SDL_AudioCVT *cvt, SDL_AudioForma
+         }
+     }
+ 
+-    SDL_assert(!i || ((((size_t)dst) & 15) == 0));
++    SDL_assert(!i || !(((size_t)dst) & 15));
+ 
+     /* Make sure src is aligned too. */
+-    if ((((size_t)src) & 15) == 0) {
++    if (!(((size_t)src) & 15)) {
+         /* Aligned! Do NEON blocks as long as we have 16 bytes available. */
+         const float32x4_t one = vdupq_n_f32(1.0f);
+         const float32x4_t negone = vdupq_n_f32(-1.0f);
+@@ -1281,10 +1281,10 @@ static void SDLCALL SDL_Convert_F32_to_S16_NEON(SDL_AudioCVT *cvt, SDL_AudioForm
+         }
+     }
+ 
+-    SDL_assert(!i || ((((size_t)dst) & 15) == 0));
++    SDL_assert(!i || !(((size_t)dst) & 15));
+ 
+     /* Make sure src is aligned too. */
+-    if ((((size_t)src) & 15) == 0) {
++    if (!(((size_t)src) & 15)) {
+         /* Aligned! Do NEON blocks as long as we have 16 bytes available. */
+         const float32x4_t one = vdupq_n_f32(1.0f);
+         const float32x4_t negone = vdupq_n_f32(-1.0f);
+@@ -1342,10 +1342,10 @@ static void SDLCALL SDL_Convert_F32_to_U16_NEON(SDL_AudioCVT *cvt, SDL_AudioForm
+         }
+     }
+ 
+-    SDL_assert(!i || ((((size_t)dst) & 15) == 0));
++    SDL_assert(!i || !(((size_t)dst) & 15));
+ 
+     /* Make sure src is aligned too. */
+-    if ((((size_t)src) & 15) == 0) {
++    if (!(((size_t)src) & 15)) {
+         /* Aligned! Do NEON blocks as long as we have 16 bytes available. */
+         const float32x4_t one = vdupq_n_f32(1.0f);
+         const float32x4_t negone = vdupq_n_f32(-1.0f);
+@@ -1403,8 +1403,8 @@ static void SDLCALL SDL_Convert_F32_to_S32_NEON(SDL_AudioCVT *cvt, SDL_AudioForm
+         }
+     }
+ 
+-    SDL_assert(!i || ((((size_t)dst) & 15) == 0));
+-    SDL_assert(!i || ((((size_t)src) & 15) == 0));
++    SDL_assert(!i || !(((size_t)dst) & 15));
++    SDL_assert(!i || !(((size_t)src) & 15));
+ 
+     {
+         /* Aligned! Do NEON blocks as long as we have 16 bytes available. */
+diff --git a/src/audio/directsound/SDL_directsound.c b/src/audio/directsound/SDL_directsound.c
+index 9d6621bfa..d93b06452 100644
+--- a/src/audio/directsound/SDL_directsound.c
++++ b/src/audio/directsound/SDL_directsound.c
+@@ -229,10 +229,10 @@ static void DSOUND_WaitDevice(_THIS)
+ 
+         /* Try to restore a lost sound buffer */
+         IDirectSoundBuffer_GetStatus(this->hidden->mixbuf, &status);
+-        if ((status & DSBSTATUS_BUFFERLOST)) {
++        if (status & DSBSTATUS_BUFFERLOST) {
+             IDirectSoundBuffer_Restore(this->hidden->mixbuf);
+             IDirectSoundBuffer_GetStatus(this->hidden->mixbuf, &status);
+-            if ((status & DSBSTATUS_BUFFERLOST)) {
++            if (status & DSBSTATUS_BUFFERLOST) {
+                 break;
+             }
+         }
+diff --git a/src/core/linux/SDL_evdev.c b/src/core/linux/SDL_evdev.c
+index 32d3ee88b..bd4567c22 100644
+--- a/src/core/linux/SDL_evdev.c
++++ b/src/core/linux/SDL_evdev.c
+@@ -254,7 +254,7 @@ static void SDL_EVDEV_udev_callback(SDL_UDEV_deviceevent udev_event, int udev_cl
+             return;
+         }
+ 
+-        if ((udev_class & SDL_UDEV_DEVICE_JOYSTICK)) {
++        if (udev_class & SDL_UDEV_DEVICE_JOYSTICK) {
+             return;
+         }
+ 
+diff --git a/src/cpuinfo/SDL_cpuinfo.c b/src/cpuinfo/SDL_cpuinfo.c
+index 6e4f1d0c0..65e86a420 100644
+--- a/src/cpuinfo/SDL_cpuinfo.c
++++ b/src/cpuinfo/SDL_cpuinfo.c
+@@ -498,7 +498,7 @@ static int CPU_haveNEON(void)
+         AndroidCpuFamily cpu_family = android_getCpuFamily();
+         if (cpu_family == ANDROID_CPU_FAMILY_ARM) {
+             uint64_t cpu_features = android_getCpuFeatures();
+-            if ((cpu_features & ANDROID_CPU_ARM_FEATURE_NEON) != 0) {
++            if (cpu_features & ANDROID_CPU_ARM_FEATURE_NEON) {
+                 return 1;
+             }
+         }
+diff --git a/src/events/SDL_keyboard.c b/src/events/SDL_keyboard.c
+index 21e81806f..9f802213a 100644
+--- a/src/events/SDL_keyboard.c
++++ b/src/events/SDL_keyboard.c
+@@ -997,7 +997,7 @@ SDL_HardwareKeyboardKeyPressed(void)
+     SDL_Scancode scancode;
+ 
+     for (scancode = SDL_SCANCODE_UNKNOWN; scancode < SDL_NUM_SCANCODES; ++scancode) {
+-        if ((keyboard->keysource[scancode] & KEYBOARD_HARDWARE) != 0) {
++        if (keyboard->keysource[scancode] & KEYBOARD_HARDWARE) {
+             return SDL_TRUE;
+         }
+     }
+diff --git a/src/events/SDL_mouse.c b/src/events/SDL_mouse.c
+index a359c8e38..fa0a582e7 100644
+--- a/src/events/SDL_mouse.c
++++ b/src/events/SDL_mouse.c
+@@ -319,7 +319,7 @@ static SDL_bool SDL_UpdateMouseFocus(SDL_Window *window, int x, int y, Uint32 bu
+     SDL_Mouse *mouse = SDL_GetMouse();
+     SDL_bool inWindow = SDL_TRUE;
+ 
+-    if (window && ((window->flags & SDL_WINDOW_MOUSE_CAPTURE) == 0)) {
++    if (window && !(window->flags & SDL_WINDOW_MOUSE_CAPTURE)) {
+         int w, h;
+         SDL_GetWindowSize(window, &w, &h);
+         if (x < 0 || y < 0 || x >= w || y >= h) {
+@@ -509,7 +509,7 @@ static int SDL_PrivateSendMouseMotion(SDL_Window *window, SDL_MouseID mouseID, i
+                 return 0;
+             }
+         } else {
+-            if (window && (window->flags & SDL_WINDOW_INPUT_FOCUS) != 0) {
++            if (window && (window->flags & SDL_WINDOW_INPUT_FOCUS)) {
+                 if (mouse->WarpMouse) {
+                     mouse->WarpMouse(window, center_x, center_y);
+                 } else {
+@@ -559,7 +559,7 @@ static int SDL_PrivateSendMouseMotion(SDL_Window *window, SDL_MouseID mouseID, i
+ 
+     /* make sure that the pointers find themselves inside the windows,
+        unless we have the mouse captured. */
+-    if (window && ((window->flags & SDL_WINDOW_MOUSE_CAPTURE) == 0)) {
++    if (window && !(window->flags & SDL_WINDOW_MOUSE_CAPTURE)) {
+         int x_min = 0, x_max = 0;
+         int y_min = 0, y_max = 0;
+         const SDL_Rect *confine = SDL_GetWindowMouseRect(window);
+diff --git a/src/haptic/SDL_haptic.c b/src/haptic/SDL_haptic.c
+index 9c37f1ad1..f3b931a8d 100644
+--- a/src/haptic/SDL_haptic.c
++++ b/src/haptic/SDL_haptic.c
+@@ -585,7 +585,7 @@ int SDL_HapticGetEffectStatus(SDL_Haptic *haptic, int effect)
+         return -1;
+     }
+ 
+-    if ((haptic->supported & SDL_HAPTIC_STATUS) == 0) {
++    if (!(haptic->supported & SDL_HAPTIC_STATUS)) {
+         return SDL_SetError("Haptic: Device does not support status queries.");
+     }
+ 
+@@ -604,7 +604,7 @@ int SDL_HapticSetGain(SDL_Haptic *haptic, int gain)
+         return -1;
+     }
+ 
+-    if ((haptic->supported & SDL_HAPTIC_GAIN) == 0) {
++    if (!(haptic->supported & SDL_HAPTIC_GAIN)) {
+         return SDL_SetError("Haptic: Device does not support setting gain.");
+     }
+ 
+@@ -646,7 +646,7 @@ int SDL_HapticSetAutocenter(SDL_Haptic *haptic, int autocenter)
+         return -1;
+     }
+ 
+-    if ((haptic->supported & SDL_HAPTIC_AUTOCENTER) == 0) {
++    if (!(haptic->supported & SDL_HAPTIC_AUTOCENTER)) {
+         return SDL_SetError("Haptic: Device does not support setting autocenter.");
+     }
+ 
+@@ -670,7 +670,7 @@ int SDL_HapticPause(SDL_Haptic *haptic)
+         return -1;
+     }
+ 
+-    if ((haptic->supported & SDL_HAPTIC_PAUSE) == 0) {
++    if (!(haptic->supported & SDL_HAPTIC_PAUSE)) {
+         return SDL_SetError("Haptic: Device does not support setting pausing.");
+     }
+ 
+@@ -686,7 +686,7 @@ int SDL_HapticUnpause(SDL_Haptic *haptic)
+         return -1;
+     }
+ 
+-    if ((haptic->supported & SDL_HAPTIC_PAUSE) == 0) {
++    if (!(haptic->supported & SDL_HAPTIC_PAUSE)) {
+         return 0; /* Not going to be paused, so we pretend it's unpaused. */
+     }
+ 
+diff --git a/src/joystick/hidapi/SDL_hidapi_gamecube.c b/src/joystick/hidapi/SDL_hidapi_gamecube.c
+index b80c5ac0a..b4c7e694c 100644
+--- a/src/joystick/hidapi/SDL_hidapi_gamecube.c
++++ b/src/joystick/hidapi/SDL_hidapi_gamecube.c
+@@ -188,7 +188,7 @@ static SDL_bool HIDAPI_DriverGameCube_InitDevice(SDL_HIDAPI_Device *device)
+                 ctx->wireless[i] = (curSlot[0] & 0x20) != 0;
+ 
+                 /* Only allow rumble if the adapter's second USB cable is connected */
+-                ctx->rumbleAllowed[i] = (curSlot[0] & 0x04) != 0 && !ctx->wireless[i];
++                ctx->rumbleAllowed[i] = (curSlot[0] & 0x04) && !ctx->wireless[i];
+ 
+                 if (curSlot[0] & 0x30) { /* 0x10 - Wired, 0x20 - Wireless */
+                     if (ctx->joysticks[i] == -1) {
+@@ -313,7 +313,7 @@ static void HIDAPI_DriverGameCube_HandleNintendoPacket(SDL_HIDAPI_Device *device
+         ctx->wireless[i] = (curSlot[0] & 0x20) != 0;
+ 
+         /* Only allow rumble if the adapter's second USB cable is connected */
+-        ctx->rumbleAllowed[i] = (curSlot[0] & 0x04) != 0 && !ctx->wireless[i];
++        ctx->rumbleAllowed[i] = (curSlot[0] & 0x04) && !ctx->wireless[i];
+ 
+         if (curSlot[0] & 0x30) { /* 0x10 - Wired, 0x20 - Wireless */
+             if (ctx->joysticks[i] == -1) {
+diff --git a/src/joystick/hidapi/SDL_hidapi_ps4.c b/src/joystick/hidapi/SDL_hidapi_ps4.c
+index 1781f9d98..ab2883572 100644
+--- a/src/joystick/hidapi/SDL_hidapi_ps4.c
++++ b/src/joystick/hidapi/SDL_hidapi_ps4.c
+@@ -321,16 +321,16 @@ static SDL_bool HIDAPI_DriverPS4_InitDevice(SDL_HIDAPI_Device *device)
+ #ifdef DEBUG_PS4_PROTOCOL
+         HIDAPI_DumpPacket("PS4 capabilities: size = %d", data, size);
+ #endif
+-        if ((capabilities & 0x02) != 0) {
++        if (capabilities & 0x02) {
+             ctx->sensors_supported = SDL_TRUE;
+         }
+-        if ((capabilities & 0x04) != 0) {
++        if (capabilities & 0x04) {
+             ctx->lightbar_supported = SDL_TRUE;
+         }
+-        if ((capabilities & 0x08) != 0) {
++        if (capabilities & 0x08) {
+             ctx->vibration_supported = SDL_TRUE;
+         }
+-        if ((capabilities & 0x40) != 0) {
++        if (capabilities & 0x40) {
+             ctx->touchpad_supported = SDL_TRUE;
+         }
+ 
+@@ -899,7 +899,7 @@ static void HIDAPI_DriverPS4_HandleStatePacket(SDL_Joystick *joystick, SDL_hid_d
+     /* Some fightsticks, ex: Victrix FS Pro will only this these digital trigger bits and not the analog values so this needs to run whenever the
+        trigger is evaluated
+     */
+-    if ((packet->rgucButtonsHatAndCounter[1] & 0x0C) != 0) {
++    if (packet->rgucButtonsHatAndCounter[1] & 0x0C) {
+         Uint8 data = packet->rgucButtonsHatAndCounter[1];
+         packet->ucTriggerLeft = (data & 0x04) && packet->ucTriggerLeft == 0 ? 255 : packet->ucTriggerLeft;
+         packet->ucTriggerRight = (data & 0x08) && packet->ucTriggerRight == 0 ? 255 : packet->ucTriggerRight;
+@@ -944,12 +944,12 @@ static void HIDAPI_DriverPS4_HandleStatePacket(SDL_Joystick *joystick, SDL_hid_d
+     }
+ 
+     if (ctx->report_touchpad) {
+-        touchpad_state = ((packet->ucTouchpadCounter1 & 0x80) == 0) ? SDL_PRESSED : SDL_RELEASED;
++        touchpad_state = !(packet->ucTouchpadCounter1 & 0x80) ? SDL_PRESSED : SDL_RELEASED;
+         touchpad_x = packet->rgucTouchpadData1[0] | (((int)packet->rgucTouchpadData1[1] & 0x0F) << 8);
+         touchpad_y = (packet->rgucTouchpadData1[1] >> 4) | ((int)packet->rgucTouchpadData1[2] << 4);
+         SDL_PrivateJoystickTouchpad(joystick, 0, 0, touchpad_state, touchpad_x * TOUCHPAD_SCALEX, touchpad_y * TOUCHPAD_SCALEY, touchpad_state ? 1.0f : 0.0f);
+ 
+-        touchpad_state = ((packet->ucTouchpadCounter2 & 0x80) == 0) ? SDL_PRESSED : SDL_RELEASED;
++        touchpad_state = !(packet->ucTouchpadCounter2 & 0x80) ? SDL_PRESSED : SDL_RELEASED;
+         touchpad_x = packet->rgucTouchpadData2[0] | (((int)packet->rgucTouchpadData2[1] & 0x0F) << 8);
+         touchpad_y = (packet->rgucTouchpadData2[1] >> 4) | ((int)packet->rgucTouchpadData2[2] << 4);
+         SDL_PrivateJoystickTouchpad(joystick, 0, 1, touchpad_state, touchpad_x * TOUCHPAD_SCALEX, touchpad_y * TOUCHPAD_SCALEY, touchpad_state ? 1.0f : 0.0f);
+@@ -1016,7 +1016,7 @@ static SDL_bool HIDAPI_DriverPS4_IsPacketValid(SDL_DriverPS4_Context *ctx, Uint8
+          * This is usually the ID over USB, but the DS4v2 that started shipping with the PS4 Slim will also send this
+          * packet over BT with a size of 128
+          */
+-        if (size >= 64 && (data[31] & 0x04) == 0) {
++        if (size >= 64 && !(data[31] & 0x04)) {
+             return SDL_TRUE;
+         }
+         break;
+diff --git a/src/joystick/hidapi/SDL_hidapi_ps5.c b/src/joystick/hidapi/SDL_hidapi_ps5.c
+index 3e63607af..389556ae7 100644
+--- a/src/joystick/hidapi/SDL_hidapi_ps5.c
++++ b/src/joystick/hidapi/SDL_hidapi_ps5.c
+@@ -437,19 +437,19 @@ static SDL_bool HIDAPI_DriverPS5_InitDevice(SDL_HIDAPI_Device *device)
+ #ifdef DEBUG_PS5_PROTOCOL
+         HIDAPI_DumpPacket("PS5 capabilities: size = %d", data, size);
+ #endif
+-        if ((capabilities & 0x02) != 0) {
++        if (capabilities & 0x02) {
+             ctx->sensors_supported = SDL_TRUE;
+         }
+-        if ((capabilities & 0x04) != 0) {
++        if (capabilities & 0x04) {
+             ctx->lightbar_supported = SDL_TRUE;
+         }
+-        if ((capabilities & 0x08) != 0) {
++        if (capabilities & 0x08) {
+             ctx->vibration_supported = SDL_TRUE;
+         }
+-        if ((capabilities & 0x40) != 0) {
++        if (capabilities & 0x40) {
+             ctx->touchpad_supported = SDL_TRUE;
+         }
+-        if ((capabilities2 & 0x80) != 0) {
++        if (capabilities2 & 0x80) {
+             ctx->playerled_supported = SDL_TRUE;
+         }
+ 
+@@ -1239,12 +1239,12 @@ static void HIDAPI_DriverPS5_HandleStatePacket(SDL_Joystick *joystick, SDL_hid_d
+     int touchpad_x, touchpad_y;
+ 
+     if (ctx->report_touchpad) {
+-        touchpad_state = ((packet->ucTouchpadCounter1 & 0x80) == 0) ? SDL_PRESSED : SDL_RELEASED;
++        touchpad_state = !(packet->ucTouchpadCounter1 & 0x80) ? SDL_PRESSED : SDL_RELEASED;
+         touchpad_x = packet->rgucTouchpadData1[0] | (((int)packet->rgucTouchpadData1[1] & 0x0F) << 8);
+         touchpad_y = (packet->rgucTouchpadData1[1] >> 4) | ((int)packet->rgucTouchpadData1[2] << 4);
+         SDL_PrivateJoystickTouchpad(joystick, 0, 0, touchpad_state, touchpad_x * TOUCHPAD_SCALEX, touchpad_y * TOUCHPAD_SCALEY, touchpad_state ? 1.0f : 0.0f);
+ 
+-        touchpad_state = ((packet->ucTouchpadCounter2 & 0x80) == 0) ? SDL_PRESSED : SDL_RELEASED;
++        touchpad_state = !(packet->ucTouchpadCounter2 & 0x80) ? SDL_PRESSED : SDL_RELEASED;
+         touchpad_x = packet->rgucTouchpadData2[0] | (((int)packet->rgucTouchpadData2[1] & 0x0F) << 8);
+         touchpad_y = (packet->rgucTouchpadData2[1] >> 4) | ((int)packet->rgucTouchpadData2[2] << 4);
+         SDL_PrivateJoystickTouchpad(joystick, 0, 1, touchpad_state, touchpad_x * TOUCHPAD_SCALEX, touchpad_y * TOUCHPAD_SCALEY, touchpad_state ? 1.0f : 0.0f);
+@@ -1281,12 +1281,12 @@ static void HIDAPI_DriverPS5_HandleStatePacketAlt(SDL_Joystick *joystick, SDL_hi
+     int touchpad_x, touchpad_y;
+ 
+     if (ctx->report_touchpad) {
+-        touchpad_state = ((packet->ucTouchpadCounter1 & 0x80) == 0) ? SDL_PRESSED : SDL_RELEASED;
++        touchpad_state = !(packet->ucTouchpadCounter1 & 0x80) ? SDL_PRESSED : SDL_RELEASED;
+         touchpad_x = packet->rgucTouchpadData1[0] | (((int)packet->rgucTouchpadData1[1] & 0x0F) << 8);
+         touchpad_y = (packet->rgucTouchpadData1[1] >> 4) | ((int)packet->rgucTouchpadData1[2] << 4);
+         SDL_PrivateJoystickTouchpad(joystick, 0, 0, touchpad_state, touchpad_x * TOUCHPAD_SCALEX, touchpad_y * TOUCHPAD_SCALEY, touchpad_state ? 1.0f : 0.0f);
+ 
+-        touchpad_state = ((packet->ucTouchpadCounter2 & 0x80) == 0) ? SDL_PRESSED : SDL_RELEASED;
++        touchpad_state = !(packet->ucTouchpadCounter2 & 0x80) ? SDL_PRESSED : SDL_RELEASED;
+         touchpad_x = packet->rgucTouchpadData2[0] | (((int)packet->rgucTouchpadData2[1] & 0x0F) << 8);
+         touchpad_y = (packet->rgucTouchpadData2[1] >> 4) | ((int)packet->rgucTouchpadData2[2] << 4);
+         SDL_PrivateJoystickTouchpad(joystick, 0, 1, touchpad_state, touchpad_x * TOUCHPAD_SCALEX, touchpad_y * TOUCHPAD_SCALEY, touchpad_state ? 1.0f : 0.0f);
+diff --git a/src/joystick/hidapi/SDL_hidapi_shield.c b/src/joystick/hidapi/SDL_hidapi_shield.c
+index fa2cc2171..33a206627 100644
+--- a/src/joystick/hidapi/SDL_hidapi_shield.c
++++ b/src/joystick/hidapi/SDL_hidapi_shield.c
+@@ -378,7 +378,7 @@ static void HIDAPI_DriverShield_HandleTouchPacketV103(SDL_Joystick *joystick, SD
+     SDL_PrivateJoystickButton(joystick, SDL_CONTROLLER_BUTTON_SHIELD_V103_TOUCHPAD, (data[1] & 0x01) ? SDL_PRESSED : SDL_RELEASED);
+ 
+     /* It's a triangular pad, but just use the center as the usable touch area */
+-    touchpad_state = ((data[1] & 0x80) == 0) ? SDL_PRESSED : SDL_RELEASED;
++    touchpad_state = !(data[1] & 0x80) ? SDL_PRESSED : SDL_RELEASED;
+     touchpad_x = clamp((float)(data[2] - 0x70) / 0x50, 0.0f, 1.0f);
+     touchpad_y = clamp((float)(data[4] - 0x40) / 0x15, 0.0f, 1.0f);
+     SDL_PrivateJoystickTouchpad(joystick, 0, 0, touchpad_state, touchpad_x, touchpad_y, touchpad_state ? 1.0f : 0.0f);
+diff --git a/src/joystick/hidapi/SDL_hidapi_steam.c b/src/joystick/hidapi/SDL_hidapi_steam.c
+index aba4e6786..bb27edf63 100644
+--- a/src/joystick/hidapi/SDL_hidapi_steam.c
++++ b/src/joystick/hidapi/SDL_hidapi_steam.c
+@@ -252,7 +252,7 @@ static int WriteSegmentToSteamControllerPacketAssembler(SteamControllerPacketAss
+ 
+         DPRINTF("GOT PACKET HEADER = 0x%x\n", uSegmentHeader);
+ 
+-        if ((uSegmentHeader & REPORT_SEGMENT_DATA_FLAG) == 0) {
++        if (!(uSegmentHeader & REPORT_SEGMENT_DATA_FLAG)) {
+             // We get empty segments, just ignore them
+             return 0;
+         }
+diff --git a/src/joystick/hidapi/SDL_hidapi_xboxone.c b/src/joystick/hidapi/SDL_hidapi_xboxone.c
+index 7019b41e6..390989886 100644
+--- a/src/joystick/hidapi/SDL_hidapi_xboxone.c
++++ b/src/joystick/hidapi/SDL_hidapi_xboxone.c
+@@ -796,13 +796,13 @@ static void HIDAPI_DriverXboxOne_HandleStatePacket(SDL_Joystick *joystick, SDL_D
+     if (axis == 32704) {
+         axis = 32767;
+     }
+-    if (axis == -32768 && size == 30 && (data[22] & 0x80) != 0) {
++    if (axis == -32768 && size == 30 && (data[22] & 0x80)) {
+         axis = 32767;
+     }
+     SDL_PrivateJoystickAxis(joystick, SDL_CONTROLLER_AXIS_TRIGGERLEFT, axis);
+ 
+     axis = ((int)SDL_SwapLE16(*(Sint16 *)(&data[8])) * 64) - 32768;
+-    if (axis == -32768 && size == 30 && (data[22] & 0x40) != 0) {
++    if (axis == -32768 && size == 30 && (data[22] & 0x40)) {
+         axis = 32767;
+     }
+     if (axis == 32704) {
+diff --git a/src/joystick/windows/SDL_dinputjoystick.c b/src/joystick/windows/SDL_dinputjoystick.c
+index c1047f0f1..48155ae00 100644
+--- a/src/joystick/windows/SDL_dinputjoystick.c
++++ b/src/joystick/windows/SDL_dinputjoystick.c
+@@ -455,7 +455,7 @@ static BOOL CALLBACK EnumJoystickDetectCallback(LPCDIDEVICEINSTANCE pDeviceInsta
+     LPDIRECTINPUTDEVICE8 device = NULL;
+ 
+     /* We are only supporting HID devices. */
+-    CHECK((pDeviceInstance->dwDevType & DIDEVTYPE_HID) != 0);
++    CHECK(pDeviceInstance->dwDevType & DIDEVTYPE_HID);
+ 
+     CHECK(SUCCEEDED(IDirectInput8_CreateDevice(dinput, &pDeviceInstance->guidInstance, &device, NULL)));
+     CHECK(QueryDeviceName(device, &name));
+@@ -566,7 +566,7 @@ static BOOL CALLBACK EnumJoystickPresentCallback(LPCDIDEVICEINSTANCE pDeviceInst
+     BOOL result = DIENUM_CONTINUE;
+ 
+     /* We are only supporting HID devices. */
+-    CHECK((pDeviceInstance->dwDevType & DIDEVTYPE_HID) != 0);
++    CHECK(pDeviceInstance->dwDevType & DIDEVTYPE_HID);
+ 
+     CHECK(SUCCEEDED(IDirectInput8_CreateDevice(dinput, &pDeviceInstance->guidInstance, &device, NULL)));
+     CHECK(QueryDeviceInfo(device, &vendor, &product));
+diff --git a/src/render/SDL_render.c b/src/render/SDL_render.c
+index 87d3c4dcc..f2f088fce 100644
+--- a/src/render/SDL_render.c
++++ b/src/render/SDL_render.c
+@@ -1015,10 +1015,10 @@ SDL_CreateRenderer(SDL_Window *window, int index, Uint32 flags)
+         }
+     }
+ 
+-    if ((flags & SDL_RENDERER_PRESENTVSYNC) != 0) {
++    if (flags & SDL_RENDERER_PRESENTVSYNC) {
+         renderer->wanted_vsync = SDL_TRUE;
+ 
+-        if ((renderer->info.flags & SDL_RENDERER_PRESENTVSYNC) == 0) {
++        if (!(renderer->info.flags & SDL_RENDERER_PRESENTVSYNC)) {
+             renderer->simulate_vsync = SDL_TRUE;
+             renderer->info.flags |= SDL_RENDERER_PRESENTVSYNC;
+         }
+diff --git a/src/render/direct3d11/SDL_render_d3d11.c b/src/render/direct3d11/SDL_render_d3d11.c
+index 0a684f374..a2f8b0ec1 100644
+--- a/src/render/direct3d11/SDL_render_d3d11.c
++++ b/src/render/direct3d11/SDL_render_d3d11.c
+@@ -2364,7 +2364,7 @@ D3D11_CreateRenderer(SDL_Window *window, Uint32 flags)
+      */
+     renderer->info.flags |= SDL_RENDERER_PRESENTVSYNC;
+ #else
+-    if ((flags & SDL_RENDERER_PRESENTVSYNC)) {
++    if (flags & SDL_RENDERER_PRESENTVSYNC) {
+         renderer->info.flags |= SDL_RENDERER_PRESENTVSYNC;
+     }
+     renderer->SetVSync = D3D11_SetVSync;
+diff --git a/src/render/direct3d12/SDL_render_d3d12.c b/src/render/direct3d12/SDL_render_d3d12.c
+index 80caf6a27..c32deaf29 100644
+--- a/src/render/direct3d12/SDL_render_d3d12.c
++++ b/src/render/direct3d12/SDL_render_d3d12.c
+@@ -2997,7 +2997,7 @@ D3D12_CreateRenderer(SDL_Window *window, Uint32 flags)
+     renderer->info.flags = (SDL_RENDERER_ACCELERATED | SDL_RENDERER_TARGETTEXTURE);
+     renderer->driverdata = data;
+ 
+-    if ((flags & SDL_RENDERER_PRESENTVSYNC)) {
++    if (flags & SDL_RENDERER_PRESENTVSYNC) {
+         renderer->info.flags |= SDL_RENDERER_PRESENTVSYNC;
+     }
+     renderer->SetVSync = D3D12_SetVSync;
+diff --git a/src/stdlib/SDL_iconv.c b/src/stdlib/SDL_iconv.c
+index 5c51b6b93..2c281e2a1 100644
+--- a/src/stdlib/SDL_iconv.c
++++ b/src/stdlib/SDL_iconv.c
+@@ -395,7 +395,7 @@ SDL_iconv(SDL_iconv_t cd,
+                     left = 1;
+                 }
+             } else {
+-                if ((p[0] & 0x80) != 0x00) {
++                if (p[0] & 0x80) {
+                     /* Skip illegal sequences
+                        return SDL_ICONV_EILSEQ;
+                      */
+diff --git a/src/test/SDL_test_common.c b/src/test/SDL_test_common.c
+index b4cd24582..40e6e4226 100644
+--- a/src/test/SDL_test_common.c
++++ b/src/test/SDL_test_common.c
+@@ -2129,7 +2129,7 @@ void SDLTest_CommonEvent(SDLTest_CommonState *state, SDL_Event *event, int *done
+                 SDL_Window *window = SDL_GetWindowFromID(event->key.windowID);
+                 if (window) {
+                     const Uint32 flags = SDL_GetWindowFlags(window);
+-                    const SDL_bool b = ((flags & SDL_WINDOW_BORDERLESS) != 0) ? SDL_TRUE : SDL_FALSE;
++                    const SDL_bool b = (flags & SDL_WINDOW_BORDERLESS) ? SDL_TRUE : SDL_FALSE;
+                     SDL_SetWindowBordered(window, b);
+                 }
+             }
+diff --git a/src/test/SDL_test_font.c b/src/test/SDL_test_font.c
+index b0a5bf8ab..757e041dd 100644
+--- a/src/test/SDL_test_font.c
++++ b/src/test/SDL_test_font.c
+@@ -3299,7 +3299,7 @@ static Uint32 UTF8_getch(const char *src, size_t srclen, int *inc)
+             left = 1;
+         }
+     } else {
+-        if ((p[0] & 0x80) == 0x00) {
++        if (!(p[0] & 0x80)) {
+             ch = (Uint32)p[0];
+         }
+     }
+diff --git a/src/thread/ngage/SDL_systhread.cpp b/src/thread/ngage/SDL_systhread.cpp
+index cf28a75d1..b0fb5432c 100644
+--- a/src/thread/ngage/SDL_systhread.cpp
++++ b/src/thread/ngage/SDL_systhread.cpp
+@@ -65,7 +65,7 @@ int SDL_SYS_CreateThread(SDL_Thread *thread)
+ 
+     TInt status = CreateUnique(NewThread, &rthread, thread);
+     if (status != KErrNone) {
+-        delete (((RThread *)(thread->handle)));
++        delete (RThread *)thread->handle;
+         thread->handle = NULL;
+         return SDL_SetError("Not enough resources to create thread");
+     }
+diff --git a/src/video/SDL_blit_0.c b/src/video/SDL_blit_0.c
+index ccc867b19..358909fd3 100644
+--- a/src/video/SDL_blit_0.c
++++ b/src/video/SDL_blit_0.c
+@@ -48,7 +48,7 @@ static void BlitBto1(SDL_BlitInfo *info)
+         while (height--) {
+             Uint8 byte = 0, bit;
+             for (c = 0; c < width; ++c) {
+-                if ((c & 7) == 0) {
++                if (!(c & 7)) {
+                     byte = *src++;
+                 }
+                 bit = (byte & 0x80) >> 7;
+@@ -65,7 +65,7 @@ static void BlitBto1(SDL_BlitInfo *info)
+         while (height--) {
+             Uint8 byte = 0, bit;
+             for (c = 0; c < width; ++c) {
+-                if ((c & 7) == 0) {
++                if (!(c & 7)) {
+                     byte = *src++;
+                 }
+                 bit = (byte & 0x80) >> 7;
+@@ -102,7 +102,7 @@ static void BlitBto2(SDL_BlitInfo *info)
+     while (height--) {
+         Uint8 byte = 0, bit;
+         for (c = 0; c < width; ++c) {
+-            if ((c & 7) == 0) {
++            if (!(c & 7)) {
+                 byte = *src++;
+             }
+             bit = (byte & 0x80) >> 7;
+@@ -137,7 +137,7 @@ static void BlitBto3(SDL_BlitInfo *info)
+     while (height--) {
+         Uint8 byte = 0, bit;
+         for (c = 0; c < width; ++c) {
+-            if ((c & 7) == 0) {
++            if (!(c & 7)) {
+                 byte = *src++;
+             }
+             bit = (byte & 0x80) >> 7;
+@@ -176,7 +176,7 @@ static void BlitBto4(SDL_BlitInfo *info)
+     while (height--) {
+         Uint8 byte = 0, bit;
+         for (c = 0; c < width; ++c) {
+-            if ((c & 7) == 0) {
++            if (!(c & 7)) {
+                 byte = *src++;
+             }
+             bit = (byte & 0x80) >> 7;
+@@ -210,7 +210,7 @@ static void BlitBto1Key(SDL_BlitInfo *info)
+         while (height--) {
+             Uint8 byte = 0, bit;
+             for (c = 0; c < width; ++c) {
+-                if ((c & 7) == 0) {
++                if (!(c & 7)) {
+                     byte = *src++;
+                 }
+                 bit = (byte & 0x80) >> 7;
+@@ -227,7 +227,7 @@ static void BlitBto1Key(SDL_BlitInfo *info)
+         while (height--) {
+             Uint8 byte = 0, bit;
+             for (c = 0; c < width; ++c) {
+-                if ((c & 7) == 0) {
++                if (!(c & 7)) {
+                     byte = *src++;
+                 }
+                 bit = (byte & 0x80) >> 7;
+@@ -262,7 +262,7 @@ static void BlitBto2Key(SDL_BlitInfo *info)
+     while (height--) {
+         Uint8 byte = 0, bit;
+         for (c = 0; c < width; ++c) {
+-            if ((c & 7) == 0) {
++            if (!(c & 7)) {
+                 byte = *src++;
+             }
+             bit = (byte & 0x80) >> 7;
+@@ -295,7 +295,7 @@ static void BlitBto3Key(SDL_BlitInfo *info)
+     while (height--) {
+         Uint8 byte = 0, bit;
+         for (c = 0; c < width; ++c) {
+-            if ((c & 7) == 0) {
++            if (!(c & 7)) {
+                 byte = *src++;
+             }
+             bit = (byte & 0x80) >> 7;
+@@ -329,7 +329,7 @@ static void BlitBto4Key(SDL_BlitInfo *info)
+     while (height--) {
+         Uint8 byte = 0, bit;
+         for (c = 0; c < width; ++c) {
+-            if ((c & 7) == 0) {
++            if (!(c & 7)) {
+                 byte = *src++;
+             }
+             bit = (byte & 0x80) >> 7;
+@@ -368,7 +368,7 @@ static void BlitBtoNAlpha(SDL_BlitInfo *info)
+     while (height--) {
+         Uint8 byte = 0, bit;
+         for (c = 0; c < width; ++c) {
+-            if ((c & 7) == 0) {
++            if (!(c & 7)) {
+                 byte = *src++;
+             }
+             bit = (byte & 0x80) >> 7;
+@@ -414,7 +414,7 @@ static void BlitBtoNAlphaKey(SDL_BlitInfo *info)
+     while (height--) {
+         Uint8 byte = 0, bit;
+         for (c = 0; c < width; ++c) {
+-            if ((c & 7) == 0) {
++            if (!(c & 7)) {
+                 byte = *src++;
+             }
+             bit = (byte & 0x80) >> 7;
+@@ -459,7 +459,7 @@ static void Blit4bto4(SDL_BlitInfo *info)
+     while (height--) {
+         Uint8 byte = 0, bit;
+         for (c = 0; c < width; ++c) {
+-            if ((c & 0x1) == 0) {
++            if (!(c & 0x1)) {
+                 byte = *src++;
+             }
+             bit = (byte & 0xF0) >> 4;
+@@ -492,7 +492,7 @@ static void Blit4bto4Key(SDL_BlitInfo *info)
+     while (height--) {
+         Uint8 byte = 0, bit;
+         for (c = 0; c < width; ++c) {
+-            if ((c & 0x1) == 0) {
++            if (!(c & 0x1)) {
+                 byte = *src++;
+             }
+             bit = (byte & 0xF0) >> 4;
+diff --git a/src/video/SDL_egl.c b/src/video/SDL_egl.c
+index 31dd2ac7c..6e6ae491e 100644
+--- a/src/video/SDL_egl.c
++++ b/src/video/SDL_egl.c
+@@ -957,7 +957,7 @@ SDL_EGL_CreateContext(_THIS, EGLSurface egl_surface)
+     }
+ 
+ #if SDL_VIDEO_DRIVER_ANDROID
+-    if ((_this->gl_config.flags & SDL_GL_CONTEXT_DEBUG_FLAG) != 0) {
++    if (_this->gl_config.flags & SDL_GL_CONTEXT_DEBUG_FLAG) {
+         /* If SDL_GL_CONTEXT_DEBUG_FLAG is set but EGL_KHR_debug unsupported, unset.
+          * This is required because some Android devices like to complain about it
+          * by "silently" failing, logging a hint which could be easily overlooked:
+diff --git a/src/video/SDL_video.c b/src/video/SDL_video.c
+index 61d52f34a..c412a627b 100644
+--- a/src/video/SDL_video.c
++++ b/src/video/SDL_video.c
+@@ -1607,7 +1607,7 @@ SDL_CreateWindow(const char *title, int x, int y, int w, int h, Uint32 flags)
+ 
+     /* ensure no more than one of these flags is set */
+     type_flags = flags & (SDL_WINDOW_UTILITY | SDL_WINDOW_TOOLTIP | SDL_WINDOW_POPUP_MENU);
+-    if ((type_flags & (type_flags - 1)) != 0) {
++    if (type_flags & (type_flags - 1)) {
+         SDL_SetError("Conflicting window flags specified");
+         return NULL;
+     }
+@@ -1628,7 +1628,7 @@ SDL_CreateWindow(const char *title, int x, int y, int w, int h, Uint32 flags)
+ 
+     /* ensure no more than one of these flags is set */
+     graphics_flags = flags & (SDL_WINDOW_OPENGL | SDL_WINDOW_METAL | SDL_WINDOW_VULKAN);
+-    if ((graphics_flags & (graphics_flags - 1)) != 0) {
++    if (graphics_flags & (graphics_flags - 1)) {
+         SDL_SetError("Conflicting window flags specified");
+         return NULL;
+     }
+@@ -1866,7 +1866,7 @@ int SDL_RecreateWindow(SDL_Window *window, Uint32 flags)
+ 
+     /* ensure no more than one of these flags is set */
+     graphics_flags = flags & (SDL_WINDOW_OPENGL | SDL_WINDOW_METAL | SDL_WINDOW_VULKAN);
+-    if ((graphics_flags & (graphics_flags - 1)) != 0) {
++    if (graphics_flags & (graphics_flags - 1)) {
+         return SDL_SetError("Conflicting window flags specified");
+     }
+ 
+@@ -2233,7 +2233,7 @@ void SDL_SetWindowBordered(SDL_Window *window, SDL_bool bordered)
+     CHECK_WINDOW_MAGIC(window, );
+     if (!(window->flags & SDL_WINDOW_FULLSCREEN)) {
+         const int want = (bordered != SDL_FALSE); /* normalize the flag. */
+-        const int have = ((window->flags & SDL_WINDOW_BORDERLESS) == 0);
++        const int have = !(window->flags & SDL_WINDOW_BORDERLESS);
+         if ((want != have) && (_this->SetWindowBordered)) {
+             if (want) {
+                 window->flags &= ~SDL_WINDOW_BORDERLESS;
+@@ -2992,21 +2992,21 @@ SDL_bool
+ SDL_GetWindowKeyboardGrab(SDL_Window *window)
+ {
+     CHECK_WINDOW_MAGIC(window, SDL_FALSE);
+-    return window == _this->grabbed_window && ((_this->grabbed_window->flags & SDL_WINDOW_KEYBOARD_GRABBED) != 0);
++    return window == _this->grabbed_window && (_this->grabbed_window->flags & SDL_WINDOW_KEYBOARD_GRABBED);
+ }
+ 
+ SDL_bool
+ SDL_GetWindowMouseGrab(SDL_Window *window)
+ {
+     CHECK_WINDOW_MAGIC(window, SDL_FALSE);
+-    return window == _this->grabbed_window && ((_this->grabbed_window->flags & SDL_WINDOW_MOUSE_GRABBED) != 0);
++    return window == _this->grabbed_window && (_this->grabbed_window->flags & SDL_WINDOW_MOUSE_GRABBED);
+ }
+ 
+ SDL_Window *
+ SDL_GetGrabbedWindow(void)
+ {
+     if (_this->grabbed_window &&
+-        (_this->grabbed_window->flags & (SDL_WINDOW_MOUSE_GRABBED | SDL_WINDOW_KEYBOARD_GRABBED)) != 0) {
++        (_this->grabbed_window->flags & (SDL_WINDOW_MOUSE_GRABBED | SDL_WINDOW_KEYBOARD_GRABBED))) {
+         return _this->grabbed_window;
+     } else {
+         return NULL;
+diff --git a/src/video/android/SDL_androidwindow.c b/src/video/android/SDL_androidwindow.c
+index 61f82676b..d9eaf5fa1 100644
+--- a/src/video/android/SDL_androidwindow.c
++++ b/src/video/android/SDL_androidwindow.c
+@@ -81,7 +81,7 @@ int Android_CreateWindow(_THIS, SDL_Window *window)
+     /* Do not create EGLSurface for Vulkan window since it will then make the window
+        incompatible with vkCreateAndroidSurfaceKHR */
+ #if SDL_VIDEO_OPENGL_EGL
+-    if ((window->flags & SDL_WINDOW_OPENGL) != 0) {
++    if (window->flags & SDL_WINDOW_OPENGL) {
+         data->egl_surface = SDL_EGL_CreateSurface(_this, (NativeWindowType)data->native_window);
+ 
+         if (data->egl_surface == EGL_NO_SURFACE) {
+diff --git a/src/video/cocoa/SDL_cocoakeyboard.m b/src/video/cocoa/SDL_cocoakeyboard.m
+index 980e47a3c..78c8a1628 100644
+--- a/src/video/cocoa/SDL_cocoakeyboard.m
++++ b/src/video/cocoa/SDL_cocoakeyboard.m
+@@ -307,7 +307,7 @@ Cocoa_InitKeyboard(_THIS)
+     SDL_SetScancodeName(SDL_SCANCODE_RGUI, "Right Command");
+ 
+     data.modifierFlags = (unsigned int)[NSEvent modifierFlags];
+-    SDL_ToggleModState(KMOD_CAPS, (data.modifierFlags & NSEventModifierFlagCapsLock) != 0);
++    SDL_ToggleModState(KMOD_CAPS, (data.modifierFlags & NSEventModifierFlagCapsLock) ? SDL_TRUE : SDL_FALSE);
+ }
+ 
+ void
+diff --git a/src/video/cocoa/SDL_cocoawindow.m b/src/video/cocoa/SDL_cocoawindow.m
+index af062578e..a6d8ebf7d 100644
+--- a/src/video/cocoa/SDL_cocoawindow.m
++++ b/src/video/cocoa/SDL_cocoawindow.m
+@@ -102,7 +102,7 @@
+         SDL_Window *window = [self findSDLWindow];
+         if (window == NULL) {
+             return NO;
+-        } else if ((window->flags & (SDL_WINDOW_FULLSCREEN|SDL_WINDOW_FULLSCREEN_DESKTOP)) != 0) {
++        } else if (window->flags & (SDL_WINDOW_FULLSCREEN|SDL_WINDOW_FULLSCREEN_DESKTOP)) {
+             return NO;
+         } else if ((window->flags & SDL_WINDOW_RESIZABLE) == 0) {
+             return NO;
+@@ -400,7 +400,7 @@ AdjustCoordinatesForGrab(SDL_Window * window, int x, int y, CGPoint *adjusted)
+         }
+     }
+ 
+-    if ((window->flags & SDL_WINDOW_MOUSE_GRABBED) != 0) {
++    if (window->flags & SDL_WINDOW_MOUSE_GRABBED) {
+         int left = window->x;
+         int right = left + window->w - 1;
+         int top = window->y;
+@@ -671,7 +671,7 @@ Cocoa_UpdateClipCursor(SDL_Window * window)
+ 
+ -(void) clearFocusClickPending:(NSInteger) button
+ {
+-    if ((focusClickPending & (1 << button)) != 0) {
++    if (focusClickPending & (1 << button)) {
+         focusClickPending &= ~(1 << button);
+         if (focusClickPending == 0) {
+             [self onMovingOrFocusClickPendingStateCleared];
+@@ -875,7 +875,7 @@ Cocoa_UpdateClipCursor(SDL_Window * window)
+     {
+         const unsigned int newflags = [NSEvent modifierFlags] & NSEventModifierFlagCapsLock;
+         _data.videodata.modifierFlags = (_data.videodata.modifierFlags & ~NSEventModifierFlagCapsLock) | newflags;
+-        SDL_ToggleModState(KMOD_CAPS, newflags != 0);
++        SDL_ToggleModState(KMOD_CAPS, newflags ? SDL_TRUE : SDL_FALSE);
+     }
+ }
+ 
+diff --git a/src/video/riscos/SDL_riscosevents.c b/src/video/riscos/SDL_riscosevents.c
+index c1717ae1f..77b3ba94d 100644
+--- a/src/video/riscos/SDL_riscosevents.c
++++ b/src/video/riscos/SDL_riscosevents.c
+@@ -149,10 +149,10 @@ int RISCOS_InitEvents(_THIS)
+     }
+ 
+     status = (_kernel_osbyte(202, 0, 255) & 0xFF);
+-    SDL_ToggleModState(KMOD_NUM, (status & (1 << 2)) == 0);
+-    SDL_ToggleModState(KMOD_CAPS, (status & (1 << 4)) == 0);
+-    SDL_ToggleModState(KMOD_SCROLL, (status & (1 << 1)) != 0);
+-
++    SDL_ToggleModState(KMOD_NUM, (status & (1 << 2)) ? SDL_FALSE : SDL_TRUE);
++    SDL_ToggleModState(KMOD_CAPS, (status & (1 << 4)) ? SDL_FALSE : SDL_TRUE);
++    SDL_ToggleModState(KMOD_SCROLL, (status & (1 << 1)) ? SDL_TRUE : SDL_FALSE);
++ 
+     _kernel_swi(OS_Mouse, &regs, &regs);
+     driverdata->last_mouse_buttons = regs.r[2];
+ 
+diff --git a/src/video/uikit/SDL_uikitview.m b/src/video/uikit/SDL_uikitview.m
+index d719b038f..c35864897 100644
+--- a/src/video/uikit/SDL_uikitview.m
++++ b/src/video/uikit/SDL_uikitview.m
+@@ -231,7 +231,7 @@ extern int SDL_AppleTVRemoteOpenedAsJoystick;
+                     int i;
+ 
+                     for (i = 1; i <= MAX_MOUSE_BUTTONS; ++i) {
+-                        if ((event.buttonMask & SDL_BUTTON(i)) != 0) {
++                        if (event.buttonMask & SDL_BUTTON(i)) {
+                             Uint8 button;
+ 
+                             switch (i) {
+@@ -286,7 +286,7 @@ extern int SDL_AppleTVRemoteOpenedAsJoystick;
+                     int i;
+ 
+                     for (i = 1; i <= MAX_MOUSE_BUTTONS; ++i) {
+-                        if ((event.buttonMask & SDL_BUTTON(i)) != 0) {
++                        if (event.buttonMask & SDL_BUTTON(i)) {
+                             Uint8 button;
+ 
+                             switch (i) {
+diff --git a/src/video/vita/SDL_vitavideo.c b/src/video/vita/SDL_vitavideo.c
+index a6fa428d8..3a8052072 100644
+--- a/src/video/vita/SDL_vitavideo.c
++++ b/src/video/vita/SDL_vitavideo.c
+@@ -289,7 +289,7 @@ int VITA_CreateWindow(_THIS, SDL_Window *window)
+     else {
+         win.windowSize = PSP2_WINDOW_960X544;
+     }
+-    if ((window->flags & SDL_WINDOW_OPENGL) != 0) {
++    if (window->flags & SDL_WINDOW_OPENGL) {
+         if (SDL_getenv("VITA_PVR_OGL") != NULL) {
+             /* Set version to 2.1 and PROFILE to ES */
+             temp_major = _this->gl_config.major_version;
+@@ -405,9 +405,9 @@ static void utf16_to_utf8(const uint16_t *src, uint8_t *dst)
+ {
+     int i;
+     for (i = 0; src[i]; i++) {
+-        if ((src[i] & 0xFF80) == 0) {
++        if (!(src[i] & 0xFF80)) {
+             *(dst++) = src[i] & 0xFF;
+-        } else if ((src[i] & 0xF800) == 0) {
++        } else if (!(src[i] & 0xF800)) {
+             *(dst++) = ((src[i] >> 6) & 0xFF) | 0xC0;
+             *(dst++) = (src[i] & 0x3F) | 0x80;
+         } else if ((src[i] & 0xFC00) == 0xD800 && (src[i + 1] & 0xFC00) == 0xDC00) {
+diff --git a/src/video/wayland/SDL_waylandvideo.c b/src/video/wayland/SDL_waylandvideo.c
+index 334e157ff..6922c9d9e 100644
+--- a/src/video/wayland/SDL_waylandvideo.c
++++ b/src/video/wayland/SDL_waylandvideo.c
+@@ -638,7 +638,7 @@ static void display_handle_done(void *data,
+ 
+     /* Add emulated modes if wp_viewporter is supported and mode emulation is enabled. */
+     if (video->viewporter && mode_emulation_enabled) {
+-        const SDL_bool rot_90 = ((driverdata->transform & WL_OUTPUT_TRANSFORM_90) != 0) ||
++        const SDL_bool rot_90 = (driverdata->transform & WL_OUTPUT_TRANSFORM_90) ||
+                                 (driverdata->width < driverdata->height);
+         AddEmulatedModes(dpy, rot_90);
+     }
+diff --git a/src/video/wayland/SDL_waylandwindow.c b/src/video/wayland/SDL_waylandwindow.c
+index 05c955170..9c402fa74 100644
+--- a/src/video/wayland/SDL_waylandwindow.c
++++ b/src/video/wayland/SDL_waylandwindow.c
+@@ -598,7 +598,7 @@ static void handle_configure_xdg_toplevel(void *data,
+         /* xdg_toplevel spec states that this is a suggestion.
+            Ignore if less than or greater than max/min size. */
+ 
+-        if ((window->flags & SDL_WINDOW_RESIZABLE)) {
++        if (window->flags & SDL_WINDOW_RESIZABLE) {
+             if (window->max_w > 0) {
+                 width = SDL_min(width, window->max_w);
+             }
+diff --git a/src/video/windows/SDL_windowsevents.c b/src/video/windows/SDL_windowsevents.c
+index a1bcab15f..d2a0a0546 100644
+--- a/src/video/windows/SDL_windowsevents.c
++++ b/src/video/windows/SDL_windowsevents.c
+@@ -372,34 +372,34 @@ static void WIN_CheckRawMouseButtons(ULONG rawButtons, SDL_WindowData *data, SDL
+     if (rawButtons != data->mouse_button_flags) {
+         Uint32 mouseFlags = SDL_GetMouseState(NULL, NULL);
+         SDL_bool swapButtons = GetSystemMetrics(SM_SWAPBUTTON) != 0;
+-        if ((rawButtons & RI_MOUSE_BUTTON_1_DOWN)) {
++        if (rawButtons & RI_MOUSE_BUTTON_1_DOWN) {
+             WIN_CheckWParamMouseButton((rawButtons & RI_MOUSE_BUTTON_1_DOWN), mouseFlags, swapButtons, data, SDL_BUTTON_LEFT, mouseID);
+         }
+-        if ((rawButtons & RI_MOUSE_BUTTON_1_UP)) {
++        if (rawButtons & RI_MOUSE_BUTTON_1_UP) {
+             WIN_CheckWParamMouseButton(!(rawButtons & RI_MOUSE_BUTTON_1_UP), mouseFlags, swapButtons, data, SDL_BUTTON_LEFT, mouseID);
+         }
+-        if ((rawButtons & RI_MOUSE_BUTTON_2_DOWN)) {
++        if (rawButtons & RI_MOUSE_BUTTON_2_DOWN) {
+             WIN_CheckWParamMouseButton((rawButtons & RI_MOUSE_BUTTON_2_DOWN), mouseFlags, swapButtons, data, SDL_BUTTON_RIGHT, mouseID);
+         }
+-        if ((rawButtons & RI_MOUSE_BUTTON_2_UP)) {
++        if (rawButtons & RI_MOUSE_BUTTON_2_UP) {
+             WIN_CheckWParamMouseButton(!(rawButtons & RI_MOUSE_BUTTON_2_UP), mouseFlags, swapButtons, data, SDL_BUTTON_RIGHT, mouseID);
+         }
+-        if ((rawButtons & RI_MOUSE_BUTTON_3_DOWN)) {
++        if (rawButtons & RI_MOUSE_BUTTON_3_DOWN) {
+             WIN_CheckWParamMouseButton((rawButtons & RI_MOUSE_BUTTON_3_DOWN), mouseFlags, swapButtons, data, SDL_BUTTON_MIDDLE, mouseID);
+         }
+-        if ((rawButtons & RI_MOUSE_BUTTON_3_UP)) {
++        if (rawButtons & RI_MOUSE_BUTTON_3_UP) {
+             WIN_CheckWParamMouseButton(!(rawButtons & RI_MOUSE_BUTTON_3_UP), mouseFlags, swapButtons, data, SDL_BUTTON_MIDDLE, mouseID);
+         }
+-        if ((rawButtons & RI_MOUSE_BUTTON_4_DOWN)) {
++        if (rawButtons & RI_MOUSE_BUTTON_4_DOWN) {
+             WIN_CheckWParamMouseButton((rawButtons & RI_MOUSE_BUTTON_4_DOWN), mouseFlags, swapButtons, data, SDL_BUTTON_X1, mouseID);
+         }
+-        if ((rawButtons & RI_MOUSE_BUTTON_4_UP)) {
++        if (rawButtons & RI_MOUSE_BUTTON_4_UP) {
+             WIN_CheckWParamMouseButton(!(rawButtons & RI_MOUSE_BUTTON_4_UP), mouseFlags, swapButtons, data, SDL_BUTTON_X1, mouseID);
+         }
+-        if ((rawButtons & RI_MOUSE_BUTTON_5_DOWN)) {
++        if (rawButtons & RI_MOUSE_BUTTON_5_DOWN) {
+             WIN_CheckWParamMouseButton((rawButtons & RI_MOUSE_BUTTON_5_DOWN), mouseFlags, swapButtons, data, SDL_BUTTON_X2, mouseID);
+         }
+-        if ((rawButtons & RI_MOUSE_BUTTON_5_UP)) {
++        if (rawButtons & RI_MOUSE_BUTTON_5_UP) {
+             WIN_CheckWParamMouseButton(!(rawButtons & RI_MOUSE_BUTTON_5_UP), mouseFlags, swapButtons, data, SDL_BUTTON_X2, mouseID);
+         }
+         data->mouse_button_flags = rawButtons;
+@@ -493,10 +493,10 @@ static void WIN_UpdateFocus(SDL_Window *window, SDL_bool expect_focus)
+          */
+         WIN_CheckClipboardUpdate(data->videodata);
+ 
+-        SDL_ToggleModState(KMOD_CAPS, (GetKeyState(VK_CAPITAL) & 0x0001) != 0);
+-        SDL_ToggleModState(KMOD_NUM, (GetKeyState(VK_NUMLOCK) & 0x0001) != 0);
+-        SDL_ToggleModState(KMOD_SCROLL, (GetKeyState(VK_SCROLL) & 0x0001) != 0);
+-
++        SDL_ToggleModState(KMOD_CAPS, (GetKeyState(VK_CAPITAL) & 0x0001) ? SDL_TRUE : SDL_FALSE);
++        SDL_ToggleModState(KMOD_NUM, (GetKeyState(VK_NUMLOCK) & 0x0001) ? SDL_TRUE : SDL_FALSE);
++        SDL_ToggleModState(KMOD_SCROLL, (GetKeyState(VK_SCROLL) & 0x0001) ? SDL_TRUE : SDL_FALSE);
++ 
+         WIN_UpdateWindowICCProfile(data->window, SDL_TRUE);
+     } else {
+         RECT rect;
+@@ -870,7 +870,7 @@ WIN_WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+                 */
+                 SDL_bool remote_desktop = GetSystemMetrics(SM_REMOTESESSION) ? SDL_TRUE : SDL_FALSE;
+                 SDL_bool virtual_desktop = (rawmouse->usFlags & MOUSE_VIRTUAL_DESKTOP) ? SDL_TRUE : SDL_FALSE;
+-                SDL_bool normalized_coordinates = ((rawmouse->usFlags & 0x40) == 0) ? SDL_TRUE : SDL_FALSE;
++                SDL_bool normalized_coordinates = !(rawmouse->usFlags & 0x40) ? SDL_TRUE : SDL_FALSE;
+                 int w = GetSystemMetrics(virtual_desktop ? SM_CXVIRTUALSCREEN : SM_CXSCREEN);
+                 int h = GetSystemMetrics(virtual_desktop ? SM_CYVIRTUALSCREEN : SM_CYSCREEN);
+                 int x = normalized_coordinates ? (int)(((float)rawmouse->lLastX / 65535.0f) * w) : (int)rawmouse->lLastX;
+diff --git a/src/video/windows/SDL_windowskeyboard.c b/src/video/windows/SDL_windowskeyboard.c
+index 14ffa4dd6..9af489da2 100644
+--- a/src/video/windows/SDL_windowskeyboard.c
++++ b/src/video/windows/SDL_windowskeyboard.c
+@@ -109,9 +109,9 @@ void WIN_InitKeyboard(_THIS)
+     SDL_SetScancodeName(SDL_SCANCODE_RGUI, "Right Windows");
+ 
+     /* Are system caps/num/scroll lock active? Set our state to match. */
+-    SDL_ToggleModState(KMOD_CAPS, (GetKeyState(VK_CAPITAL) & 0x0001) != 0);
+-    SDL_ToggleModState(KMOD_NUM, (GetKeyState(VK_NUMLOCK) & 0x0001) != 0);
+-    SDL_ToggleModState(KMOD_SCROLL, (GetKeyState(VK_SCROLL) & 0x0001) != 0);
++    SDL_ToggleModState(KMOD_CAPS, (GetKeyState(VK_CAPITAL) & 0x0001) ? SDL_TRUE : SDL_FALSE);
++    SDL_ToggleModState(KMOD_NUM, (GetKeyState(VK_NUMLOCK) & 0x0001) ? SDL_TRUE : SDL_FALSE);
++    SDL_ToggleModState(KMOD_SCROLL, (GetKeyState(VK_SCROLL) & 0x0001) ? SDL_TRUE : SDL_FALSE);
+ }
+ 
+ void WIN_UpdateKeymap(SDL_bool send_event)
+diff --git a/src/video/windows/SDL_windowswindow.c b/src/video/windows/SDL_windowswindow.c
+index ee9b51b46..d53caef6c 100644
+--- a/src/video/windows/SDL_windowswindow.c
++++ b/src/video/windows/SDL_windowswindow.c
+@@ -924,7 +924,7 @@ void WIN_SetWindowFullscreen(_THIS, SDL_Window *window, SDL_VideoDisplay *displa
+     int x, y;
+     int w, h;
+ 
+-    if (!fullscreen && (window->flags & (SDL_WINDOW_FULLSCREEN | SDL_WINDOW_FULLSCREEN_DESKTOP)) != 0) {
++    if (!fullscreen && (window->flags & (SDL_WINDOW_FULLSCREEN | SDL_WINDOW_FULLSCREEN_DESKTOP))) {
+         /* Resizing the window on hide causes problems restoring it in Wine, and it's unnecessary.
+          * Also, Windows would preview the minimized window with the wrong size.
+          */
+@@ -1331,7 +1331,7 @@ void WIN_UpdateClipCursor(SDL_Window *window)
+                     mouse_rect.bottom = mouse_rect.top + mouse_rect_win_client.h;
+                     if (IntersectRect(&intersection, &rect, &mouse_rect)) {
+                         SDL_memcpy(&rect, &intersection, sizeof(rect));
+-                    } else if ((window->flags & SDL_WINDOW_MOUSE_GRABBED) != 0) {
++                    } else if (window->flags & SDL_WINDOW_MOUSE_GRABBED) {
+                         /* Mouse rect was invalid, just do the normal grab */
+                     } else {
+                         SDL_zero(rect);
+@@ -1392,7 +1392,7 @@ int WIN_SetWindowOpacity(_THIS, SDL_Window *window, float opacity)
+     } else {
+         const BYTE alpha = (BYTE)((int)(opacity * 255.0f));
+         /* want it transparent, mark it layered if necessary. */
+-        if ((style & WS_EX_LAYERED) == 0) {
++        if (!(style & WS_EX_LAYERED)) {
+             if (SetWindowLong(hwnd, GWL_EXSTYLE, style | WS_EX_LAYERED) == 0) {
+                 return WIN_SetError("SetWindowLong()");
+             }
+diff --git a/src/video/x11/SDL_x11events.c b/src/video/x11/SDL_x11events.c
+index bb5ece9ca..4d2f0033b 100644
+--- a/src/video/x11/SDL_x11events.c
++++ b/src/video/x11/SDL_x11events.c
+@@ -414,9 +414,9 @@ void X11_ReconcileKeyboardState(_THIS)
+ 
+     /* Sync up the keyboard modifier state */
+     if (X11_XQueryPointer(display, DefaultRootWindow(display), &junk_window, &junk_window, &x, &y, &x, &y, &mask)) {
+-        SDL_ToggleModState(KMOD_CAPS, (mask & LockMask) != 0);
+-        SDL_ToggleModState(KMOD_NUM, (mask & X11_GetNumLockModifierMask(_this)) != 0);
+-        SDL_ToggleModState(KMOD_SCROLL, (mask & X11_GetScrollLockModifierMask(_this)) != 0);
++        SDL_ToggleModState(KMOD_CAPS, (mask & LockMask) ? SDL_TRUE : SDL_FALSE);
++        SDL_ToggleModState(KMOD_NUM, (mask & X11_GetNumLockModifierMask(_this)) ? SDL_TRUE : SDL_FALSE);
++        SDL_ToggleModState(KMOD_SCROLL, (mask & X11_GetScrollLockModifierMask(_this)) ? SDL_TRUE : SDL_FALSE);
+     }
+ 
+     keyboardState = SDL_GetKeyboardState(0);
+diff --git a/src/video/x11/SDL_x11window.c b/src/video/x11/SDL_x11window.c
+index ce731feb3..fd1be433a 100644
+--- a/src/video/x11/SDL_x11window.c
++++ b/src/video/x11/SDL_x11window.c
+@@ -1043,8 +1043,9 @@ int X11_SetWindowInputFocus(_THIS, SDL_Window *window)
+ 
+ void X11_SetWindowBordered(_THIS, SDL_Window *window, SDL_bool bordered)
+ {
+-    const SDL_bool focused = ((window->flags & SDL_WINDOW_INPUT_FOCUS) != 0);
+-    const SDL_bool visible = ((window->flags & SDL_WINDOW_HIDDEN) == 0);
++    const SDL_bool focused = (window->flags & SDL_WINDOW_INPUT_FOCUS) ? SDL_TRUE : SDL_FALSE;
++    const SDL_bool visible = (!(window->flags & SDL_WINDOW_HIDDEN)) ? SDL_TRUE : SDL_FALSE;
++
+     SDL_WindowData *data = (SDL_WindowData *)window->driverdata;
+     SDL_DisplayData *displaydata =
+         (SDL_DisplayData *)SDL_GetDisplayForWindow(window)->driverdata;
+@@ -1238,7 +1239,7 @@ static void SetWindowMaximized(_THIS, SDL_Window *window, SDL_bool maximized)
+     } else {
+         window->flags &= ~SDL_WINDOW_MAXIMIZED;
+ 
+-        if ((window->flags & SDL_WINDOW_FULLSCREEN) != 0) {
++        if (window->flags & SDL_WINDOW_FULLSCREEN) {
+             /* Fullscreen windows are maximized on some window managers,
+                and this is functional behavior, so don't remove that state
+                now, we'll take care of it when we leave fullscreen mode.
+@@ -1361,7 +1362,7 @@ static void X11_SetWindowFullscreenViaWM(_THIS, SDL_Window *window, SDL_VideoDis
+             e.xclient.message_type = _NET_WM_STATE;
+             e.xclient.format = 32;
+             e.xclient.window = data->xwindow;
+-            if ((window->flags & SDL_WINDOW_MAXIMIZED) != 0) {
++            if (window->flags & SDL_WINDOW_MAXIMIZED) {
+                 e.xclient.data.l[0] = _NET_WM_STATE_ADD;
+             } else {
+                 e.xclient.data.l[0] = _NET_WM_STATE_REMOVE;
+diff --git a/test/controllermap.c b/test/controllermap.c
+index 25f048a48..bd81d81b1 100644
+--- a/test/controllermap.c
++++ b/test/controllermap.c
+@@ -530,7 +530,7 @@ WatchJoystick(SDL_Joystick *joystick)
+                     break;
+                 }
+ 
+-                if ((event.key.keysym.sym != SDLK_ESCAPE)) {
++                if (event.key.keysym.sym != SDLK_ESCAPE) {
+                     break;
+                 }
+                 SDL_FALLTHROUGH;
+@@ -746,7 +746,7 @@ int main(int argc, char *argv[])
+         while (SDL_PollEvent(&event) > 0) {
+             switch (event.type) {
+             case SDL_KEYDOWN:
+-                if ((event.key.keysym.sym != SDLK_ESCAPE)) {
++                if (event.key.keysym.sym != SDLK_ESCAPE) {
+                     break;
+                 }
+                 SDL_FALLTHROUGH;
+diff --git a/test/testime.c b/test/testime.c
+index aa8ec2e7f..51f685b1e 100644
+--- a/test/testime.c
++++ b/test/testime.c
+@@ -703,7 +703,7 @@ int main(int argc, char *argv[])
+                             if (textlen == 0) {
+                                 break;
+                             }
+-                            if ((text[textlen - 1] & 0x80) == 0x00) {
++                            if (!(text[textlen - 1] & 0x80)) {
+                                 /* One byte */
+                                 text[textlen - 1] = 0x00;
+                                 break;
+-- 
+2.17.1
+

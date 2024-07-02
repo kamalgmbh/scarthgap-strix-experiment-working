@@ -1,0 +1,39 @@
+From abce5dc1a259fe7d7c03f54806942b5ef5a2feba Mon Sep 17 00:00:00 2001
+From: Lei Huang <Lei.Huang@amd.com>
+Date: Mon, 12 Jun 2023 15:22:57 +0800
+Subject: [PATCH 443/458] libsdl: use window title for xdg appid
+
+[Why]
+We need to assign an appid to each window,
+and the original design does not meet the requirements
+
+[How]
+add window title for xdg appid
+
+Jira ID: SWDEV-340261
+
+Change-Id: I0f5d96a8a5999c8243bddee8f63ed6bfc0fe5e69
+---
+ src/video/wayland/SDL_waylandwindow.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/video/wayland/SDL_waylandwindow.c b/src/video/wayland/SDL_waylandwindow.c
+index ea73622f0..754517b96 100644
+--- a/src/video/wayland/SDL_waylandwindow.c
++++ b/src/video/wayland/SDL_waylandwindow.c
+@@ -1387,7 +1387,11 @@ void Wayland_ShowWindow(_THIS, SDL_Window *window)
+             }
+         } else {
+             data->shell_surface.xdg.roleobj.toplevel = xdg_surface_get_toplevel(data->shell_surface.xdg.surface);
+-            xdg_toplevel_set_app_id(data->shell_surface.xdg.roleobj.toplevel, c->classname);
++            if (window->title != NULL) {
++                xdg_toplevel_set_app_id(data->shell_surface.xdg.roleobj.toplevel, window->title);
++            } else {
++                xdg_toplevel_set_app_id(data->shell_surface.xdg.roleobj.toplevel, c->classname);
++            }
+             xdg_toplevel_add_listener(data->shell_surface.xdg.roleobj.toplevel, &toplevel_listener_xdg, data);
+         }
+     }
+-- 
+2.17.1
+

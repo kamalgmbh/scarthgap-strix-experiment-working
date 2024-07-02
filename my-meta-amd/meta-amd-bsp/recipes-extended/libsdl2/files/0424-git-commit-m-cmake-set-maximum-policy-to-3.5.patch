@@ -1,0 +1,34 @@
+From 14f4fd3f11b4bc5bded6960c7c6118ea06ad86ac Mon Sep 17 00:00:00 2001
+From: Anonymous Maarten <anonymous.maarten@gmail.com>
+Date: Wed, 7 Jun 2023 20:35:15 +0200
+Subject: [PATCH 424/458] git commit -m "cmake: set maximum policy to 3.5
+
+This fixes the following warning when configuring with CMake 3.27+:
+```
+CMake Deprecation Warning at CMakeLists.txt:3190 (cmake_minimum_required):
+Compatibility with CMake < 3.5 will be removed from a future version of
+CMake.
+
+Update the VERSION argument <min> value or use a ...<max> suffix to tell
+CMake that the project does not need compatibility with older versions.
+```
+---
+ CMakeLists.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 8e22bdcc8..d77b0b632 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -2,7 +2,7 @@ if(${CMAKE_CURRENT_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_BINARY_DIR})
+   message(FATAL_ERROR "Prevented in-tree build. Please create a build directory outside of the SDL source code and run \"cmake -S ${CMAKE_SOURCE_DIR} -B .\" from there")
+ endif()
+ 
+-cmake_minimum_required(VERSION 3.0.0)
++cmake_minimum_required(VERSION 3.0.0...3.5)
+ project(SDL2 C CXX)
+ 
+ if(CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
+-- 
+2.17.1
+

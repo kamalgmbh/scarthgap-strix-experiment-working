@@ -1,0 +1,113 @@
+From e86f494317e81820ea6d72caecf1134a9c3c2061 Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Thu, 16 Feb 2023 09:50:04 -0800
+Subject: [PATCH 220/458] Hold the joystick lock while opening the HID device
+ on non-Android platforms
+
+On Windows the main thread can be enumerating DirectInput devices while the Windows.Gaming.Input thread is calling back with a new controller available, and in this case HIDAPI_IsDevicePresent() returned false since the controller initialization hadn't completed yet, creating a duplicate controller.
+
+Fixes https://github.com/libsdl-org/SDL/issues/7304
+
+(cherry picked from commit ece8a7bb8e2dae9cb53115980cea9ef1213a0160)
+---
+ src/joystick/hidapi/SDL_hidapijoystick.c | 71 +++++++++++++++---------
+ 1 file changed, 46 insertions(+), 25 deletions(-)
+
+diff --git a/src/joystick/hidapi/SDL_hidapijoystick.c b/src/joystick/hidapi/SDL_hidapijoystick.c
+index 47300bc32..e7d2b91ef 100644
+--- a/src/joystick/hidapi/SDL_hidapijoystick.c
++++ b/src/joystick/hidapi/SDL_hidapijoystick.c
+@@ -380,44 +380,65 @@ static void HIDAPI_SetupDeviceDriver(SDL_HIDAPI_Device *device, SDL_bool *remove
+     if (HIDAPI_GetDeviceDriver(device)) {
+         /* We might have a device driver for this device, try opening it and see */
+         if (device->num_children == 0) {
++            SDL_hid_device *dev;
++
++            /* Wait a little bit for the device to initialize */
++            SDL_Delay(10);
++
++#ifdef __ANDROID__
+             /* On Android we need to leave joysticks unlocked because it calls
+              * out to the main thread for permissions and the main thread can
+              * be in the process of handling controller input.
+              *
+              * See https://github.com/libsdl-org/SDL/issues/6347 for details
+              */
+-            int lock_count = 0;
+-            SDL_HIDAPI_Device *curr;
+-            SDL_hid_device *dev;
+-            char *path = SDL_strdup(device->path);
++            {
++                SDL_HIDAPI_Device *curr;
++                int lock_count = 0;
++                char *path = SDL_strdup(device->path);
+ 
+-            /* Wait a little bit for the device to initialize */
+-            SDL_Delay(10);
++                /* Wait a little bit for the device to initialize */
++                SDL_Delay(10);
+ 
+-            SDL_AssertJoysticksLocked();
+-            while (SDL_JoysticksLocked()) {
+-                ++lock_count;
+-                SDL_UnlockJoysticks();
+-            }
++                SDL_AssertJoysticksLocked();
++                while (SDL_JoysticksLocked()) {
++                    ++lock_count;
++                    SDL_UnlockJoysticks();
++                }
+ 
+-            dev = SDL_hid_open_path(path, 0);
++                dev = SDL_hid_open_path(path, 0);
+ 
+-            while (lock_count > 0) {
+-                --lock_count;
+-                SDL_LockJoysticks();
+-            }
+-            SDL_free(path);
++                while (lock_count > 0) {
++                    --lock_count;
++                    SDL_LockJoysticks();
++                }
++                SDL_free(path);
+ 
+-            /* Make sure the device didn't get removed while opening the HID path */
+-            for (curr = SDL_HIDAPI_devices; curr && curr != device; curr = curr->next) {
+-            }
+-            if (curr == NULL) {
+-                *removed = SDL_TRUE;
+-                if (dev) {
+-                    SDL_hid_close(dev);
++                /* Make sure the device didn't get removed while opening the HID path */
++                for (curr = SDL_HIDAPI_devices; curr && curr != device; curr = curr->next) {
++                    continue;
++                }
++                if (curr == NULL) {
++                    *removed = SDL_TRUE;
++                    if (dev) {
++                        SDL_hid_close(dev);
++                    }
++                    return;
+                 }
+-                return;
+             }
++#else
++            /* On other platforms we want to keep the lock so other threads wait for
++             * us to finish opening the controller before checking to see whether the
++             * HIDAPI driver is handling the device.
++             *
++             * On Windows, for example, the main thread can be enumerating DirectInput
++             * devices while the Windows.Gaming.Input thread is calling back with a new
++             * controller available.
++             *
++             * See https://github.com/libsdl-org/SDL/issues/7304 for details.
++             */
++            dev = SDL_hid_open_path(device->path, 0);
++#endif
+ 
+             if (dev == NULL) {
+                 SDL_LogDebug(SDL_LOG_CATEGORY_INPUT,
+-- 
+2.17.1
+

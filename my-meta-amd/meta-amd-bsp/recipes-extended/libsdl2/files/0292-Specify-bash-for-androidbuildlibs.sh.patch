@@ -1,0 +1,30 @@
+From 3e1d7e6a141f037448e85d863692c1144a8bfd48 Mon Sep 17 00:00:00 2001
+From: Stephen Kitt <steve@sk2.org>
+Date: Fri, 10 Mar 2023 16:02:28 +0100
+Subject: [PATCH 292/458] Specify bash for androidbuildlibs.sh
+
+This script relies on string indexes in parameter expansions, which
+aren't suppored by /bin/sh (e.g. dash).
+
+Based on a patch by Roflcopter4:
+https://github.com/joncampbell123/dosbox-x/pull/3850
+
+Signed-off-by: Stephen Kitt <steve@sk2.org>
+(cherry picked from commit bbfd5b3fb2eed8f95919febf3bc0fec4bc605cbe)
+---
+ build-scripts/androidbuildlibs.sh | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/build-scripts/androidbuildlibs.sh b/build-scripts/androidbuildlibs.sh
+index dc7217293..0ee583ab7 100755
+--- a/build-scripts/androidbuildlibs.sh
++++ b/build-scripts/androidbuildlibs.sh
+@@ -1,4 +1,4 @@
+-#!/bin/sh
++#!/bin/bash
+ #
+ # Build the Android libraries without needing a project
+ # (AndroidManifest.xml, jni/{Application,Android}.mk, etc.)
+-- 
+2.17.1
+

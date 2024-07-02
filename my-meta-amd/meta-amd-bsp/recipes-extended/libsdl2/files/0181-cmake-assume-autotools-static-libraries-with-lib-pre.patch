@@ -1,0 +1,64 @@
+From 8800d404428a9d499fde880236856ac739fe44c0 Mon Sep 17 00:00:00 2001
+From: Anonymous Maarten <anonymous.maarten@gmail.com>
+Date: Wed, 1 Feb 2023 19:05:44 +0100
+Subject: [PATCH 181/458] cmake: assume autotools static libraries with lib
+ prefix and .a suffix
+
+---
+ sdl2-config.cmake.in | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/sdl2-config.cmake.in b/sdl2-config.cmake.in
+index ca73a97c2..ea2639c74 100644
+--- a/sdl2-config.cmake.in
++++ b/sdl2-config.cmake.in
+@@ -65,7 +65,7 @@ if(_sdl2_libraries MATCHES ".*SDL2main.*")
+   list(INSERT SDL2_STATIC_LIBRARIES 0 SDL2::SDL2main)
+ endif()
+ 
+-set(_sdl2main_library ${SDL2_LIBDIR}/${CMAKE_STATIC_LIBRARY_PREFIX}SDL2main${CMAKE_STATIC_LIBRARY_SUFFIX})
++set(_sdl2main_library ${SDL2_LIBDIR}/libSDL2main.a)
+ if(EXISTS "${_sdl2main_library}")
+   set(SDL2MAIN_LIBRARY SDL2::SDL2main)
+   if(NOT TARGET SDL2::SDL2main)
+@@ -104,8 +104,8 @@ set(_sdl2_link_libraries ${_sdl2_libraries})
+ list(REMOVE_ITEM _sdl2_link_libraries SDL2 SDL2main mingw32 cygwin)
+ 
+ if(WIN32)
+-  set(_sdl2_implib "${SDL2_LIBDIR}/${CMAKE_STATIC_LIBRARY_PREFIX}SDL2${CMAKE_SHARED_LIBRARY_SUFFIX}${CMAKE_STATIC_LIBRARY_SUFFIX}")
+-  set(_sdl2_dll "${SDL2_BINDIR}/SDL2${CMAKE_SHARED_LIBRARY_SUFFIX}")
++  set(_sdl2_implib "${SDL2_LIBDIR}/libSDL2.dll.a")
++  set(_sdl2_dll "${SDL2_BINDIR}/SDL2.dll")
+   if(EXISTS "${_sdl2_implib}" AND EXISTS "${_sdl2_dll}")
+     if(NOT TARGET SDL2::SDL2)
+       add_library(SDL2::SDL2 SHARED IMPORTED)
+@@ -125,7 +125,7 @@ if(WIN32)
+   unset(_sdl2_implib)
+   unset(_sdl2_dll)
+ else()
+-  set(_sdl2_shared "${SDL2_LIBDIR}/${CMAKE_SHARED_LIBRARY_PREFIX}SDL2${CMAKE_SHARED_LIBRARY_SUFFIX}")
++  set(_sdl2_shared "${SDL2_LIBDIR}/libSDL2${CMAKE_SHARED_LIBRARY_SUFFIX}")
+   if(EXISTS "${_sdl2_shared}")
+     if(NOT TARGET SDL2::SDL2)
+       add_library(SDL2::SDL2 SHARED IMPORTED)
+@@ -144,7 +144,7 @@ else()
+   unset(_sdl2_shared)
+ endif()
+ 
+-set(_sdl2_static "${SDL2_LIBDIR}/${CMAKE_STATIC_LIBRARY_PREFIX}SDL2${CMAKE_STATIC_LIBRARY_SUFFIX}")
++set(_sdl2_static "${SDL2_LIBDIR}/libSDL2.a")
+ if(EXISTS "${_sdl2_static}")
+   if(NOT TARGET SDL2::SDL2-static)
+     add_library(SDL2::SDL2-static STATIC IMPORTED)
+@@ -165,7 +165,7 @@ unset(_sdl2_static)
+ 
+ unset(_sdl2_link_libraries)
+ 
+-set(_sdl2test_library "${SDL2_LIBDIR}/${CMAKE_STATIC_LIBRARY_PREFIX}SDL2_test${CMAKE_STATIC_LIBRARY_SUFFIX}")
++set(_sdl2test_library "${SDL2_LIBDIR}/libSDL2_test.a")
+ if(EXISTS "${_sdl2test_library}")
+   if(NOT TARGET SDL2::SDL2test)
+     add_library(SDL2::SDL2test STATIC IMPORTED)
+-- 
+2.17.1
+

@@ -1,0 +1,32 @@
+diff --git a/pc-bios/keymaps/meson.build b/pc-bios/keymaps/meson.build
+index 1cbcdebefa..8adccf5aba 100644
+--- a/pc-bios/keymaps/meson.build
++++ b/pc-bios/keymaps/meson.build
+@@ -10,27 +10,6 @@ keymaps = {
+   'es': '-l es',
+   'et': '-l et',
+   'fi': '-l fi',
+-  'fo': '-l fo',
+-  'fr': '-l fr -v nodeadkeys',
+-  'fr-be': '-l be',
+-  'fr-ca': '-l ca -v fr',
+-  'fr-ch': '-l ch -v fr',
+-  'hr': '-l hr',
+-  'hu': '-l hu',
+-  'is': '-l is',
+-  'it': '-l it',
+-  'ja': '-l jp -m jp106',
+-  'lt': '-l lt',
+-  'lv': '-l lv',
+-  'mk': '-l mk',
+-  'nl': '-l nl',
+-  'no': '-l no',
+-  'pl': '-l pl',
+-  'pt': '-l pt',
+-  'pt-br': '-l br',
+-  'ru': '-l ru',
+-  'th': '-l th',
+-  'tr': '-l tr',
+ }
+ 
+ if meson.is_cross_build() or not xkbcommon.found()

@@ -1,0 +1,35 @@
+From 4c2f82d95e89b92825e4f5e4506cb9b55ab257f0 Mon Sep 17 00:00:00 2001
+From: Michal Orzel <michal.orzel@amd.com>
+Date: Wed, 23 Nov 2022 15:39:13 +0100
+Subject: [PATCH 065/221] xen/arm: Fix unreachable panic for vpl011 vIRQ
+
+When creating direct mapped domU, the vIRQ for vpl011 is taken from
+the SERHND_DTUART serial port using serial_irq. This function can return
+-1 (i.e. no interrupt found) in which case we should call a panic.
+However, vpl011_virq is defined as unsigned int which causes the panic
+to be unreachable, because less than zero comparison of an unsigned value
+can never be true. Fix it by defining vpl011_virq as int.
+
+Fixes: 3580c8b2dfc3 ("xen/arm: if direct-map domain use native UART address and IRQ number for vPL011")
+Signed-off-by: Michal Orzel <michal.orzel@amd.com>
+Reviewed-by: Bertrand Marquis <bertrand.marquis@arm.com>
+---
+ xen/arch/arm/domain_build.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/xen/arch/arm/domain_build.c b/xen/arch/arm/domain_build.c
+index bd30d3798c..71a3243f48 100644
+--- a/xen/arch/arm/domain_build.c
++++ b/xen/arch/arm/domain_build.c
+@@ -3897,7 +3897,7 @@ void __init create_domUs(void)
+ 
+         if ( !dt_property_read_u32(node, "nr_spis", &d_cfg.arch.nr_spis) )
+         {
+-            unsigned int vpl011_virq = GUEST_VPL011_SPI;
++            int vpl011_virq = GUEST_VPL011_SPI;
+ 
+             d_cfg.arch.nr_spis = gic_number_lines() - 32;
+ 
+-- 
+2.17.1
+

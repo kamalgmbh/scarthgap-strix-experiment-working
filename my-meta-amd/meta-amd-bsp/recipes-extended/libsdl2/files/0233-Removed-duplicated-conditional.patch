@@ -1,0 +1,28 @@
+From 4c9a79dddb473c5779f0d8a22f30293f7349900a Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Mon, 20 Feb 2023 18:24:52 -0800
+Subject: [PATCH 233/458] Removed duplicated conditional
+
+(cherry picked from commit 1a15d506a69d5d73a53728c569ef84a69db51833)
+---
+ src/joystick/hidapi/SDL_hidapi_switch.c | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/joystick/hidapi/SDL_hidapi_switch.c b/src/joystick/hidapi/SDL_hidapi_switch.c
+index f3d7e2be2..0767e7d10 100644
+--- a/src/joystick/hidapi/SDL_hidapi_switch.c
++++ b/src/joystick/hidapi/SDL_hidapi_switch.c
+@@ -1546,9 +1546,7 @@ static Uint32 HIDAPI_DriverSwitch_GetJoystickCapabilities(SDL_HIDAPI_Device *dev
+     SDL_DriverSwitch_Context *ctx = (SDL_DriverSwitch_Context *)device->context;
+     Uint32 result = 0;
+ 
+-    if ((ctx->m_eControllerType == k_eSwitchDeviceInfoControllerType_ProController && !ctx->m_bInputOnly) ||
+-        ctx->m_eControllerType == k_eSwitchDeviceInfoControllerType_JoyConLeft ||
+-        ctx->m_eControllerType == k_eSwitchDeviceInfoControllerType_JoyConRight) {
++    if (ctx->m_eControllerType == k_eSwitchDeviceInfoControllerType_ProController && !ctx->m_bInputOnly) {
+         /* Doesn't have an RGB LED, so don't return SDL_JOYCAP_LED here */
+         result |= SDL_JOYCAP_RUMBLE;
+     } else if (ctx->m_eControllerType == k_eSwitchDeviceInfoControllerType_JoyConLeft ||
+-- 
+2.17.1
+

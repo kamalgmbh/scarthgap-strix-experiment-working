@@ -1,0 +1,42 @@
+From d42c303b2499a3c3451fbabcbb2b78b0d99e57d4 Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Mon, 15 May 2023 21:43:16 -0700
+Subject: [PATCH 368/458] Check to make sure the Windows joystick device has
+ buttons and axes
+
+This fixes incorrectly detecting the ROG CHAKRAM X mouse as a game controller on Windows 10
+
+(cherry picked from commit 642504bc5993a6acd4d9c1d4c1314c6b1cf6e4e1)
+---
+ src/joystick/windows/SDL_dinputjoystick.c | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/src/joystick/windows/SDL_dinputjoystick.c b/src/joystick/windows/SDL_dinputjoystick.c
+index 4bb495618..8826f90c0 100644
+--- a/src/joystick/windows/SDL_dinputjoystick.c
++++ b/src/joystick/windows/SDL_dinputjoystick.c
+@@ -453,6 +453,7 @@ static BOOL CALLBACK EnumJoystickDetectCallback(LPCDIDEVICEINSTANCE pDeviceInsta
+     char *hidPath = NULL;
+     char *name = NULL;
+     LPDIRECTINPUTDEVICE8 device = NULL;
++    DIDEVCAPS caps;
+ 
+     /* We are only supporting HID devices. */
+     CHECK(pDeviceInstance->dwDevType & DIDEVTYPE_HID);
+@@ -462,6 +463,13 @@ static BOOL CALLBACK EnumJoystickDetectCallback(LPCDIDEVICEINSTANCE pDeviceInsta
+     CHECK(QueryDevicePath(device, &hidPath));
+     CHECK(QueryDeviceInfo(device, &vendor, &product));
+ 
++    /* Check to make sure the device has buttons and axes.
++     * This fixes incorrectly detecting the ROG CHAKRAM X mouse as a game controller on Windows 10
++     */
++    caps.dwSize = sizeof(caps);
++    CHECK(SUCCEEDED(IDirectInputDevice8_GetCapabilities(device, &caps)));
++    CHECK(caps.dwAxes > 0 && caps.dwButtons > 0);
++
+     CHECK(!SDL_IsXInputDevice(vendor, product, hidPath));
+ 
+     pNewJoystick = *(JoyStick_DeviceData **)pContext;
+-- 
+2.17.1
+

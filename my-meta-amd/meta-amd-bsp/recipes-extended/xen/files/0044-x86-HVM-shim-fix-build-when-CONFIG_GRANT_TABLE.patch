@@ -1,0 +1,37 @@
+From 133f35f0f0cd0a415e599c20156aaaa5598356c0 Mon Sep 17 00:00:00 2001
+From: Jan Beulich <jbeulich@suse.com>
+Date: Fri, 2 Dec 2022 10:40:11 +0100
+Subject: [PATCH 044/221] x86/HVM+shim: fix build when !CONFIG_GRANT_TABLE
+
+The HVM flavor of the hypercall handlers exists only when GRANT_TABLE is
+enabled, while surrogate shim variants exist only for the purpose of PV.
+(Also scratch out the Arm variant in that case; what exactly is used in
+that cell of the new table row doesn't really matter.)
+
+Fixes: 8523851dbc49 ("xen/x86: call hypercall handlers via generated macro")
+Reported-by: Andrew Cooper <andrew.cooper3@citrix.com>
+Signed-off-by: Jan Beulich <jbeulich@suse.com>
+Acked-by: Andrew Cooper <andrew.cooper3@citrix.com>
+---
+ xen/include/hypercall-defs.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/xen/include/hypercall-defs.c b/xen/include/hypercall-defs.c
+index 45b6f969d2..1896121074 100644
+--- a/xen/include/hypercall-defs.c
++++ b/xen/include/hypercall-defs.c
+@@ -241,8 +241,10 @@ event_channel_op_compat            do       do       -        -        dep
+ xen_version                        compat   do       compat   do       do
+ console_io                         do       do       do       do       do
+ physdev_op_compat                  compat   do       -        -        dep
+-#if defined(CONFIG_GRANT_TABLE) || defined(CONFIG_PV_SHIM)
++#if defined(CONFIG_GRANT_TABLE)
+ grant_table_op                     compat   do       hvm      hvm      do
++#elif defined(CONFIG_PV_SHIM)
++grant_table_op                     compat   do       -        -        -
+ #endif
+ vm_assist                          do       do       do       do       do
+ update_va_mapping_otherdomain      compat   do       -        -        -
+-- 
+2.17.1
+

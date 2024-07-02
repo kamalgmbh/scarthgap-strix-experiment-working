@@ -1,0 +1,69 @@
+From 1ed7da301020ee1e16177cb3d9caa817f195a59a Mon Sep 17 00:00:00 2001
+From: Michal Orzel <michal.orzel@amd.com>
+Date: Thu, 17 Nov 2022 17:16:42 +0100
+Subject: [PATCH 082/221] automation: Install packages required by tests in
+ containers
+
+Installation of additional packages from the test scripts when running
+the tests has some drawbacks. It is slower than cloning containers and can
+fail due to some network issues (apparently it often happens on x86
+rackspace). This patch is adding the packages required by the tests to be
+installed when building the containers.
+
+>From qemu-alpine-x86_64.sh into debian:stretch:
+ - cpio,
+ - busybox-static.
+
+>From qemu-smoke-*-{arm,arm64}.sh into debian:unstable-arm64v8:
+ - u-boot-qemu,
+ - u-boot-tools,
+ - device-tree-compiler,
+ - curl,
+ - cpio,
+ - busybox-static.
+
+The follow-up patch will remove installation of these packages from the
+test scripts. This is done in order not to break the CI in-between.
+
+Signed-off-by: Michal Orzel <michal.orzel@amd.com>
+Reviewed-by: Stefano Stabellini <sstabellini@kernel.org>
+---
+ automation/build/debian/stretch.dockerfile          | 3 +++
+ automation/build/debian/unstable-arm64v8.dockerfile | 7 +++++++
+ 2 files changed, 10 insertions(+)
+
+diff --git a/automation/build/debian/stretch.dockerfile b/automation/build/debian/stretch.dockerfile
+index da6aa874dd..30fcc5288d 100644
+--- a/automation/build/debian/stretch.dockerfile
++++ b/automation/build/debian/stretch.dockerfile
+@@ -49,6 +49,9 @@ RUN apt-get update && \
+         apt-transport-https \
+         # for test phase, qemu-smoke-* jobs
+         qemu-system-x86 \
++        # for test phase, qemu-alpine-* jobs
++        cpio \
++        busybox-static \
+         && \
+         apt-get autoremove -y && \
+         apt-get clean && \
+diff --git a/automation/build/debian/unstable-arm64v8.dockerfile b/automation/build/debian/unstable-arm64v8.dockerfile
+index 5c73458d9d..0080c22ba2 100644
+--- a/automation/build/debian/unstable-arm64v8.dockerfile
++++ b/automation/build/debian/unstable-arm64v8.dockerfile
+@@ -43,6 +43,13 @@ RUN apt-get update && \
+         wget \
+         git \
+         nasm \
++        # for test phase, qemu-smoke-* jobs
++        u-boot-qemu \
++        u-boot-tools \
++        device-tree-compiler \
++        curl \
++        cpio \
++        busybox-static \
+         && \
+         apt-get autoremove -y && \
+         apt-get clean && \
+-- 
+2.17.1
+

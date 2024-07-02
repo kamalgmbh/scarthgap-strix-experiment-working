@@ -1,0 +1,56 @@
+From 446e0943da8c543ba0dbade1a8822d805ca8d347 Mon Sep 17 00:00:00 2001
+From: "Ryan C. Gordon" <icculus@icculus.org>
+Date: Fri, 17 Mar 2023 10:58:45 -0400
+Subject: [PATCH 304/458] wasapi: Force WIN_CoInitialize duing device open.
+
+Otherwise this won't work if you open a device on a background thread.
+
+Fixes #7478.
+---
+ src/audio/wasapi/SDL_wasapi.c | 10 ++++++++++
+ src/audio/wasapi/SDL_wasapi.h |  1 +
+ 2 files changed, 11 insertions(+)
+
+diff --git a/src/audio/wasapi/SDL_wasapi.c b/src/audio/wasapi/SDL_wasapi.c
+index dc22ecd0c..c46577664 100644
+--- a/src/audio/wasapi/SDL_wasapi.c
++++ b/src/audio/wasapi/SDL_wasapi.c
+@@ -371,6 +371,11 @@ void WASAPI_UnrefDevice(_THIS)
+        our callback thread. We do that in WASAPI_ThreadDeinit().
+        (likewise for this->hidden->coinitialized). */
+     ReleaseWasapiDevice(this);
++
++    if (SDL_ThreadID() == this->hidden->open_threadid) {
++        WIN_CoUninitialize();  /* if you closed from a different thread than you opened, sorry, it's a leak. We can't help you. */
++    }
++
+     SDL_free(this->hidden->devid);
+     SDL_free(this->hidden);
+ }
+@@ -539,6 +544,11 @@ static int WASAPI_OpenDevice(_THIS, const char *devname)
+ 
+     WASAPI_RefDevice(this); /* so CloseDevice() will unref to zero. */
+ 
++    if (FAILED(WIN_CoInitialize())) {  /* WASAPI uses COM, we need to make sure it's initialized. You have to close the device from the same thread!! */
++        return SDL_SetError("WIN_CoInitialize failed during WASAPI device open");
++    }
++    this->hidden->open_threadid = SDL_ThreadID();  /* set this _after_ coinitialize so we don't uninit if device fails at the wrong moment. */
++
+     if (!devid) { /* is default device? */
+         this->hidden->default_device_generation = SDL_AtomicGet(this->iscapture ? &SDL_IMMDevice_DefaultCaptureGeneration : &SDL_IMMDevice_DefaultPlaybackGeneration);
+     } else {
+diff --git a/src/audio/wasapi/SDL_wasapi.h b/src/audio/wasapi/SDL_wasapi.h
+index c3485ebf7..96c206123 100644
+--- a/src/audio/wasapi/SDL_wasapi.h
++++ b/src/audio/wasapi/SDL_wasapi.h
+@@ -47,6 +47,7 @@ struct SDL_PrivateAudioData
+     SDL_AudioStream *capturestream;
+     HANDLE event;
+     HANDLE task;
++    SDL_threadID open_threadid;
+     SDL_bool coinitialized;
+     int framesize;
+     int default_device_generation;
+-- 
+2.17.1
+

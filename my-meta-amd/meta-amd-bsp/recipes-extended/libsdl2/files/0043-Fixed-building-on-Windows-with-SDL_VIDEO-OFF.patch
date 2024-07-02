@@ -1,0 +1,114 @@
+From 2d24baaad431e674dbf28e9facb1880362be0e71 Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Tue, 29 Nov 2022 09:26:29 -0800
+Subject: [PATCH 043/458] Fixed building on Windows with SDL_VIDEO=OFF
+
+Fixes https://github.com/libsdl-org/SDL/issues/6562
+---
+ src/core/windows/SDL_windows.c            | 51 +++++++++++++++++++++++
+ src/haptic/windows/SDL_dinputhaptic.c     |  4 ++
+ src/joystick/windows/SDL_dinputjoystick.c |  4 ++
+ 3 files changed, 59 insertions(+)
+
+diff --git a/src/core/windows/SDL_windows.c b/src/core/windows/SDL_windows.c
+index f64d5544c..ea2378bc1 100644
+--- a/src/core/windows/SDL_windows.c
++++ b/src/core/windows/SDL_windows.c
+@@ -24,6 +24,7 @@
+ 
+ #include "SDL_windows.h"
+ #include "SDL_error.h"
++#include "SDL_system.h"
+ 
+ #include <objbase.h>    /* for CoInitialize/CoUninitialize (Win32 only) */
+ #if defined(HAVE_ROAPI_H)
+@@ -343,4 +344,54 @@ WIN_RectToRECT(const SDL_Rect *sdlrect, RECT *winrect)
+ 
+ #endif /* defined(__WIN32__) || defined(__WINRT__) || defined(__GDK__) */
+ 
++
++/*
++ * Public APIs
++ */
++#if !defined(SDL_VIDEO_DRIVER_WINDOWS)
++
++#if defined(__WIN32__) || defined(__GDK__)
++int
++SDL_RegisterApp(const char *name, Uint32 style, void *hInst)
++{
++    (void) name;
++    (void) style;
++    (void) hInst;
++    return 0;
++}
++
++void
++SDL_UnregisterApp(void)
++{
++}
++
++void SDL_SetWindowsMessageHook(SDL_WindowsMessageHook callback, void *userdata)
++{
++}
++#endif /* __WIN32__ || __GDK__ */
++
++#if defined(__WIN32__) || defined(__WINGDK__)
++int
++SDL_Direct3D9GetAdapterIndex(int displayIndex)
++{
++    (void) displayIndex;
++    return 0; /* D3DADAPTER_DEFAULT */
++}
++
++SDL_bool
++SDL_DXGIGetOutputInfo(int displayIndex, int *adapterIndex, int *outputIndex)
++{
++    (void) displayIndex;
++    if (adapterIndex) {
++        *adapterIndex = -1;
++    }
++    if (outputIndex) {
++        *outputIndex = -1;
++    }
++    return SDL_FALSE;
++}
++#endif /* __WIN32__ || __WINGDK__ */
++
++#endif /* !SDL_VIDEO_DRIVER_WINDOWS */
++
+ /* vi: set ts=4 sw=4 expandtab: */
+diff --git a/src/haptic/windows/SDL_dinputhaptic.c b/src/haptic/windows/SDL_dinputhaptic.c
+index a7900d60c..4e06e20a0 100644
+--- a/src/haptic/windows/SDL_dinputhaptic.c
++++ b/src/haptic/windows/SDL_dinputhaptic.c
+@@ -37,7 +37,11 @@
+ /*
+  * External stuff.
+  */
++#ifdef SDL_VIDEO_DRIVER_WINDOWS
+ extern HWND SDL_HelperWindow;
++#else
++static const HWND SDL_HelperWindow = NULL;
++#endif
+ 
+ 
+ /*
+diff --git a/src/joystick/windows/SDL_dinputjoystick.c b/src/joystick/windows/SDL_dinputjoystick.c
+index 1b6cc9405..7d1bd6d30 100644
+--- a/src/joystick/windows/SDL_dinputjoystick.c
++++ b/src/joystick/windows/SDL_dinputjoystick.c
+@@ -42,7 +42,11 @@
+ #define CONVERT_MAGNITUDE(x)    (((x)*10000) / 0x7FFF)
+ 
+ /* external variables referenced. */
++#ifdef SDL_VIDEO_DRIVER_WINDOWS
+ extern HWND SDL_HelperWindow;
++#else
++static const HWND SDL_HelperWindow = NULL;
++#endif
+ 
+ /* local variables */
+ static SDL_bool coinitialized = SDL_FALSE;
+-- 
+2.17.1
+

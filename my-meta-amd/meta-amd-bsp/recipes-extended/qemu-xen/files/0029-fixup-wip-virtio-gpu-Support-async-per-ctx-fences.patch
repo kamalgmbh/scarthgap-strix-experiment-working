@@ -1,0 +1,52 @@
+From c62f19c0282ee994eae22976a3ccab2008f80cd0 Mon Sep 17 00:00:00 2001
+From: Pierre-Eric Pelloux-Prayer <pierre-eric.pelloux-prayer@amd.com>
+Date: Thu, 25 Jan 2024 11:33:03 +0100
+Subject: [PATCH 29/70] fixup! wip: virtio-gpu: Support async+per-ctx fences
+
+---
+ hw/display/virtio-gpu-virgl.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/hw/display/virtio-gpu-virgl.c b/hw/display/virtio-gpu-virgl.c
+index f549517704..518db4ccb3 100644
+--- a/hw/display/virtio-gpu-virgl.c
++++ b/hw/display/virtio-gpu-virgl.c
+@@ -972,7 +972,7 @@ static int virtio_gpu_virgl_fence_write(VirtIOGPU *g, uint64_t value)
+ 
+ static void virtio_gpu_virgl_fence_event(void *opaque)
+ {
+-    struct virtio_gpu_ctrl_command *cmd;
++    struct virtio_gpu_ctrl_command *cmd, *tmp;
+     VirtIOGPU *g = opaque;
+     uint64_t fence;
+ 
+@@ -983,7 +983,7 @@ static void virtio_gpu_virgl_fence_event(void *opaque)
+     }
+ 
+     while (!virtio_gpu_virgl_fence_read(g, &fence)) {
+-        QTAILQ_FOREACH(cmd, &g->fenceq, next) {
++        QTAILQ_FOREACH_SAFE(cmd, &g->fenceq, next, tmp) {
+             /*
+              * the guest can end up emitting fences out of order
+              * so we should check all fenced cmds not just the first one.
+@@ -1091,7 +1091,7 @@ static void virgl_write_fence(void *opaque, uint32_t fence)
+ 
+ static void virtio_gpu_virgl_context_fence_event(void *opaque)
+ {
+-    struct virtio_gpu_ctrl_command *cmd;
++    struct virtio_gpu_ctrl_command *cmd, *tmp;
+     VirtIOGPU *g = opaque;
+     uint64_t fence_id;
+     uint64_t queue_id;
+@@ -1106,7 +1106,7 @@ static void virtio_gpu_virgl_context_fence_event(void *opaque)
+ 
+     while (!virtio_gpu_virgl_read_context_fence(g, &ctx_id, &queue_id,
+                                                 &fence_id, &ctx_fence)) {
+-        QTAILQ_FOREACH(cmd, &g->fenceq, next) {
++        QTAILQ_FOREACH_SAFE(cmd, &g->fenceq, next, tmp) {
+             /*
+              * the guest can end up emitting fences out of order
+              * so we should check all fenced cmds not just the first one.
+-- 
+2.17.1
+

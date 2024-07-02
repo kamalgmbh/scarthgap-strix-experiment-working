@@ -1,0 +1,25 @@
+From e99b9ca9c0c4c5a03d0a9088bee623218ac840a5 Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Thu, 15 Dec 2022 17:58:29 -0800
+Subject: [PATCH 101/458] Note that the NACON Daija Arcade Stick is an arcade
+ stick
+
+---
+ src/joystick/SDL_joystick.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/src/joystick/SDL_joystick.c b/src/joystick/SDL_joystick.c
+index 4e874a693..dd9c4bdb4 100644
+--- a/src/joystick/SDL_joystick.c
++++ b/src/joystick/SDL_joystick.c
+@@ -2488,6 +2488,7 @@ static SDL_bool SDL_IsJoystickProductArcadeStick(Uint32 vidpid)
+         MAKE_VIDPID(0x0f0d, 0x011c), /* Hori Fighting Stick α in PS4 Mode */
+         MAKE_VIDPID(0x0f0d, 0x011e), /* Hori Fighting Stick α in PC Mode  */
+         MAKE_VIDPID(0x0f0d, 0x0184), /* Hori Fighting Stick α in PS5 Mode */
++        MAKE_VIDPID(0x146b, 0x0604), /* NACON Daija Arcade Stick */
+         MAKE_VIDPID(0x1532, 0x0a00), /* Razer Atrox Arcade Stick */
+         MAKE_VIDPID(0x1bad, 0xf03d), /* Street Fighter IV Arcade Stick TE - Chun Li */
+         MAKE_VIDPID(0x1bad, 0xf502), /* Hori Real Arcade Pro.VX SA */
+-- 
+2.17.1
+

@@ -1,0 +1,162 @@
+From e580e087ffe393664bb9f4540b63988657b7a74e Mon Sep 17 00:00:00 2001
+From: Pierre Wendling <pierre.wendling.4@gmail.com>
+Date: Tue, 6 Dec 2022 17:53:01 -0500
+Subject: [PATCH 091/458] N3DS: Backport semaphore fixes from #6776.
+
+---
+ docs/README-n3ds.md             |  1 +
+ src/thread/n3ds/SDL_syssem.c    | 59 ++++++++++++++++++++-------------
+ src/thread/n3ds/SDL_systhread.c |  3 +-
+ test/testsem.c                  |  2 ++
+ 4 files changed, 41 insertions(+), 24 deletions(-)
+
+diff --git a/docs/README-n3ds.md b/docs/README-n3ds.md
+index 66e194d0b..e9e7c7d01 100644
+--- a/docs/README-n3ds.md
++++ b/docs/README-n3ds.md
+@@ -25,3 +25,4 @@ cmake --install build
+ -   SDL2main should be used to ensure ROMFS is enabled.
+ -   By default, the extra L2 cache and higher clock speeds of the New 2/3DS lineup are enabled. If you wish to turn it off, use `osSetSpeedupEnable(false)` in your main function.
+ -   `SDL_GetBasePath` returns the romfs root instead of the executable's directory.
++-   The Nintendo 3DS uses a cooperative threading model on a single core, meaning a thread will never yield unless done manually through the `SDL_Delay` functions, or blocking waits (`SDL_LockMutex`, `SDL_SemWait`, `SDL_CondWait`, `SDL_WaitThread`). To avoid starving other threads, `SDL_SemTryWait` and `SDL_SemWaitTimeout` will yield if they fail to acquire the semaphore, see https://github.com/libsdl-org/SDL/pull/6776 for more information.
+diff --git a/src/thread/n3ds/SDL_syssem.c b/src/thread/n3ds/SDL_syssem.c
+index 1a4109be5..e7cbacb8d 100644
+--- a/src/thread/n3ds/SDL_syssem.c
++++ b/src/thread/n3ds/SDL_syssem.c
+@@ -27,14 +27,16 @@
+ #include <3ds.h>
+ 
+ #include "SDL_thread.h"
++#include "SDL_timer.h"
++
++int WaitOnSemaphoreFor(SDL_sem *sem, Uint32 timeout);
+ 
+ struct SDL_semaphore
+ {
+     LightSemaphore semaphore;
+ };
+ 
+-SDL_sem *
+-SDL_CreateSemaphore(Uint32 initial_value)
++SDL_sem *SDL_CreateSemaphore(Uint32 initial_value)
+ {
+     SDL_sem *sem;
+ 
+@@ -59,9 +61,7 @@ SDL_CreateSemaphore(Uint32 initial_value)
+ */
+ void SDL_DestroySemaphore(SDL_sem *sem)
+ {
+-    if (sem) {
+-        SDL_free(sem);
+-    }
++    SDL_free(sem);
+ }
+ 
+ int SDL_SemTryWait(SDL_sem *sem)
+@@ -70,35 +70,49 @@ int SDL_SemTryWait(SDL_sem *sem)
+         return SDL_InvalidParamError("sem");
+     }
+ 
+-    return SDL_SemWaitTimeout(sem, 0);
++    if (LightSemaphore_TryAcquire(&sem->semaphore, 1) != 0) {
++        /* If we failed, yield to avoid starvation on busy waits */
++        svcSleepThread(1);
++        return SDL_MUTEX_TIMEDOUT;
++    }
++
++    return 0;
+ }
+ 
+ int SDL_SemWaitTimeout(SDL_sem *sem, Uint32 timeout)
+ {
+-    int retval;
+-
+     if (sem == NULL) {
+         return SDL_InvalidParamError("sem");
+     }
+ 
+     if (timeout == SDL_MUTEX_MAXWAIT) {
+         LightSemaphore_Acquire(&sem->semaphore, 1);
+-        retval = 0;
+-    } else {
+-        int return_code = LightSemaphore_TryAcquire(&sem->semaphore, 1);
+-        if (return_code != 0) {
+-            for (u32 i = 0; i < timeout; i++) {
+-                svcSleepThread(1000000LL);
+-                return_code = LightSemaphore_TryAcquire(&sem->semaphore, 1);
+-                if (return_code == 0) {
+-                    break;
+-                }
+-            }
++        return 0;
++    }
++
++    if (LightSemaphore_TryAcquire(&sem->semaphore, 1) != 0) {
++        return WaitOnSemaphoreFor(sem, timeout);
++    }
++
++    return 0;
++}
++
++int WaitOnSemaphoreFor(SDL_sem *sem, Uint32 timeout)
++{
++    Uint64 stop_time = SDL_GetTicks64() + timeout;
++    Uint64 current_time = SDL_GetTicks64();
++    while (current_time < stop_time) {
++        if (LightSemaphore_TryAcquire(&sem->semaphore, 1) == 0) {
++            return 0;
+         }
+-        retval = return_code != 0 ? SDL_MUTEX_TIMEDOUT : 0;
++        /* 100 microseconds seems to be the sweet spot */
++        svcSleepThread(100000LL);
++        current_time = SDL_GetTicks64();
+     }
+ 
+-    return retval;
++    /* If we failed, yield to avoid starvation on busy waits */
++    svcSleepThread(1);
++    return SDL_MUTEX_TIMEDOUT;
+ }
+ 
+ int SDL_SemWait(SDL_sem *sem)
+@@ -106,8 +120,7 @@ int SDL_SemWait(SDL_sem *sem)
+     return SDL_SemWaitTimeout(sem, SDL_MUTEX_MAXWAIT);
+ }
+ 
+-Uint32
+-SDL_SemValue(SDL_sem *sem)
++Uint32 SDL_SemValue(SDL_sem *sem)
+ {
+     if (sem == NULL) {
+         SDL_InvalidParamError("sem");
+diff --git a/src/thread/n3ds/SDL_systhread.c b/src/thread/n3ds/SDL_systhread.c
+index caf2df7bb..926dd3488 100644
+--- a/src/thread/n3ds/SDL_systhread.c
++++ b/src/thread/n3ds/SDL_systhread.c
+@@ -49,8 +49,9 @@ static void ThreadEntry(void *arg)
+ 
+ int SDL_SYS_CreateThread(SDL_Thread *thread)
+ {
+-    s32 priority = N3DS_THREAD_PRIORITY_MEDIUM;
++    s32 priority;
+     size_t stack_size = GetStackSize(thread->stacksize);
++    svcGetThreadPriority(&priority, CUR_THREAD_HANDLE);
+ 
+     thread->handle = threadCreate(ThreadEntry,
+                                   thread,
+diff --git a/test/testsem.c b/test/testsem.c
+index 2b36a3a82..8d8a2493c 100644
+--- a/test/testsem.c
++++ b/test/testsem.c
+@@ -210,6 +210,8 @@ TestOverheadContended(SDL_bool try_wait)
+         }
+         /* Make sure threads consumed everything */
+         while (SDL_SemValue(sem)) {
++            /* Friendlier with cooperative threading models */
++            SDL_Delay(1);
+         }
+     }
+     end_ticks = SDL_GetTicks();
+-- 
+2.17.1
+

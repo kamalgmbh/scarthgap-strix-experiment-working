@@ -1,0 +1,130 @@
+From 232ed540dbf3924543ab1a084a43f2e70f4b31a9 Mon Sep 17 00:00:00 2001
+From: Rudolf-Walter Kiss-Szakacs <rudolf.wg@gmail.com>
+Date: Fri, 2 Dec 2022 07:22:31 +0200
+Subject: [PATCH 113/458] Add SDL_HINT_WINDOWS_ENABLE_MENU_MNEMONICS.
+
+---
+ include/SDL_hints.h                   | 22 ++++++++++++++++++++++
+ src/video/windows/SDL_windowsevents.c |  6 ++++--
+ src/video/windows/SDL_windowsvideo.c  | 20 ++++++++++----------
+ src/video/windows/SDL_windowsvideo.h  |  1 +
+ 4 files changed, 37 insertions(+), 12 deletions(-)
+
+diff --git a/include/SDL_hints.h b/include/SDL_hints.h
+index 76a74f0ff..2b42b08ac 100644
+--- a/include/SDL_hints.h
++++ b/include/SDL_hints.h
+@@ -1954,6 +1954,28 @@ extern "C" {
+  */
+ #define SDL_HINT_WINDOWS_DISABLE_THREAD_NAMING "SDL_WINDOWS_DISABLE_THREAD_NAMING"
+ 
++/**
++ *  \brief Controls whether menus can be opened with their keyboard shortcut (Alt+mnemonic).
++ *
++ *  If the mnemonics are enabled, then menus can be opened by pressing the Alt
++ *  key and the corresponding mnemonic (for example, Alt+F opens the File menu).
++ *  However, in case an invalid mnemonic is pressed, Windows makes an audible
++ *  beep to convey that nothing happened. This is true even if the window has
++ *  no menu at all!
++ *
++ *  Because most SDL applications don't have menus, and some want to use the Alt
++ *  key for other purposes, SDL disables mnemonics (and the beeping) by default.
++ *
++ *  Note: This also affects keyboard events: with mnemonics enabled, when a
++ *  menu is opened from the keyboard, you will not receive a KEYUP event for
++ *  the mnemonic key, and *might* not receive one for Alt.
++ *
++ *  This variable can be set to the following values:
++ *    "0"       - Alt+mnemonic does nothing, no beeping. (default)
++ *    "1"       - Alt+mnemonic opens menus, invalid mnemonics produce a beep.
++ */
++#define SDL_HINT_WINDOWS_ENABLE_MENU_MNEMONICS "SDL_WINDOWS_ENABLE_MENU_MNEMONICS"
++
+ /**
+  *  \brief  A variable controlling whether the windows message loop is processed by SDL 
+  *
+diff --git a/src/video/windows/SDL_windowsevents.c b/src/video/windows/SDL_windowsevents.c
+index 269046e26..b73ccd0af 100644
+--- a/src/video/windows/SDL_windowsevents.c
++++ b/src/video/windows/SDL_windowsevents.c
+@@ -1316,8 +1316,10 @@ WIN_WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+ 
+     case WM_SYSCOMMAND:
+     {
+-        if ((wParam & 0xFFF0) == SC_KEYMENU) {
+-            return 0;
++        if (!g_WindowsEnableMenuMnemonics) {
++            if ((wParam & 0xFFF0) == SC_KEYMENU) {
++                return 0;
++            }
+         }
+ 
+ #if defined(SC_SCREENSAVE) || defined(SC_MONITORPOWER)
+diff --git a/src/video/windows/SDL_windowsvideo.c b/src/video/windows/SDL_windowsvideo.c
+index 32e0caf88..7bc03924c 100644
+--- a/src/video/windows/SDL_windowsvideo.c
++++ b/src/video/windows/SDL_windowsvideo.c
+@@ -29,6 +29,7 @@
+ #include "SDL_system.h"
+ #include "../SDL_sysvideo.h"
+ #include "../SDL_pixels_c.h"
++#include "../../SDL_hints_c.h"
+ 
+ #include "SDL_windowsvideo.h"
+ #include "SDL_windowsframebuffer.h"
+@@ -43,24 +44,22 @@ static void WIN_VideoQuit(_THIS);
+ 
+ /* Hints */
+ SDL_bool g_WindowsEnableMessageLoop = SDL_TRUE;
++SDL_bool g_WindowsEnableMenuMnemonics = SDL_FALSE;
+ SDL_bool g_WindowFrameUsableWhileCursorHidden = SDL_TRUE;
+ 
+ static void SDLCALL UpdateWindowsEnableMessageLoop(void *userdata, const char *name, const char *oldValue, const char *newValue)
+ {
+-    if (newValue && *newValue == '0') {
+-        g_WindowsEnableMessageLoop = SDL_FALSE;
+-    } else {
+-        g_WindowsEnableMessageLoop = SDL_TRUE;
+-    }
++    g_WindowsEnableMessageLoop = SDL_GetStringBoolean(newValue, SDL_TRUE);
++}
++
++static void SDLCALL UpdateWindowsEnableMenuMnemonics(void *userdata, const char *name, const char *oldValue, const char *newValue)
++{
++    g_WindowsEnableMenuMnemonics = SDL_GetStringBoolean(newValue, SDL_FALSE);
+ }
+ 
+ static void SDLCALL UpdateWindowFrameUsableWhileCursorHidden(void *userdata, const char *name, const char *oldValue, const char *newValue)
+ {
+-    if (newValue && *newValue == '0') {
+-        g_WindowFrameUsableWhileCursorHidden = SDL_FALSE;
+-    } else {
+-        g_WindowFrameUsableWhileCursorHidden = SDL_TRUE;
+-    }
++    g_WindowFrameUsableWhileCursorHidden = SDL_GetStringBoolean(newValue, SDL_TRUE);
+ }
+ 
+ #if !defined(__XBOXONE__) && !defined(__XBOXSERIES__)
+@@ -448,6 +447,7 @@ int WIN_VideoInit(_THIS)
+ #endif
+ 
+     SDL_AddHintCallback(SDL_HINT_WINDOWS_ENABLE_MESSAGELOOP, UpdateWindowsEnableMessageLoop, NULL);
++    SDL_AddHintCallback(SDL_HINT_WINDOWS_ENABLE_MENU_MNEMONICS, UpdateWindowsEnableMenuMnemonics, NULL);
+     SDL_AddHintCallback(SDL_HINT_WINDOW_FRAME_USABLE_WHILE_CURSOR_HIDDEN, UpdateWindowFrameUsableWhileCursorHidden, NULL);
+ 
+ #if !defined(__XBOXONE__) && !defined(__XBOXSERIES__)
+diff --git a/src/video/windows/SDL_windowsvideo.h b/src/video/windows/SDL_windowsvideo.h
+index 59d53f405..bf4286d3a 100644
+--- a/src/video/windows/SDL_windowsvideo.h
++++ b/src/video/windows/SDL_windowsvideo.h
+@@ -462,6 +462,7 @@ typedef struct SDL_VideoData
+ } SDL_VideoData;
+ 
+ extern SDL_bool g_WindowsEnableMessageLoop;
++extern SDL_bool g_WindowsEnableMenuMnemonics;
+ extern SDL_bool g_WindowFrameUsableWhileCursorHidden;
+ 
+ typedef struct IDirect3D9 IDirect3D9;
+-- 
+2.17.1
+

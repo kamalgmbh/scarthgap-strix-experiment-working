@@ -1,0 +1,64 @@
+From 2272b354294119d3dc592abba968cf0de245b18f Mon Sep 17 00:00:00 2001
+From: Xenia Ragiadakou <xenia.ragiadakou@amd.com>
+Date: Wed, 17 Apr 2024 10:03:07 +0300
+Subject: [PATCH 5/6] OvmfPkg/OvmfXen: Enable virtio-net
+
+Signed-off-by: Xenia Ragiadakou <xenia.ragiadakou@amd.com>
+Change-Id: Ibf5babe52cd891a457509ed71cbc804d96daa8a3
+---
+ OvmfPkg/OvmfXen.dsc | 3 +++
+ OvmfPkg/OvmfXen.fdf | 3 +++
+ 2 files changed, 6 insertions(+)
+
+diff --git a/OvmfPkg/OvmfXen.dsc b/OvmfPkg/OvmfXen.dsc
+index 78cc3c0d7c..5acac600b4 100644
+--- a/OvmfPkg/OvmfXen.dsc
++++ b/OvmfPkg/OvmfXen.dsc
+@@ -168,6 +168,7 @@
+   SerializeVariablesLib|OvmfPkg/Library/SerializeVariablesLib/SerializeVariablesLib.inf
+   QemuFwCfgLib|OvmfPkg/Library/QemuFwCfgLib/QemuFwCfgDxeLib.inf
+   QemuFwCfgSimpleParserLib|OvmfPkg/Library/QemuFwCfgSimpleParserLib/QemuFwCfgSimpleParserLib.inf
++  VirtioLib|OvmfPkg/Library/VirtioLib/VirtioLib.inf
+   QemuLoadImageLib|OvmfPkg/Library/GenericQemuLoadImageLib/GenericQemuLoadImageLib.inf
+   MemEncryptSevLib|OvmfPkg/Library/BaseMemEncryptSevLib/DxeMemEncryptSevLib.inf
+   LockBoxLib|OvmfPkg/Library/LockBoxLib/LockBoxBaseLib.inf
+@@ -607,6 +608,7 @@
+     <LibraryClasses>
+       NULL|OvmfPkg/Library/BlobVerifierLibNull/BlobVerifierLibNull.inf
+   }
++  OvmfPkg/VirtioPciDeviceDxe/VirtioPciDeviceDxe.inf
+   OvmfPkg/XenIoPvhDxe/XenIoPvhDxe.inf
+   OvmfPkg/XenIoPciDxe/XenIoPciDxe.inf
+   OvmfPkg/XenBusDxe/XenBusDxe.inf
+@@ -686,6 +688,7 @@
+       NULL|OvmfPkg/Library/TlsAuthConfigLib/TlsAuthConfigLib.inf
+   }
+ !endif
++  OvmfPkg/VirtioNetDxe/VirtioNet.inf
+ 
+   #
+   # Usb Support
+diff --git a/OvmfPkg/OvmfXen.fdf b/OvmfPkg/OvmfXen.fdf
+index 8be69338c7..8f063c8da5 100644
+--- a/OvmfPkg/OvmfXen.fdf
++++ b/OvmfPkg/OvmfXen.fdf
+@@ -255,6 +255,8 @@ INF  MdeModulePkg/Universal/ResetSystemRuntimeDxe/ResetSystemRuntimeDxe.inf
+ INF  MdeModulePkg/Universal/Metronome/Metronome.inf
+ INF  EmbeddedPkg/RealTimeClockRuntimeDxe/RealTimeClockRuntimeDxe.inf
+ 
++INF  OvmfPkg/VirtioPciDeviceDxe/VirtioPciDeviceDxe.inf
++
+ INF  OvmfPkg/XenIoPvhDxe/XenIoPvhDxe.inf
+ INF  OvmfPkg/XenIoPciDxe/XenIoPciDxe.inf
+ INF  OvmfPkg/XenBusDxe/XenBusDxe.inf
+@@ -324,6 +326,7 @@ INF MdeModulePkg/Logo/LogoDxe.inf
+   }
+ !endif
+ !include NetworkPkg/Network.fdf.inc
++  INF  OvmfPkg/VirtioNetDxe/VirtioNet.inf
+ 
+ #
+ # Usb Support
+-- 
+2.17.1
+

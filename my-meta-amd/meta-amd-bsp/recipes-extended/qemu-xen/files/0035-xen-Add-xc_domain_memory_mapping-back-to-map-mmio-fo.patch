@@ -1,0 +1,45 @@
+From f9a79253f241972cdca7b7cf2a7a4441f2c9c432 Mon Sep 17 00:00:00 2001
+From: Huang Rui <ray.huang@amd.com>
+Date: Tue, 25 Jul 2023 20:49:07 +0800
+Subject: [PATCH 35/70] xen: Add xc_domain_memory_mapping back to map mmio for
+ device memory
+
+xc_domain_add_to_physmap_batch cannot be mapped mmio address by desgin,
+we should use xc_domain_memory_mapping() instead to map mmio address for
+real device memory (vram). This is the fix for dGPU, because dGPU is
+using real mmio which is different from the carved out system memory on
+APU.
+
+Signed-off-by: Huang Rui <ray.huang@amd.com>
+---
+ include/hw/xen/xen_native.h | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)
+
+diff --git a/include/hw/xen/xen_native.h b/include/hw/xen/xen_native.h
+index eaf28ad158..0da8d6f570 100644
+--- a/include/hw/xen/xen_native.h
++++ b/include/hw/xen/xen_native.h
+@@ -526,6 +526,20 @@ static inline void xen_map_memory_section(domid_t dom,
+             page_done += n;
+         }
+ 
++	if (!rc)
++	    goto out;
++
++	rc = xc_domain_iomem_permission(xen_xc, gdom, hpfns[0], nr_pfns, 1);
++	if (rc)
++	    goto out;
++
++	rc = xc_domain_memory_mapping(xen_xc, gdom, gpfns[0], hpfns[0],
++				      nr_pfns, 1);
++	if (rc)
++	    xc_domain_iomem_permission(xen_xc, gdom, hpfns[0], nr_pfns, 0);
++	else
++	    is_mmio = true;
++
+   out:
+         fprintf(stderr, "%s: dom=%d fd=%d hva=%p gpfn=0x%lx hpfn=0x%lx size=0x%lx is_mmio=%d rc=%d\n",
+                 __func__, dom, section->mr->ram_block->fd, hva, gpfns[0], hpfns[0], size, is_mmio, rc);
+-- 
+2.17.1
+

@@ -1,0 +1,60 @@
+From 3e12149eb214fee62fc86ee964d3142d0235330e Mon Sep 17 00:00:00 2001
+From: Jason Andryuk <jandryuk@gmail.com>
+Date: Fri, 3 Nov 2023 15:45:51 -0400
+Subject: [PATCH 003/106] golang: Fix bindings after XSA-443
+
+The new bootloader_restrict and bootloader_user fields in the libxl idl
+change the bindings.  Update them.
+
+Fixes: 1f762642d2ca ("libxl: add support for running bootloader in restricted mode")
+Signed-off-by: Jason Andryuk <jandryuk@gmail.com>
+Acked-by: George Dunlap <george.dunlap@cloud.com>
+(cherry picked from commit 1f849edc2f9ca7dc2f9ed7b0585c31bd6b81d7ef)
+---
+ tools/golang/xenlight/helpers.gen.go | 9 +++++++++
+ tools/golang/xenlight/types.gen.go   | 2 ++
+ 2 files changed, 11 insertions(+)
+
+diff --git a/tools/golang/xenlight/helpers.gen.go b/tools/golang/xenlight/helpers.gen.go
+index 3ecffdf0ef..35e209ff1b 100644
+--- a/tools/golang/xenlight/helpers.gen.go
++++ b/tools/golang/xenlight/helpers.gen.go
+@@ -1112,6 +1112,10 @@ x.Bootloader = C.GoString(xc.bootloader)
+ if err := x.BootloaderArgs.fromC(&xc.bootloader_args);err != nil {
+ return fmt.Errorf("converting field BootloaderArgs: %v", err)
+ }
++if err := x.BootloaderRestrict.fromC(&xc.bootloader_restrict);err != nil {
++return fmt.Errorf("converting field BootloaderRestrict: %v", err)
++}
++x.BootloaderUser = C.GoString(xc.bootloader_user)
+ x.TimerMode = TimerMode(xc.timer_mode)
+ if err := x.NestedHvm.fromC(&xc.nested_hvm);err != nil {
+ return fmt.Errorf("converting field NestedHvm: %v", err)
+@@ -1465,6 +1469,11 @@ xc.bootloader = C.CString(x.Bootloader)}
+ if err := x.BootloaderArgs.toC(&xc.bootloader_args); err != nil {
+ return fmt.Errorf("converting field BootloaderArgs: %v", err)
+ }
++if err := x.BootloaderRestrict.toC(&xc.bootloader_restrict); err != nil {
++return fmt.Errorf("converting field BootloaderRestrict: %v", err)
++}
++if x.BootloaderUser != "" {
++xc.bootloader_user = C.CString(x.BootloaderUser)}
+ xc.timer_mode = C.libxl_timer_mode(x.TimerMode)
+ if err := x.NestedHvm.toC(&xc.nested_hvm); err != nil {
+ return fmt.Errorf("converting field NestedHvm: %v", err)
+diff --git a/tools/golang/xenlight/types.gen.go b/tools/golang/xenlight/types.gen.go
+index 6a9ebb3fec..7907aa8999 100644
+--- a/tools/golang/xenlight/types.gen.go
++++ b/tools/golang/xenlight/types.gen.go
+@@ -577,6 +577,8 @@ DeviceTree string
+ Acpi Defbool
+ Bootloader string
+ BootloaderArgs StringList
++BootloaderRestrict Defbool
++BootloaderUser string
+ TimerMode TimerMode
+ NestedHvm Defbool
+ Apic Defbool
+-- 
+2.25.1
+

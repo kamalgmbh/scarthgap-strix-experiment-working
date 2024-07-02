@@ -1,0 +1,40 @@
+From 30cbaf3abf6a7215810e7b7206bb9a173ca96655 Mon Sep 17 00:00:00 2001
+From: Xenia Ragiadakou <xenia.ragiadakou@amd.com>
+Date: Tue, 11 Apr 2023 11:50:56 +0300
+Subject: [PATCH 26/49] xen/pvh: register suspend notifiers
+
+Signed-off-by: Stefano Stabellini <stefano.stabellini@amd.com>
+Signed-off-by: Xenia Ragiadakou <xenia.ragiadakou@amd.com>
+---
+ arch/x86/xen/enlighten_pvh.c | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/arch/x86/xen/enlighten_pvh.c b/arch/x86/xen/enlighten_pvh.c
+index 00e9115edbbc..ad1bea64695c 100644
+--- a/arch/x86/xen/enlighten_pvh.c
++++ b/arch/x86/xen/enlighten_pvh.c
+@@ -4,6 +4,7 @@
+ #include <linux/cpuidle.h>
+ #include <linux/export.h>
+ 
++#include <xen/acpi.h>
+ #include <xen/hvc-console.h>
+ 
+ #include <asm/io_apic.h>
+@@ -81,6 +82,13 @@ void __init mem_map_via_hcall(struct boot_params *boot_params_p)
+ 	boot_params_p->e820_entries = memmap.nr_entries;
+ }
+ 
++static int __init xen_acpi_sleep(void)
++{
++	xen_acpi_sleep_register();
++	return 0;
++}
++late_initcall(xen_acpi_sleep);
++
+ static int xen_pvh_exchange_memory(unsigned long extents_in, unsigned int order_in,
+ 			       unsigned long *pfns_in,
+ 			       unsigned long extents_out,
+-- 
+2.17.1
+

@@ -1,0 +1,33 @@
+From e146ac8f415a0f3c1f54eda3dfebdf153dc4de17 Mon Sep 17 00:00:00 2001
+From: Huang Rui <ray.huang@amd.com>
+Date: Fri, 4 Nov 2022 09:40:51 +0800
+Subject: [PATCH 28/49] drm/amdgpu: set passthrough mode for xen pvh/hvm
+
+There is an second stage translation between the guest machine address
+and host machine address in Xen PVH/HVM. The PCI bar address in the xen
+guest kernel are not translated at the second stage on Xen PVH/HVM, so
+it's not the real physical address that hardware would like to know, so
+we need to set passthrough mode for Xen PVH/HVM as well.
+
+Signed-off-by: Huang Rui <ray.huang@amd.com>
+---
+ drivers/gpu/drm/amd/amdgpu/amdgpu_virt.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_virt.c b/drivers/gpu/drm/amd/amdgpu/amdgpu_virt.c
+index 0dcff2889e25..e69ddd71b331 100644
+--- a/drivers/gpu/drm/amd/amdgpu/amdgpu_virt.c
++++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_virt.c
+@@ -744,7 +744,8 @@ void amdgpu_detect_virtualization(struct amdgpu_device *adev)
+ 
+ 	if (!reg) {
+ 		/* passthrough mode exclus sriov mod */
+-		if (is_virtual_machine() && !xen_initial_domain())
++		if (is_virtual_machine() &&
++		    !(xen_initial_domain() && xen_pv_domain()))
+ 			adev->virt.caps |= AMDGPU_PASSTHROUGH_MODE;
+ 	}
+ 
+-- 
+2.17.1
+

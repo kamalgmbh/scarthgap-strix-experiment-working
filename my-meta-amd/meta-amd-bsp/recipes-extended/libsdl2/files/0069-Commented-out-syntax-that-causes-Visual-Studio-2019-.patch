@@ -1,0 +1,27 @@
+From 07d6d116ed413a34d77af0657788667bcbefcae7 Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Fri, 2 Dec 2022 00:43:01 -0800
+Subject: [PATCH 069/458] Commented out syntax that causes Visual Studio 2019
+ to complain on every edit
+
+(cherry picked from commit 4713db1484c5519967b7e1dc2a00ee0b36853428)
+---
+ .clang-format | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/.clang-format b/.clang-format
+index 459a886af..e98e5cd70 100644
+--- a/.clang-format
++++ b/.clang-format
+@@ -48,7 +48,7 @@ IncludeBlocks: Preserve
+ # clang-format version 4.0 through 12.0:
+ #SortIncludes: false
+ # clang-format version 13.0+:
+-SortIncludes: Never
++#SortIncludes: Never
+ 
+ # No length limit, in case it breaks macros, you can
+ # disable it with /* clang-format off/on */ comments
+-- 
+2.17.1
+

@@ -1,0 +1,98 @@
+From a2f4783e753e499c7f6660bf34e337618239a72f Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Mon, 22 May 2023 11:30:42 -0700
+Subject: [PATCH 384/458] Don't map the top keyboard row to numbers when using
+ the one-handed DVORAK layouts (thanks @tormol!)
+
+Fixes https://github.com/libsdl-org/SDL/pull/5127
+---
+ include/SDL_keycode.h                   |  2 +-
+ src/events/SDL_keyboard.c               | 33 ++++++++++++++++++++-----
+ src/video/windows/SDL_windowskeyboard.c |  6 ++---
+ 3 files changed, 30 insertions(+), 11 deletions(-)
+
+diff --git a/include/SDL_keycode.h b/include/SDL_keycode.h
+index 2523506d7..710622302 100644
+--- a/include/SDL_keycode.h
++++ b/include/SDL_keycode.h
+@@ -40,7 +40,7 @@
+  *  an SDLK_* constant for those keys that do not generate characters.
+  *
+  *  A special exception is the number keys at the top of the keyboard which
+- *  always map to SDLK_0...SDLK_9, regardless of layout.
++ *  map to SDLK_0...SDLK_9 on AZERTY layouts.
+  */
+ typedef Sint32 SDL_Keycode;
+ 
+diff --git a/src/events/SDL_keyboard.c b/src/events/SDL_keyboard.c
+index 9f802213a..0bd46de73 100644
+--- a/src/events/SDL_keyboard.c
++++ b/src/events/SDL_keyboard.c
+@@ -699,20 +699,41 @@ void SDL_SetKeymap(int start, const SDL_Keycode *keys, int length, SDL_bool send
+     SDL_Keyboard *keyboard = &SDL_keyboard;
+     SDL_Scancode scancode;
+     SDL_Keycode normalized_keymap[SDL_NUM_SCANCODES];
++    SDL_bool is_azerty = SDL_FALSE;
+ 
+     if (start < 0 || start + length > SDL_NUM_SCANCODES) {
+         return;
+     }
+ 
++    if (start > 0) {
++        SDL_memcpy(&normalized_keymap[0], &keyboard->keymap[0], sizeof(*keys) * start);
++    }
++
+     SDL_memcpy(&normalized_keymap[start], keys, sizeof(*keys) * length);
+ 
+-    /* The number key scancodes always map to the number key keycodes.
+-     * On AZERTY layouts these technically are symbols, but users (and games)
+-     * always think of them and view them in UI as number keys.
++    if (start + length < SDL_NUM_SCANCODES) {
++        int offset = start + length;
++        SDL_memcpy(&normalized_keymap[offset], &keyboard->keymap[offset], sizeof(*keys) * (SDL_NUM_SCANCODES - offset));
++    }
++
++    /* On AZERTY layouts the number keys are technically symbols, but users (and games)
++     * always think of them and view them in UI as number keys, so remap them here.
+      */
+-    normalized_keymap[SDL_SCANCODE_0] = SDLK_0;
+-    for (scancode = SDL_SCANCODE_1; scancode <= SDL_SCANCODE_9; ++scancode) {
+-        normalized_keymap[scancode] = SDLK_1 + (scancode - SDL_SCANCODE_1);
++    if (normalized_keymap[SDL_SCANCODE_0] < SDLK_0 || normalized_keymap[SDL_SCANCODE_0] > SDLK_9) {
++        is_azerty = SDL_TRUE;
++        for (scancode = SDL_SCANCODE_1; scancode <= SDL_SCANCODE_9; ++scancode) {
++            if (normalized_keymap[scancode] >= SDLK_0 && normalized_keymap[scancode] <= SDLK_9) {
++                /* There's a number on this row, it's not AZERTY */
++                is_azerty = SDL_FALSE;
++                break;
++            }
++        }
++    }
++    if (is_azerty) {
++        normalized_keymap[SDL_SCANCODE_0] = SDLK_0;
++        for (scancode = SDL_SCANCODE_1; scancode <= SDL_SCANCODE_9; ++scancode) {
++            normalized_keymap[scancode] = SDLK_1 + (scancode - SDL_SCANCODE_1);
++        }
+     }
+ 
+     /* If the mapping didn't really change, we're done here */
+diff --git a/src/video/windows/SDL_windowskeyboard.c b/src/video/windows/SDL_windowskeyboard.c
+index 9af489da2..215ca6d75 100644
+--- a/src/video/windows/SDL_windowskeyboard.c
++++ b/src/video/windows/SDL_windowskeyboard.c
+@@ -131,10 +131,8 @@ void WIN_UpdateKeymap(SDL_bool send_event)
+         }
+ 
+         /* If this key is one of the non-mappable keys, ignore it */
+-        /* Not mapping numbers fixes the French layout, giving numeric keycodes for the number keys, which is the expected behavior */
+-        if ((keymap[scancode] & SDLK_SCANCODE_MASK) ||
+-            /*  scancode == SDL_SCANCODE_GRAVE || */ /* Uncomment this line to re-enable the behavior of not mapping the "`"(grave) key to the users actual keyboard layout */
+-            (scancode >= SDL_SCANCODE_1 && scancode <= SDL_SCANCODE_0)) {
++        /* Uncomment the second part re-enable the behavior of not mapping the "`"(grave) key to the users actual keyboard layout */
++        if ((keymap[scancode] & SDLK_SCANCODE_MASK) /*|| scancode == SDL_SCANCODE_GRAVE*/) {
+             continue;
+         }
+ 
+-- 
+2.17.1
+

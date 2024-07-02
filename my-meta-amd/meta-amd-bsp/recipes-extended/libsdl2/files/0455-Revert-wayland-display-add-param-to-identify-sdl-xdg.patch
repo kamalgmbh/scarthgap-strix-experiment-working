@@ -1,0 +1,66 @@
+From 04b5d9038a82d0a8e3ee0fc86c0bb510238e6472 Mon Sep 17 00:00:00 2001
+From: Sophia Gong <lili.gong@amd.com>
+Date: Tue, 16 Jan 2024 03:07:15 -0500
+Subject: [PATCH 455/458] Revert "wayland display: add param to identify sdl
+ xdg output"
+
+This reverts commit 0e29bb3f5087500a6924e05c10bbe1a92a66178f.
+
+Change-Id: Ifee4e02bef27e140ac1c9d3220f041b012a3d410
+---
+ src/video/SDL_sysvideo.h             | 1 -
+ src/video/wayland/SDL_waylandvideo.c | 6 ------
+ src/video/wayland/SDL_waylandvideo.h | 1 -
+ 3 files changed, 8 deletions(-)
+
+diff --git a/src/video/SDL_sysvideo.h b/src/video/SDL_sysvideo.h
+index b3edb1c3c..66ad11605 100644
+--- a/src/video/SDL_sysvideo.h
++++ b/src/video/SDL_sysvideo.h
+@@ -130,7 +130,6 @@ struct SDL_Window
+ struct SDL_VideoDisplay
+ {
+     char *name;
+-    char *output;
+     int max_display_modes;
+     int num_display_modes;
+     SDL_DisplayMode *display_modes;
+diff --git a/src/video/wayland/SDL_waylandvideo.c b/src/video/wayland/SDL_waylandvideo.c
+index e1eaac93a..fdce0e1ef 100644
+--- a/src/video/wayland/SDL_waylandvideo.c
++++ b/src/video/wayland/SDL_waylandvideo.c
+@@ -346,10 +346,6 @@ static void xdg_output_handle_done(void *data, struct zxdg_output_v1 *xdg_output
+ static void xdg_output_handle_name(void *data, struct zxdg_output_v1 *xdg_output,
+                                    const char *name)
+ {
+-    SDL_WaylandOutputData* driverdata = data;
+-
+-    driverdata->name = SDL_strdup(name);
+-    driverdata->placeholder.output = SDL_strdup(name);
+ }
+ 
+ static void xdg_output_handle_description(void *data, struct zxdg_output_v1 *xdg_output,
+@@ -758,8 +754,6 @@ static void Wayland_free_display(SDL_VideoData *d, uint32_t id)
+                 secure_display_crtc_v1_destroy(data->secure_crtc);
+ 	    }
+             wl_output_destroy(data->output);
+-            SDL_free(data->name);
+-            SDL_free(display->output);
+             SDL_free(data);
+ 
+             /* Update the index for all remaining displays */
+diff --git a/src/video/wayland/SDL_waylandvideo.h b/src/video/wayland/SDL_waylandvideo.h
+index 60f16d784..76807f24b 100644
+--- a/src/video/wayland/SDL_waylandvideo.h
++++ b/src/video/wayland/SDL_waylandvideo.h
+@@ -108,7 +108,6 @@ struct SDL_WaylandOutputData
+ {
+     SDL_VideoData *videodata;
+     struct wl_output *output;
+-    char *name;
+     struct zxdg_output_v1 *xdg_output;
+     struct secure_display_crtc_v1 *secure_crtc;
+     uint32_t registry_id;
+-- 
+2.17.1
+

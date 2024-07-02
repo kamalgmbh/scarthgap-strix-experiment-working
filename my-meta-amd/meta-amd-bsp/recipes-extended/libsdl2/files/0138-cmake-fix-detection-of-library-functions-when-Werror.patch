@@ -1,0 +1,72 @@
+From 305e7b55bd1786cbbb25917f2a08031f4e365928 Mon Sep 17 00:00:00 2001
+From: Ozkan Sezer <sezeroz@gmail.com>
+Date: Sat, 7 Jan 2023 14:25:04 +0300
+Subject: [PATCH 138/458] cmake: fix detection of library functions when
+ -Werror is enabled.
+
+(Reference issue: https://github.com/libsdl-org/SDL/issues/7011)
+---
+ CMakeLists.txt | 40 ++++++++++++++++++++--------------------
+ 1 file changed, 20 insertions(+), 20 deletions(-)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 32e9dfff8..ef6e20db6 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -483,26 +483,6 @@ set_option(SDL_INSTALL_TESTS   "Install test-cases" OFF)
+ 
+ set(HAVE_STATIC_PIC "${SDL_STATIC_PIC}")
+ 
+-if(SDL_WERROR)
+-  if(MSVC)
+-    cmake_push_check_state(RESET)
+-    check_c_compiler_flag(/WX HAVE_WX)
+-    if(HAVE_WX)
+-      set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /WX")
+-      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /WX")
+-    endif()
+-  elseif(USE_GCC OR USE_CLANG)
+-    cmake_push_check_state(RESET)
+-    check_c_compiler_flag(-Werror HAVE_WERROR)
+-    if(HAVE_WERROR)
+-      set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Werror")
+-      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror")
+-      set(CMAKE_OBJC_FLAGS "${CMAKE_OBJC_FLAGS} -Werror")
+-    endif()
+-    cmake_pop_check_state()
+-  endif()
+-endif()
+-
+ if(SDL_HIDAPI)
+   if(HIDAPI_ONLY_LIBUSB)
+     set(SDL_HIDAPI_LIBUSB ON CACHE BOOL "" FORCE)
+@@ -2943,6 +2923,26 @@ if(NOT SDLMAIN_SOURCES)
+   file(GLOB SDLMAIN_SOURCES ${SDL2_SOURCE_DIR}/src/main/dummy/*.c)
+ endif()
+ 
++if(SDL_WERROR)
++  if(MSVC)
++    cmake_push_check_state(RESET)
++    check_c_compiler_flag(/WX HAVE_WX)
++    if(HAVE_WX)
++      set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /WX")
++      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /WX")
++    endif()
++  elseif(USE_GCC OR USE_CLANG)
++    cmake_push_check_state(RESET)
++    check_c_compiler_flag(-Werror HAVE_WERROR)
++    if(HAVE_WERROR)
++      set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Werror")
++      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror")
++      set(CMAKE_OBJC_FLAGS "${CMAKE_OBJC_FLAGS} -Werror")
++    endif()
++    cmake_pop_check_state()
++  endif()
++endif()
++
+ # Append the -MMD -MT flags
+ # if(DEPENDENCY_TRACKING)
+ #   if(COMPILER_IS_GNUCC)
+-- 
+2.17.1
+

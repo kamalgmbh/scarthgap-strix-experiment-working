@@ -1,0 +1,63 @@
+From 9b29d5b7eea5873926223d2846527e4e2ce4129f Mon Sep 17 00:00:00 2001
+From: Michal Orzel <michal.orzel@amd.com>
+Date: Tue, 27 Sep 2022 11:47:27 +0200
+Subject: [PATCH 029/221] automation: Rename qemu-smoke-arm32.sh to
+ qemu-smoke-dom0-arm32.sh
+
+After qemu arm64 test scripts had been renamed to reflect their
+usage, do the same for the qemu arm32 test script. Currently it only
+boots dom0, so we can assume that this script will be used to perform
+dom0 based testing. In the future we will be able to create corresponding
+script qemu-smoke-dom0less-arm32.sh to perform dom0less based testing.
+This is the last step to get rid of ambiguity with regards to naming
+of Arm test scripts.
+
+Signed-off-by: Michal Orzel <michal.orzel@amd.com>
+Acked-by: Stefano Stabellini <sstabellini@kernel.org>
+---
+ automation/gitlab-ci/test.yaml                            | 8 ++++----
+ .../{qemu-smoke-arm32.sh => qemu-smoke-dom0-arm32.sh}     | 0
+ 2 files changed, 4 insertions(+), 4 deletions(-)
+ rename automation/scripts/{qemu-smoke-arm32.sh => qemu-smoke-dom0-arm32.sh} (100%)
+
+diff --git a/automation/gitlab-ci/test.yaml b/automation/gitlab-ci/test.yaml
+index 3b147c88ab..92e0a1f7c5 100644
+--- a/automation/gitlab-ci/test.yaml
++++ b/automation/gitlab-ci/test.yaml
+@@ -195,12 +195,12 @@ qemu-smoke-dom0less-arm64-gcc-debug-boot-cpupools:
+   tags:
+     - arm64
+ 
+-qemu-smoke-arm32-gcc:
++qemu-smoke-dom0-arm32-gcc:
+   extends: .test-jobs-common
+   variables:
+     CONTAINER: debian:unstable-arm64v8
+   script:
+-    - ./automation/scripts/qemu-smoke-arm32.sh 2>&1 | tee qemu-smoke-arm32.log
++    - ./automation/scripts/qemu-smoke-dom0-arm32.sh 2>&1 | tee qemu-smoke-arm32.log
+   needs:
+     - debian-unstable-gcc-arm32
+     - qemu-system-aarch64-6.0.0-arm32-export
+@@ -212,12 +212,12 @@ qemu-smoke-arm32-gcc:
+   tags:
+     - arm64
+ 
+-qemu-smoke-arm32-gcc-debug:
++qemu-smoke-dom0-arm32-gcc-debug:
+   extends: .test-jobs-common
+   variables:
+     CONTAINER: debian:unstable-arm64v8
+   script:
+-    - ./automation/scripts/qemu-smoke-arm32.sh 2>&1 | tee qemu-smoke-arm32.log
++    - ./automation/scripts/qemu-smoke-dom0-arm32.sh 2>&1 | tee qemu-smoke-arm32.log
+   needs:
+     - debian-unstable-gcc-arm32-debug
+     - qemu-system-aarch64-6.0.0-arm32-export
+diff --git a/automation/scripts/qemu-smoke-arm32.sh b/automation/scripts/qemu-smoke-dom0-arm32.sh
+similarity index 100%
+rename from automation/scripts/qemu-smoke-arm32.sh
+rename to automation/scripts/qemu-smoke-dom0-arm32.sh
+-- 
+2.17.1
+

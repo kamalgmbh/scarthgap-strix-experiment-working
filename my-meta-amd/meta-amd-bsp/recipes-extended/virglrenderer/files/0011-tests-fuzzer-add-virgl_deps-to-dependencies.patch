@@ -1,0 +1,25 @@
+From 302f2bcb4ab35affde72bfbc3162bc439a7f5036 Mon Sep 17 00:00:00 2001
+From: Pierre-Eric Pelloux-Prayer <pierre-eric.pelloux-prayer@amd.com>
+Date: Fri, 23 Feb 2024 11:27:37 +0100
+Subject: [PATCH 11/16] tests/fuzzer: add virgl_deps to dependencies
+
+When drm is built, the dependencies should include virgl_depends.
+---
+ tests/fuzzer/meson.build | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/tests/fuzzer/meson.build b/tests/fuzzer/meson.build
+index 596f89b5..ffdaf621 100644
+--- a/tests/fuzzer/meson.build
++++ b/tests/fuzzer/meson.build
+@@ -38,6 +38,6 @@ if with_drm
+       'virgl_drm_fuzzer.c',
+       c_args : [ '-fsanitize=fuzzer' ],
+       link_args : [ '-fsanitize=fuzzer' ],
+-      dependencies : [libvirglrenderer_dep]
++      dependencies : [libvirglrenderer_dep, virgl_depends]
+    )
+ endif
+-- 
+2.17.1
+

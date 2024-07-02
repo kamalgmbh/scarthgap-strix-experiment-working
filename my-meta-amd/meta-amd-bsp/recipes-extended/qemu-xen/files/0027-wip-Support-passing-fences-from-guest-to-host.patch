@@ -1,0 +1,179 @@
+From e33224960379014f30228a143709306a3045b4ad Mon Sep 17 00:00:00 2001
+From: Dmitry Osipenko <dmitry.osipenko@collabora.com>
+Date: Fri, 17 Feb 2023 00:33:05 +0300
+Subject: [PATCH 27/70] wip: Support passing fences from guest to host
+
+Support passing guest fences to host for waiting by using new
+VIRTIO_GPU_CMD_SUBMIT_3D command field 'num_in_fences' that replaces
+previousy unused padding field. The in-fence IDs are prepended to the
+cmdbuf data. The new corresponding VIRTIO_GPU_F_FENCE_PASSING feature
+is added as well, it must be supported by guest in order to activate
+fence passing on host.
+
+Fence passing allows virglrenderer contexts to share fences on host
+instead of doing it on guest side, removing significant overhead of
+host-guest roundtrips. In particular this improves performance of GL/VK
+interoperability by more than two times for applications that are bound
+by the inter-context synchronization overhead. This functionality will
+also allow to pass GPU fence directly to a kernel display driver for
+syncing framebuffer flips with completion of a GPU job using explicit
+fencing.
+
+Signed-off-by: Dmitry Osipenko <dmitry.osipenko@collabora.com>
+---
+ hw/display/virtio-gpu-base.c                |  7 ++++
+ hw/display/virtio-gpu-virgl.c               | 40 +++++++++++++++++++--
+ include/hw/virtio/virtio-gpu.h              |  2 ++
+ include/standard-headers/linux/virtio_gpu.h | 15 +++++++-
+ 4 files changed, 60 insertions(+), 4 deletions(-)
+
+diff --git a/hw/display/virtio-gpu-base.c b/hw/display/virtio-gpu-base.c
+index d6605cba07..1804f0884a 100644
+--- a/hw/display/virtio-gpu-base.c
++++ b/hw/display/virtio-gpu-base.c
+@@ -239,6 +239,7 @@ virtio_gpu_base_get_features(VirtIODevice *vdev, uint64_t features,
+     if (virtio_gpu_resource_uuid_enabled(g->conf)) {
+         features |= (1 << VIRTIO_GPU_F_RESOURCE_UUID);
+     }
++    features |= (1 << VIRTIO_GPU_F_FENCE_PASSING);
+ 
+     return features;
+ }
+@@ -246,8 +247,14 @@ virtio_gpu_base_get_features(VirtIODevice *vdev, uint64_t features,
+ static void
+ virtio_gpu_base_set_features(VirtIODevice *vdev, uint64_t features)
+ {
++    VirtIOGPUBase *g = VIRTIO_GPU_BASE(vdev);
++
++    static const uint32_t fence_passing = (1 << VIRTIO_GPU_F_FENCE_PASSING);
+     static const uint32_t virgl = (1 << VIRTIO_GPU_F_VIRGL);
+ 
++    if (features & fence_passing)
++        g->guest_fence_passing_enabled = true;
++
+     trace_virtio_gpu_features(((features & virgl) == virgl));
+ }
+ 
+diff --git a/hw/display/virtio-gpu-virgl.c b/hw/display/virtio-gpu-virgl.c
+index 7796d61106..2202662c8b 100644
+--- a/hw/display/virtio-gpu-virgl.c
++++ b/hw/display/virtio-gpu-virgl.c
+@@ -313,15 +313,47 @@ static void virgl_cmd_submit_3d(VirtIOGPU *g,
+                                 struct virtio_gpu_ctrl_command *cmd)
+ {
+     struct virtio_gpu_cmd_submit cs;
+-    void *buf;
++    uint64_t *in_fences = NULL;
++    size_t in_fences_size = 0;
++    void *buf = NULL;
+     size_t s;
+ 
+     VIRTIO_GPU_FILL_CMD(cs);
+     trace_virtio_gpu_cmd_ctx_submit(cs.hdr.ctx_id, cs.size);
+ 
++    if (g->parent_obj.guest_fence_passing_enabled && cs.num_in_fences) {
++        int i;
++
++        if (cs.num_in_fences > UINT32_MAX / sizeof(*in_fences)) {
++            qemu_log_mask(LOG_GUEST_ERROR, "%s: fence size overflow", __func__);
++            cmd->error = VIRTIO_GPU_RESP_ERR_INVALID_PARAMETER;
++            goto out;
++        }
++
++        in_fences_size = sizeof(*in_fences) * cs.num_in_fences;
++        in_fences = g_malloc(in_fences_size);
++        s = iov_to_buf(cmd->elem.out_sg, cmd->elem.out_num,
++                       sizeof(cs), in_fences, in_fences_size);
++        if (s != in_fences_size) {
++            qemu_log_mask(LOG_GUEST_ERROR, "%s: fence size mismatch (%zd/%zd)",
++                        __func__, s, in_fences_size);
++            cmd->error = VIRTIO_GPU_RESP_ERR_INVALID_PARAMETER;
++            goto out;
++        }
++
++        for (i = 0; i < cs.num_in_fences; i++)
++            in_fences[i] = le64_to_cpu(in_fences[i]);
++
++    } else if (!g->parent_obj.guest_fence_passing_enabled && cs.num_in_fences) {
++        qemu_log_mask(LOG_GUEST_ERROR, "%s: guest doesn't support fence passing",
++                      __func__);
++        cmd->error = VIRTIO_GPU_RESP_ERR_INVALID_PARAMETER;
++        goto out;
++    }
++
+     buf = g_malloc(cs.size);
+     s = iov_to_buf(cmd->elem.out_sg, cmd->elem.out_num,
+-                   sizeof(cs), buf, cs.size);
++                   sizeof(cs) + in_fences_size, buf, cs.size);
+     if (s != cs.size) {
+         qemu_log_mask(LOG_GUEST_ERROR, "%s: size mismatch (%zd/%d)",
+                       __func__, s, cs.size);
+@@ -334,9 +366,11 @@ static void virgl_cmd_submit_3d(VirtIOGPU *g,
+         g->stats.bytes_3d += cs.size;
+     }
+ 
+-    virgl_renderer_submit_cmd(buf, cs.hdr.ctx_id, cs.size / 4);
++    virgl_renderer_submit_cmd2(buf, cs.hdr.ctx_id, cs.size / 4,
++                               in_fences, cs.num_in_fences);
+ 
+ out:
++    g_free(in_fences);
+     g_free(buf);
+ }
+ 
+diff --git a/include/hw/virtio/virtio-gpu.h b/include/hw/virtio/virtio-gpu.h
+index 37fc2521c8..21b690335a 100644
+--- a/include/hw/virtio/virtio-gpu.h
++++ b/include/hw/virtio/virtio-gpu.h
+@@ -146,6 +146,8 @@ struct VirtIOGPUBase {
+ 
+     int enabled_output_bitmask;
+     struct virtio_gpu_requested_state req_state[VIRTIO_GPU_MAX_SCANOUTS];
++
++    bool guest_fence_passing_enabled;
+ };
+ 
+ struct VirtIOGPUBaseClass {
+diff --git a/include/standard-headers/linux/virtio_gpu.h b/include/standard-headers/linux/virtio_gpu.h
+index 2db643ed8f..5a81684b32 100644
+--- a/include/standard-headers/linux/virtio_gpu.h
++++ b/include/standard-headers/linux/virtio_gpu.h
+@@ -65,6 +65,11 @@
+  */
+ #define VIRTIO_GPU_F_CONTEXT_INIT        4
+ 
++/*
++ * VIRTIO_GPU_CMD_SUBMIT_3D
++ */
++#define VIRTIO_GPU_F_FENCE_PASSING       5
++
+ enum virtio_gpu_ctrl_type {
+ 	VIRTIO_GPU_UNDEFINED = 0,
+ 
+@@ -133,6 +138,14 @@ enum virtio_gpu_shm_id {
+  * of the command ring that needs to used when creating the fence
+  */
+ #define VIRTIO_GPU_FLAG_INFO_RING_IDX (1 << 1)
++/*
++ * The out-fence is shareable between contexts on host if flag is set.
++ *
++ * NOTE: This is experimental flag and may be removed in the future.
++ *       For non-shareable fences likely should be enough to have private
++ *       context-specific protocol flag. Requested by Gurchetan Singh.
++ */
++#define VIRTIO_GPU_FLAG_FENCE_SHAREABLE (1 << 2)
+ 
+ struct virtio_gpu_ctrl_hdr {
+ 	uint32_t type;
+@@ -304,7 +317,7 @@ struct virtio_gpu_ctx_resource {
+ struct virtio_gpu_cmd_submit {
+ 	struct virtio_gpu_ctrl_hdr hdr;
+ 	uint32_t size;
+-	uint32_t padding;
++	uint32_t num_in_fences;
+ };
+ 
+ #define VIRTIO_GPU_CAPSET_VIRGL 1
+-- 
+2.17.1
+

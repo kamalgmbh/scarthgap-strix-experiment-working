@@ -1,0 +1,39 @@
+From 01541bc35096b4138101fb44726c0564782436fe Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Wed, 30 Nov 2022 16:42:00 -0800
+Subject: [PATCH 057/458] Added support for the HORIPAD Pro for Xbox Series X
+
+---
+ src/joystick/SDL_joystick.c | 3 ++-
+ src/joystick/usb_ids.h      | 1 +
+ 2 files changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/joystick/SDL_joystick.c b/src/joystick/SDL_joystick.c
+index 9e1b43700..a309c553c 100644
+--- a/src/joystick/SDL_joystick.c
++++ b/src/joystick/SDL_joystick.c
+@@ -2213,7 +2213,8 @@ SDL_IsJoystickXboxSeriesX(Uint16 vendor_id, Uint16 product_id)
+         }
+     }
+     if (vendor_id == USB_VENDOR_HORI) {
+-        if (product_id == USB_PRODUCT_HORI_FIGHTING_COMMANDER_OCTA_SERIES_X) {
++        if (product_id == USB_PRODUCT_HORI_FIGHTING_COMMANDER_OCTA_SERIES_X ||
++            product_id == USB_PRODUCT_HORI_HORIPAD_PRO_SERIES_X) {
+             return SDL_TRUE;
+         }
+     }
+diff --git a/src/joystick/usb_ids.h b/src/joystick/usb_ids.h
+index 4dc67e480..1a5ffa7eb 100644
+--- a/src/joystick/usb_ids.h
++++ b/src/joystick/usb_ids.h
+@@ -69,6 +69,7 @@
+ #define USB_PRODUCT_GOOGLE_STADIA_CONTROLLER              0x9400
+ #define USB_PRODUCT_EVORETRO_GAMECUBE_ADAPTER             0x1846
+ #define USB_PRODUCT_HORI_FIGHTING_COMMANDER_OCTA_SERIES_X 0x0150
++#define USB_PRODUCT_HORI_HORIPAD_PRO_SERIES_X             0x014f
+ #define USB_PRODUCT_HORI_FIGHTING_STICK_ALPHA_PS4         0x011c
+ #define USB_PRODUCT_HORI_FIGHTING_STICK_ALPHA_PS5         0x0184
+ #define USB_PRODUCT_NINTENDO_GAMECUBE_ADAPTER             0x0337
+-- 
+2.17.1
+

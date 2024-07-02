@@ -1,0 +1,115 @@
+From f86d0a1ff200264aaf80b65d7d200a3ba19c7845 Mon Sep 17 00:00:00 2001
+From: Stefano Stabellini <sstabellini@kernel.org>
+Date: Wed, 7 Dec 2022 15:24:24 -0800
+Subject: [PATCH 088/221] xsm/flask: misra rule 8.4 fix
+
+Fix several MISRA Issues Rule 8.4 ("A compatible declaration shall be
+visible when an object or function with external linkage is defined")
+found by cppcheck affecting xen/xsm/flask.
+
+- policydb_loaded_version is not declared; removed it because it is
+  unused
+- move ss_initialized declaration to xen/xsm/flask/include/conditional.h
+- #include <conditional.h> (which is
+  xen/xsm/flask/include/conditional.h) in xen/xsm/flask/ss/policydb.c so
+  that policydb.c also gets the declaration of ss_initialized
+- #include <conditional.h> in xen/xsm/flask/ss/services.c to declare
+  security_*_bools functions that services.c is defining and using
+
+This patch solves all the Rule 8.4 violations found by cppcheck on xsm/
+
+Signed-off-by: Stefano Stabellini <stefano.stabellini@amd.com>
+Reviewed-by: Jan Beulich <jbeulich@suse.com>
+Acked-by: Daniel P. Smith <dpsmith@apertussolutions.com>
+---
+ xen/xsm/flask/flask_op.c            | 2 --
+ xen/xsm/flask/include/conditional.h | 2 ++
+ xen/xsm/flask/ss/policydb.c         | 3 +--
+ xen/xsm/flask/ss/services.c         | 5 +----
+ 4 files changed, 4 insertions(+), 8 deletions(-)
+
+diff --git a/xen/xsm/flask/flask_op.c b/xen/xsm/flask/flask_op.c
+index d319466c6b..b866e8d05f 100644
+--- a/xen/xsm/flask/flask_op.c
++++ b/xen/xsm/flask/flask_op.c
+@@ -56,8 +56,6 @@ static int bool_num = 0;
+ static int *bool_pending_values = NULL;
+ static int flask_security_make_bools(void);
+ 
+-extern int ss_initialized;
+-
+ static int __init cf_check parse_flask_param(const char *s)
+ {
+     if ( !strcmp(s, "enforcing") )
+diff --git a/xen/xsm/flask/include/conditional.h b/xen/xsm/flask/include/conditional.h
+index 90553405b0..879d40e147 100644
+--- a/xen/xsm/flask/include/conditional.h
++++ b/xen/xsm/flask/include/conditional.h
+@@ -24,4 +24,6 @@ int security_find_bool(const char *name);
+ char *security_get_bool_name(unsigned int b);
+ int security_get_bool_value(unsigned int b);
+ 
++extern int ss_initialized;
++
+ #endif
+diff --git a/xen/xsm/flask/ss/policydb.c b/xen/xsm/flask/ss/policydb.c
+index 162470bbbd..7f232f92fa 100644
+--- a/xen/xsm/flask/ss/policydb.c
++++ b/xen/xsm/flask/ss/policydb.c
+@@ -28,6 +28,7 @@
+ #include <xen/xmalloc.h>
+ #include <xen/string.h>
+ #include <xen/errno.h>
++#include <conditional.h>
+ #include "security.h"
+ 
+ #include "policydb.h"
+@@ -1730,8 +1731,6 @@ static int policydb_bounds_sanity_check(struct policydb *p)
+     return 0;
+ }
+ 
+-extern int ss_initialized;
+-
+ /*
+  * Read the configuration data from a policy database binary
+  * representation file into a policy database structure.
+diff --git a/xen/xsm/flask/ss/services.c b/xen/xsm/flask/ss/services.c
+index dab07b5f60..35ad1034ca 100644
+--- a/xen/xsm/flask/ss/services.c
++++ b/xen/xsm/flask/ss/services.c
+@@ -42,6 +42,7 @@
+ #include <xen/spinlock.h>
+ #include <xen/rwlock.h>
+ #include <xen/errno.h>
++#include <conditional.h>
+ #include "flask.h"
+ #include "avc.h"
+ #include "avc_ss.h"
+@@ -53,8 +54,6 @@
+ #include "conditional.h"
+ #include "mls.h"
+ 
+-unsigned int policydb_loaded_version;
+-
+ static DEFINE_RWLOCK(policy_rwlock);
+ #define POLICY_RDLOCK read_lock(&policy_rwlock)
+ #define POLICY_WRLOCK write_lock(&policy_rwlock)
+@@ -1388,7 +1387,6 @@ int security_load_policy(const void *data, size_t len)
+             policydb_destroy(&policydb);
+             return -EINVAL;
+         }
+-        policydb_loaded_version = policydb.policyvers;
+         ss_initialized = 1;
+         seqno = ++latest_granting;
+         LOAD_UNLOCK;
+@@ -1447,7 +1445,6 @@ int security_load_policy(const void *data, size_t len)
+     memcpy(&policydb, &newpolicydb, sizeof policydb);
+     sidtab_set(&sidtab, &newsidtab);
+     seqno = ++latest_granting;
+-    policydb_loaded_version = policydb.policyvers;
+     POLICY_WRUNLOCK;
+     LOAD_UNLOCK;
+ 
+-- 
+2.17.1
+

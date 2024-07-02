@@ -1,0 +1,164 @@
+From 1402d1355695d3a4bff0d2c96fcbcbe86ac2bec4 Mon Sep 17 00:00:00 2001
+From: Anonymous Maarten <anonymous.maarten@gmail.com>
+Date: Sat, 18 Mar 2023 20:34:38 +0100
+Subject: [PATCH 333/458] video/blit: fix -Wimplicit-fallthrough warnings
+
+(cherry picked from commit f7961b7c9ad598b031cd033f19e93c6d882e8e41)
+---
+ src/joystick/linux/SDL_sysjoystick.c |  2 ++
+ src/video/SDL_blit_1.c               |  4 ++++
+ src/video/SDL_blit_N.c               | 14 ++++++++++++++
+ 3 files changed, 20 insertions(+)
+
+diff --git a/src/joystick/linux/SDL_sysjoystick.c b/src/joystick/linux/SDL_sysjoystick.c
+index 45c8f5d99..5995b4a4c 100644
+--- a/src/joystick/linux/SDL_sysjoystick.c
++++ b/src/joystick/linux/SDL_sysjoystick.c
+@@ -1487,6 +1487,7 @@ static void HandleInputEvents(SDL_Joystick *joystick)
+                         HandleHat(joystick, hat_index, code % 2, events[i].value);
+                         break;
+                     }
++                    SDL_FALLTHROUGH;
+                 default:
+                     events[i].value = AxisCorrect(joystick, code, events[i].value);
+                     SDL_PrivateJoystickAxis(joystick,
+@@ -1569,6 +1570,7 @@ static void HandleClassicEvents(SDL_Joystick *joystick)
+                         HandleHat(joystick, hat_index, code % 2, events[i].value);
+                         break;
+                     }
++                    SDL_FALLTHROUGH;
+                 default:
+                     SDL_PrivateJoystickAxis(joystick,
+                                             joystick->hwdata->abs_map[code],
+diff --git a/src/video/SDL_blit_1.c b/src/video/SDL_blit_1.c
+index 507733478..ba56979bf 100644
+--- a/src/video/SDL_blit_1.c
++++ b/src/video/SDL_blit_1.c
+@@ -140,6 +140,7 @@ static void Blit1to2(SDL_BlitInfo *info)
+             case 3:
+                 *(Uint16 *)dst = map[*src++];
+                 dst += 2;
++                SDL_FALLTHROUGH;
+             case 2:
+                 *(Uint32 *)dst = (map[src[HI]] << 16) | (map[src[LO]]);
+                 src += 2;
+@@ -169,6 +170,7 @@ static void Blit1to2(SDL_BlitInfo *info)
+             case 3:
+                 *(Uint16 *)dst = map[*src++];
+                 dst += 2;
++                SDL_FALLTHROUGH;
+             case 2:
+                 *(Uint32 *)dst = (map[src[HI]] << 16) | (map[src[LO]]);
+                 src += 2;
+@@ -270,8 +272,10 @@ static void Blit1to4(SDL_BlitInfo *info)
+         switch (width & 3) {
+         case 3:
+             *dst++ = map[*src++];
++            SDL_FALLTHROUGH;
+         case 2:
+             *dst++ = map[*src++];
++            SDL_FALLTHROUGH;
+         case 1:
+             *dst++ = map[*src++];
+         }
+diff --git a/src/video/SDL_blit_N.c b/src/video/SDL_blit_N.c
+index ba374726d..4bde9df49 100644
+--- a/src/video/SDL_blit_N.c
++++ b/src/video/SDL_blit_N.c
+@@ -999,9 +999,11 @@ static void Blit_RGB888_index8(SDL_BlitInfo *info)
+             case 3:
+                 RGB888_RGB332(*dst++, *src);
+                 ++src;
++                SDL_FALLTHROUGH;
+             case 2:
+                 RGB888_RGB332(*dst++, *src);
+                 ++src;
++                SDL_FALLTHROUGH;
+             case 1:
+                 RGB888_RGB332(*dst++, *src);
+                 ++src;
+@@ -1043,10 +1045,12 @@ static void Blit_RGB888_index8(SDL_BlitInfo *info)
+                 RGB888_RGB332(Pixel, *src);
+                 *dst++ = map[Pixel];
+                 ++src;
++                SDL_FALLTHROUGH;
+             case 2:
+                 RGB888_RGB332(Pixel, *src);
+                 *dst++ = map[Pixel];
+                 ++src;
++                SDL_FALLTHROUGH;
+             case 1:
+                 RGB888_RGB332(Pixel, *src);
+                 *dst++ = map[Pixel];
+@@ -1109,9 +1113,11 @@ static void Blit_RGB101010_index8(SDL_BlitInfo *info)
+             case 3:
+                 RGB101010_RGB332(*dst++, *src);
+                 ++src;
++                SDL_FALLTHROUGH;
+             case 2:
+                 RGB101010_RGB332(*dst++, *src);
+                 ++src;
++                SDL_FALLTHROUGH;
+             case 1:
+                 RGB101010_RGB332(*dst++, *src);
+                 ++src;
+@@ -1153,10 +1159,12 @@ static void Blit_RGB101010_index8(SDL_BlitInfo *info)
+                 RGB101010_RGB332(Pixel, *src);
+                 *dst++ = map[Pixel];
+                 ++src;
++                SDL_FALLTHROUGH;
+             case 2:
+                 RGB101010_RGB332(Pixel, *src);
+                 *dst++ = map[Pixel];
+                 ++src;
++                SDL_FALLTHROUGH;
+             case 1:
+                 RGB101010_RGB332(Pixel, *src);
+                 *dst++ = map[Pixel];
+@@ -1248,6 +1256,7 @@ static void Blit_RGB888_RGB555(SDL_BlitInfo *info)
+                 RGB888_RGB555(dst, src);
+                 ++src;
+                 ++dst;
++                SDL_FALLTHROUGH;
+             case 2:
+                 RGB888_RGB555_TWO(dst, src);
+                 src += 2;
+@@ -1279,6 +1288,7 @@ static void Blit_RGB888_RGB555(SDL_BlitInfo *info)
+                 RGB888_RGB555(dst, src);
+                 ++src;
+                 ++dst;
++                SDL_FALLTHROUGH;
+             case 2:
+                 RGB888_RGB555_TWO(dst, src);
+                 src += 2;
+@@ -1376,6 +1386,7 @@ static void Blit_RGB888_RGB565(SDL_BlitInfo *info)
+                 RGB888_RGB565(dst, src);
+                 ++src;
+                 ++dst;
++                SDL_FALLTHROUGH;
+             case 2:
+                 RGB888_RGB565_TWO(dst, src);
+                 src += 2;
+@@ -1407,6 +1418,7 @@ static void Blit_RGB888_RGB565(SDL_BlitInfo *info)
+                 RGB888_RGB565(dst, src);
+                 ++src;
+                 ++dst;
++                SDL_FALLTHROUGH;
+             case 2:
+                 RGB888_RGB565_TWO(dst, src);
+                 src += 2;
+@@ -1478,9 +1490,11 @@ static void Blit_RGB565_32(SDL_BlitInfo *info, const Uint32 *map)
+         case 3:
+             *dst++ = RGB565_32(dst, src, map);
+             src += 2;
++            SDL_FALLTHROUGH;
+         case 2:
+             *dst++ = RGB565_32(dst, src, map);
+             src += 2;
++            SDL_FALLTHROUGH;
+         case 1:
+             *dst++ = RGB565_32(dst, src, map);
+             src += 2;
+-- 
+2.17.1
+

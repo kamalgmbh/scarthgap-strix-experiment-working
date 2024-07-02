@@ -1,0 +1,719 @@
+From 34791c557a43517a0f5fe84c9c0e0171a16658c0 Mon Sep 17 00:00:00 2001
+From: Xenia Ragiadakou <xenia.ragiadakou@amd.com>
+Date: Fri, 29 Mar 2024 11:12:29 +0200
+Subject: [PATCH 35/49] Revert "xen: init and update dynamically hva to guest
+ physical mappings"
+
+This reverts commit 7bba54d35dac049e98c432bb16d9ee4d74944193.
+---
+ drivers/tty/hvc/hvc_xen.c  |   1 -
+ drivers/xen/Makefile       |   2 +-
+ drivers/xen/hmem.c         | 528 -------------------------------------
+ drivers/xen/privcmd.c      |  86 ------
+ include/uapi/xen/privcmd.h |  17 --
+ 5 files changed, 1 insertion(+), 633 deletions(-)
+ delete mode 100644 drivers/xen/hmem.c
+
+diff --git a/drivers/tty/hvc/hvc_xen.c b/drivers/tty/hvc/hvc_xen.c
+index a3cf1082de66..0e497501f8e3 100644
+--- a/drivers/tty/hvc/hvc_xen.c
++++ b/drivers/tty/hvc/hvc_xen.c
+@@ -755,7 +755,6 @@ void xen_raw_printk(const char *fmt, ...)
+ 
+ 	xen_raw_console_write(buf);
+ }
+-EXPORT_SYMBOL(xen_raw_printk);
+ 
+ static void xenboot_earlycon_write(struct console *console,
+ 				  const char *string,
+diff --git a/drivers/xen/Makefile b/drivers/xen/Makefile
+index 4756a80c6f34..79281b12b356 100644
+--- a/drivers/xen/Makefile
++++ b/drivers/xen/Makefile
+@@ -36,7 +36,7 @@ xen-evtchn-y				:= evtchn.o
+ xen-gntdev-y				:= gntdev.o
+ xen-gntdev-$(CONFIG_XEN_GNTDEV_DMABUF)	+= gntdev-dmabuf.o
+ xen-gntalloc-y				:= gntalloc.o
+-xen-privcmd-y				:= privcmd.o privcmd-buf.o hmem.o
++xen-privcmd-y				:= privcmd.o privcmd-buf.o
+ obj-$(CONFIG_XEN_FRONT_PGDIR_SHBUF)	+= xen-front-pgdir-shbuf.o
+ obj-$(CONFIG_XEN_UNPOPULATED_ALLOC)	+= unpopulated-alloc.o
+ obj-$(CONFIG_XEN_GRANT_DMA_OPS)		+= grant-dma-ops.o
+diff --git a/drivers/xen/hmem.c b/drivers/xen/hmem.c
+deleted file mode 100644
+index db615654a974..000000000000
+--- a/drivers/xen/hmem.c
++++ /dev/null
+@@ -1,528 +0,0 @@
+-#include <linux/errno.h>
+-#include <linux/interval_tree.h>
+-#include <linux/mm.h>
+-#include <linux/mmu_notifier.h>
+-#include <linux/spinlock.h>
+-
+-#include <xen/xen.h>
+-#include <xen/features.h>
+-#include <xen/interface/memory.h>
+-#include <xen/hvc-console.h>
+-
+-#include <asm/xen/hypervisor.h>
+-#include <asm/xen/hypercall.h>
+-
+-struct xen_hmem {
+-	domid_t domid;
+-	struct rb_root_cached slots;
+-	unsigned int nr_slots;
+-	struct mmu_notifier mmu_notifier;
+-	spinlock_t lock;
+-};
+-
+-struct xen_hmemslot {
+-	unsigned long hva;   // host virtual address
+-	unsigned long gfn;   // start gpfn mapped to the hva
+-	unsigned long npages;
+-	struct interval_tree_node node; // link into slots
+-};
+-
+-static int xen_add_to_physmap(domid_t domid, domid_t fdomid,
+-			      unsigned long *gfns, unsigned long *hfns,
+-			      unsigned long npages, int *errs)
+-
+-{
+-	unsigned int done = 0;
+-	int ret;
+-
+-	if ( npages != (uint16_t)npages )
+-		pr_info("%s: npages=%#lx > USHRT_MAX issue multiple hcalls\n",
+-			__func__, npages);
+-
+-	while (done < npages) {
+-		struct xen_add_to_physmap_range xatp;
+-		uint16_t size = min_t(unsigned int, npages - done, USHRT_MAX);
+-		unsigned long *xatp_hfns = &hfns[done];
+-		unsigned long *xatp_gfns = &gfns[done];
+-		int *xatp_errs = &errs[done];
+-
+-		xatp.domid = domid;
+-		xatp.foreign_domid = fdomid;
+-		xatp.space = XENMAPSPACE_gmfn_foreign;
+-		xatp.size = size;
+-
+-		set_xen_guest_handle(xatp.idxs, xatp_hfns);
+-		set_xen_guest_handle(xatp.gpfns, xatp_gfns);
+-		set_xen_guest_handle(xatp.errs, xatp_errs);
+-
+-		ret = HYPERVISOR_memory_op(XENMEM_add_to_physmap_range, &xatp);
+-		if (ret) {
+-			pr_err("%s: XENMEM_add_to_physmap_range ret=%d\n",
+-			       __func__, ret);
+-			break;
+-		}
+-		done += size;
+-	}
+-	return ret;
+-}
+-
+-static int get_hfns(unsigned long hva, int npages,
+-                    unsigned long *hfns,
+-		    int *errs)
+-{
+-	struct mm_struct *mm = current->mm;
+-	unsigned long cnt = 0;
+-	int ret = 0;
+-
+-	//xen_raw_printk("@@@: %s: hva=0x%lx, npages=%d\n",
+-	//	       __func__, hva, npages);
+-
+-	mmap_read_lock(mm);
+-
+-	while (cnt < npages) {
+-		struct vm_area_struct *vma;
+-		unsigned long vma_npages, num_pages;
+-		bool is_userspace;
+-
+-		vma = vma_lookup(mm, hva);
+-		if (!vma) {
+-			xen_raw_printk("@@@: %s: vma for hva=0x%lx not found\n",
+-				       __func__, hva);
+-			ret = -EINVAL;
+-			goto out;
+-		}
+-
+-		is_userspace = !(vma->vm_flags & (VM_IO | VM_PFNMAP));
+-
+-		/* How many pages in this vma (might be smaller than npages) */
+-		vma_npages = (vma->vm_end - hva) / PAGE_SIZE;
+-		num_pages = min(vma_npages, npages - cnt);
+-
+-		if (is_userspace) {
+-			struct page **pages;
+-			int i;
+-
+-			pages = kmalloc(num_pages * sizeof(*pages), GFP_KERNEL);
+-			if (!pages) {
+-				ret = -ENOMEM;
+-				goto out;
+-			}
+-
+-			ret = get_user_pages_unlocked(hva, num_pages, pages, FOLL_WRITE);
+-			if (ret != num_pages)
+-				xen_raw_printk("@@@: %s: failed to get all pages!\n", __func__);
+-			for (i = 0; i < ret; i++ ) {
+-				hfns[cnt++] = page_to_pfn(pages[i]);
+-				put_page(pages[i]);
+-			}
+-			kfree(pages);
+-			hva += ret * PAGE_SIZE;
+-			ret = 0;
+-		} else {
+-			int i;
+-
+-			for (i = 0; i < num_pages; i++) {
+-				pte_t *ptep;
+-				spinlock_t *ptl;
+-
+-				ret = follow_pte(vma->vm_mm, hva, &ptep, &ptl);
+-				if (ret) {
+-					bool unlocked = false;
+-					ret = fixup_user_fault(mm, hva, FAULT_FLAG_WRITE /* or 0? */, &unlocked);
+-					if (ret) {
+-						xen_raw_printk("@@@ fixup_user_fault failed [%d]\n", ret);
+-						errs[cnt] = ret;
+-						goto out;
+-					}
+-					ret = follow_pte(vma->vm_mm, hva, &ptep, &ptl);
+-					if (ret) {
+-						xen_raw_printk("@@@ follow_pte failed [%d]\n", ret);
+-						errs[cnt] = ret;
+-						goto out;
+-					}
+-				}
+-				hfns[cnt++] = pte_pfn(*ptep);
+-				pte_unmap_unlock(ptep, ptl);
+-
+-				/* Process the next page. */
+-				hva += PAGE_SIZE;
+-			}
+-		}
+-	}
+-	if (ret)
+-		pr_warn("Error %d for hva 0x%lx\n", ret, hva);
+-
+-out:
+-	mmap_read_unlock(mm);
+-
+-	return ret;
+-}
+-
+-static inline unsigned long hva_to_gfn(unsigned long hva,
+-                                       struct xen_hmemslot *slot)
+-{
+-        unsigned long gfn_offset = (hva - slot->hva) >> PAGE_SHIFT;
+-
+-        return slot->gfn + gfn_offset;
+-}
+-
+-static int get_gfns(struct xen_hmem *hmem, unsigned long hva, int npages,
+-                    unsigned long *gfns)
+-{
+-        struct interval_tree_node *node;
+-        int ret = 0;
+-	int i = 0;
+-	unsigned long start = hva;
+-	unsigned long end = hva + (npages << PAGE_SHIFT) - 1;
+-
+-        spin_lock(&hmem->lock);
+-
+-        for (node = interval_tree_iter_first(&hmem->slots, start, end);
+-             node; node = interval_tree_iter_next(node, start, end)) {
+-                struct xen_hmemslot *slot;
+-                unsigned long hva, hva_end;
+-                unsigned long gfn, gfn_end;
+-
+-                slot = container_of(node, struct xen_hmemslot, node);
+-                hva = max(start, slot->hva);
+-                hva_end = min(end, slot->hva + (slot->npages << PAGE_SHIFT) - 1);
+-                gfn = hva_to_gfn(hva, slot);
+-                gfn_end = hva_to_gfn(hva_end, slot);
+-
+-		//xen_raw_printk("@@@: gfn=0x%lx gfn_end=0x%lx\n", gfn, gfn_end);
+-		while (gfn <= gfn_end) {
+-			gfns[i++] = gfn++;
+-			if (i == npages)
+-				goto out;
+-		}
+-	}
+-
+-	if (i < npages) {
+-		ret = -EFAULT;
+-		xen_raw_printk("@@@: less: i=%d npages=%d\n", i, npages);
+-	}
+-out:
+-	spin_unlock(&hmem->lock);
+-	return ret;
+-}
+-
+-int hva_range_update(struct xen_hmem *hmem,
+-                     unsigned long hva, unsigned long npages)
+-{
+-	domid_t domid = hmem->domid;
+-	domid_t fdomid = 0;
+-	unsigned long *gfns = NULL;
+-	unsigned long *hfns = NULL;
+-	int *errs = NULL;
+-	int i, ret;
+-
+-	gfns = kmalloc(npages * sizeof(*gfns), GFP_KERNEL);
+-	if (!gfns) {
+-		ret = -ENOMEM;
+-		goto out;
+-	}
+-	hfns = kmalloc(npages * sizeof(*hfns), GFP_KERNEL);
+-	if (!hfns) {
+-		ret = -ENOMEM;
+-		goto out;
+-	}
+-	errs = kmalloc(npages * sizeof(*errs), GFP_KERNEL);
+-	if (!errs) {
+-		ret = -ENOMEM;
+-		goto out;
+-	}
+-
+-	ret = get_hfns(hva, npages, hfns, errs);
+-	for (i = 0; i < npages; i++) {
+-		if (errs[i]) {
+-			xen_raw_printk("@@@ %s: failed to translate hva=0x%lx err=%d\n",
+-				__func__, hva + i * PAGE_SIZE, errs[i]);
+-			ret = errs[i];
+-			break;
+-		}
+-	}
+-	if (ret) {
+-		xen_raw_printk("@@@: %s: get_hfns failed ret=%d\n",
+-			       __func__, ret);
+-		goto out;
+-	}
+-
+-        ret = get_gfns(hmem, hva, npages, gfns);
+-        if (ret) {
+-                xen_raw_printk("@@@ %s: failed to get gfns hva=0x%lx\n",
+-                        __func__, hva);
+-		goto out;
+-	}
+-
+-	ret = xen_add_to_physmap(domid, fdomid, gfns, hfns, npages, errs);
+-	for (i = 0; i < npages; i++) {
+-		if (errs[i]) {
+-			xen_raw_printk("@@@ %s: failed to map gfn=0x%lx hfn=0x%lx err=%d\n",
+-				       __func__, gfns[i], hfns[i], errs[i]);
+-			ret = errs[i];
+-			break;
+-		}
+-	}
+-	if (ret)
+-		xen_raw_printk("@@@: %s: add to p2m failed (%d)\n",
+-			       __func__, ret);
+-out:
+-	kfree(gfns);
+-	kfree(hfns);
+-	kfree(errs);
+-	return ret;
+-}
+-
+-static int xen_gfn_unmap(domid_t domid,
+-			 unsigned long gfn, unsigned long npages)
+-{
+-	domid_t fdomid = 0; //SELF!!
+-	unsigned long *gfns = NULL;
+-	unsigned long *hfns = NULL;
+-	int *errs = NULL;
+-	int i, ret = 0;
+-
+-	gfns = kmalloc(npages * sizeof(*gfns), GFP_KERNEL);
+-	if (!gfns) {
+-		ret = -ENOMEM;
+-		goto out;
+-	}
+-	for (i = 0; i < npages; i++)
+-		gfns[i] = gfn + i;
+-
+-	hfns = kmalloc(npages * sizeof(*hfns), GFP_KERNEL);
+-	if (!hfns) {
+-		ret = -ENOMEM;
+-		goto out;
+-	}
+-	memset(hfns, -1, npages * sizeof(*hfns));
+-	errs = kmalloc(npages * sizeof(*errs), GFP_KERNEL);
+-	if (!errs) {
+-		ret = -ENOMEM;
+-		goto out;
+-	}
+-	memset(errs, 0, npages * sizeof(*errs));
+-
+-	ret = xen_add_to_physmap(domid, fdomid, gfns, hfns, npages, errs);
+-	for (i = 0; i < npages; i++) {
+-		if (errs[i]) {
+-			xen_raw_printk("@@@ %s: failed to unmap gfn=0x%lx hfn=0x%lx err=%d\n",
+-				       __func__, gfns[i], hfns[i], errs[i]);
+-			ret = errs[i];
+-			break;
+-		}
+-	}
+-	if (ret)
+-		xen_raw_printk("@@@: %s: remove from p2m failed (%d)\n",
+-			       __func__, ret);
+-
+-out:
+-	kfree(gfns);
+-	kfree(hfns);
+-	kfree(errs);
+-	return ret;
+-}
+-
+-static int hva_range_unmap(struct xen_hmem *hmem,
+-			   unsigned long start, unsigned long end)
+-{
+-	domid_t domid = hmem->domid;
+-	struct interval_tree_node *node;
+-	int ret = 0;
+-
+-	spin_lock(&hmem->lock);
+-
+-	for (node = interval_tree_iter_first(&hmem->slots, start, end);
+-	     node; node = interval_tree_iter_next(node, start, end)) {
+-		struct xen_hmemslot *slot;
+-		unsigned long hva, hva_end;
+-		unsigned long gfn, gfn_end;
+-		unsigned long nr_gfns;
+-
+-		slot = container_of(node, struct xen_hmemslot, node);
+-		hva = max(start, slot->hva);
+-		hva_end = min(end, slot->hva + (slot->npages << PAGE_SHIFT) - 1);
+-
+-		gfn = hva_to_gfn(hva, slot);
+-		gfn_end = hva_to_gfn(hva_end, slot);
+-		nr_gfns = gfn_end - gfn + 1;
+-		xen_raw_printk("NOTIFIER: %s remove from p2m gfn=0x%lx npages=%lu\n",
+-			      __func__,  gfn, nr_gfns);
+-		ret = xen_gfn_unmap(domid, gfn, nr_gfns);
+-		if (ret) {
+-			xen_raw_printk("@@@ %s: failed hva=0x%lx gfn=0x%lx\n",
+-				       __func__, hva, gfn);
+-			break;
+-		}
+-	}
+-
+-	spin_unlock(&hmem->lock);
+-
+-	return ret;
+-}
+-
+-int hva_zap_range(struct xen_hmem *hmem,
+-		  unsigned long hva, unsigned long npages)
+-{
+-	struct mm_struct *mm = current->mm;
+-	int ret = 0;
+-
+-	//xen_raw_printk("@@@: %s: hva=0x%lx, npages=%ld\n", __func__, hva, npages);
+-
+-	mmap_read_lock(mm);
+-
+-	while (npages) {
+-		struct vm_area_struct *vma;
+-		unsigned long vma_npages, num_pages;
+-
+-		vma = vma_lookup(mm, hva);
+-		if (!vma) {
+-			xen_raw_printk("@@@ %s: vma for hva=0x%lx not found\n",
+-				       __func__, hva);
+-			ret = -EINVAL;
+-			goto unlock;
+-		}
+-
+-		vma_npages = (vma->vm_end - hva) / PAGE_SIZE;
+-		num_pages = min(vma_npages, npages);
+-
+-		if (vma->vm_flags & VM_PFNMAP) {
+-			xen_raw_printk("@@@: %s: zap_vma_ptes\n", __func__);
+-			zap_vma_ptes(vma, hva, num_pages << PAGE_SHIFT);
+-		}
+-
+-		hva += num_pages * PAGE_SIZE;
+-		npages -= num_pages;
+-	}
+-
+-unlock:
+-	mmap_read_unlock(mm);
+-	return ret;
+-}
+-
+-int hva_range_insert(struct xen_hmem *hmem,
+-		     unsigned long hva, unsigned long npages,
+-		     unsigned long gfn)
+-{
+-	struct xen_hmemslot *new_slot;
+-
+-	new_slot = kmalloc(sizeof(*new_slot), GFP_KERNEL);
+-	if (!new_slot)
+-		return -ENOMEM;
+-
+-	new_slot->node.start = hva;
+-	new_slot->node.last = hva + (npages << PAGE_SHIFT) - 1;
+-	new_slot->gfn = gfn;
+-	new_slot->hva = hva;
+-	new_slot->npages = npages;
+-
+-	spin_lock(&hmem->lock);
+-	interval_tree_insert(&new_slot->node, &hmem->slots);
+-	hmem->nr_slots ++;
+-	spin_unlock(&hmem->lock);
+-
+-	if (0) {
+-		hva_range_update(hmem, hva, npages);
+-		hva_zap_range(hmem, hva, npages);
+-	}
+-
+-	return 0;
+-}
+-
+-int hva_range_remove(struct xen_hmem *hmem,
+-		     unsigned long hva, unsigned long npages)
+-{
+-	struct interval_tree_node *node;
+-	struct xen_hmemslot *slot;
+-	unsigned long start, end;
+-	int ret = 0;
+-
+-	start = hva;
+-	end = hva + (npages << PAGE_SHIFT) - 1;
+-
+-	spin_lock(&hmem->lock);
+-
+-	while ((node = interval_tree_iter_first(&hmem->slots, start, end)))
+-	{
+-		slot = container_of(node, struct xen_hmemslot, node);
+-		ret = xen_gfn_unmap(hmem->domid, slot->gfn, slot->npages);
+-		if (ret)
+-			xen_raw_printk("@@@ %s: failed to remove slot gfn=0x%lx npages=0x%lx\n",
+-				       __func__, slot->gfn, slot->npages);
+-		if ((slot->hva + (slot->npages << PAGE_SHIFT) - 1) <= end) {
+-			interval_tree_remove(node, &hmem->slots);
+-			kfree(slot);
+-		}
+-		else {
+-			xen_raw_printk("@@@ %s: periergo: slot->end=0x%lx end=0x%lx\n",
+-				       __func__,
+-				       slot->hva + (slot->npages << PAGE_SHIFT) - 1, end);
+-			break;
+-		}
+-	}
+-
+-	spin_unlock(&hmem->lock);
+-
+-	return ret;
+-}
+-
+-void hva_tree_destroy(struct xen_hmem *hmem)
+-{
+-	struct interval_tree_node *node;
+-	struct xen_hmemslot *slot;
+-
+-	spin_lock(&hmem->lock);
+-	while ((node = interval_tree_iter_first(&hmem->slots, 0, ULONG_MAX)))
+-	{
+-		slot = container_of(node, struct xen_hmemslot, node);
+-		xen_gfn_unmap(hmem->domid, slot->gfn, slot->npages);
+-		interval_tree_remove(node, &hmem->slots);
+-		kfree(slot);
+-	}
+-	spin_unlock(&hmem->lock);
+-}
+-
+-static int xen_mmu_notifier_invalidate_range_start(
+-	struct mmu_notifier *mn, const struct mmu_notifier_range *range)
+-{
+-	struct xen_hmem *hmem;
+-	unsigned long start = range->start;
+-	unsigned long end = range->end - 1;
+-	int ret;
+-
+-        hmem = container_of(mn, struct xen_hmem, mmu_notifier);
+-	ret = hva_range_unmap(hmem, start, end);
+-	if (ret)
+-		xen_raw_printk("@@@: %s: 0x%lx-0x%lx: unmap failed ret=%d\n",
+-                               __func__, start, end, ret);
+-	return ret;
+-}
+-
+-static const struct mmu_notifier_ops xen_mmu_notifier_ops = {
+-	.invalidate_range_start	= xen_mmu_notifier_invalidate_range_start,
+-};
+-
+-struct xen_hmem *xen_hmem_init(domid_t domid)
+-{
+-	struct xen_hmem *hmem;
+-
+-	if (!xen_feature(XENFEAT_auto_translated_physmap))
+-		return NULL;
+-
+-	hmem = kzalloc(sizeof(*hmem), GFP_KERNEL);
+-	if (!hmem)
+-		return NULL;
+-	hmem->domid = domid;
+-	hmem->slots = RB_ROOT_CACHED;
+-	hmem->nr_slots = 0;
+-	spin_lock_init(&hmem->lock);
+-	hmem->mmu_notifier.ops = &xen_mmu_notifier_ops;
+-	if (mmu_notifier_register(&hmem->mmu_notifier, current->mm)) {
+-                xen_raw_printk("@@@: %s: failed to register notifier\n", __func__);
+-		kfree(hmem);
+-                hmem = NULL;
+-	}
+-
+-	return hmem;
+-}
+-
+diff --git a/drivers/xen/privcmd.c b/drivers/xen/privcmd.c
+index 5ffd375f318b..20a6c711ed3c 100644
+--- a/drivers/xen/privcmd.c
++++ b/drivers/xen/privcmd.c
+@@ -66,88 +66,8 @@ MODULE_PARM_DESC(dm_op_buf_max_size,
+ 
+ struct privcmd_data {
+ 	domid_t domid;
+-	struct xen_hmem *hmem;
+ };
+ 
+-struct xen_hmem *xen_hmem_init(domid_t domid);
+-
+-int hva_range_update(struct xen_hmem *hmem,
+-                     unsigned long hva, unsigned long npages);
+-
+-static long privcmd_ioctl_update_hva(struct file *file, void __user *udata)
+-{
+-	struct privcmd_data *privdata = file->private_data;
+-	struct xen_hmem *hmem = privdata->hmem;
+-	struct privcmd_update_hva update;
+-	unsigned long hva, npages;
+-	int ret = 0;
+-
+-	if (copy_from_user(&update, udata, sizeof(update))) {
+-		pr_warn("%s: copy from user failed\n", __func__);
+-		return -EFAULT;
+-	}
+-
+-	if (update.hva & ~PAGE_MASK) {
+-		pr_warn("%s: 0x%llx & PAGE_MASK = 0x%llx\n",
+-				__func__, update.hva, update.hva & ~PAGE_MASK);
+-		return -EINVAL;
+-	}
+-
+-	hva = update.hva;
+-	npages = update.nr_pages;
+-
+-	ret = hva_range_update(hmem, hva, npages);
+-
+-	return ret;
+-}
+-
+-int hva_range_insert(struct xen_hmem *hmem,
+-		     unsigned long hva, unsigned long npages,
+-		     unsigned long gfn);
+-int hva_range_remove(struct xen_hmem *hmem,
+-		     unsigned long hva, unsigned long npages,
+-		     unsigned long gfn);
+-static long privcmd_ioctl_map_hva(struct file *file, void __user *udata)
+-{
+-	struct privcmd_data *privdata = file->private_data;
+-	domid_t domid = privdata->domid;
+-	struct xen_hmem *hmem = privdata->hmem;
+-	struct privcmd_map_hva map;
+-	unsigned long hva, nr_pages, gpfn;
+-	int ret = 0;
+-
+-	if (copy_from_user(&map, udata, sizeof(map))) {
+-	        pr_warn("%s: copy from user failed\n", __func__);
+-		return -EFAULT;
+-	}
+-
+-	if (privdata->hmem == NULL) {
+-		privdata->hmem = xen_hmem_init(map.domid);
+-		if (!privdata->hmem) {
+-			return -ENOMEM;
+-		}
+-		hmem = privdata->hmem;
+-	}
+-
+-	if (map.hva & ~PAGE_MASK) {
+-		pr_warn("%s: 0x%llx & PAGE_MASK = 0x%llx\n",
+-				__func__, map.hva, map.hva & ~PAGE_MASK);
+-		return -EINVAL;
+-	}
+-
+-	hva = map.hva;
+-	nr_pages = map.nr_pages;
+-	gpfn = map.gpfn;
+-
+-	if (map.add_mapping) {
+-		ret = hva_range_insert(hmem, hva, nr_pages, gpfn);
+-	} else {
+-		ret = hva_range_remove(hmem, hva, nr_pages, gpfn);
+-	}
+-
+-	return ret;
+-}
+-
+ static int privcmd_vma_range_is_mapped(
+                struct vm_area_struct *vma,
+                unsigned long addr,
+@@ -1741,12 +1661,6 @@ static long privcmd_ioctl(struct file *file,
+ 	void __user *udata = (void __user *) data;
+ 
+ 	switch (cmd) {
+-	case IOCTL_PRIVCMD_UPDATE_HVA:
+-		ret = privcmd_ioctl_update_hva(file, udata);
+-		break;
+-	case IOCTL_PRIVCMD_MAP_HVA:
+-		ret = privcmd_ioctl_map_hva(file, udata);
+-		break;
+ 	case IOCTL_PRIVCMD_HYPERCALL:
+ 		ret = privcmd_ioctl_hypercall(file, udata);
+ 		break;
+diff --git a/include/uapi/xen/privcmd.h b/include/uapi/xen/privcmd.h
+index 56d6a045f6e0..945808e2e7d3 100644
+--- a/include/uapi/xen/privcmd.h
++++ b/include/uapi/xen/privcmd.h
+@@ -38,19 +38,6 @@
+ #include <linux/compiler.h>
+ #include <xen/interface/xen.h>
+ 
+-struct privcmd_update_hva {
+-	int nr_pages;
+-	__u64 hva;
+-};
+-
+-struct privcmd_map_hva {
+-	domid_t domid;
+-	int nr_pages;
+-	__u64 hva;
+-	xen_pfn_t gpfn;
+-	int add_mapping;
+-};
+-
+ struct privcmd_hypercall {
+ 	__u64 op;
+ 	__u64 arg[5];
+@@ -167,10 +154,6 @@ struct privcmd_map_hva_to_gpfns {
+  * if the operation was otherwise successful but any frame failed with
+  * -ENOENT, then -1 is returned and errno is set to ENOENT.
+  */
+-#define IOCTL_PRIVCMD_UPDATE_HVA                                \
+-	_IOC(_IOC_NONE, 'P', 17, sizeof(struct privcmd_update_hva))
+-#define IOCTL_PRIVCMD_MAP_HVA                                   \
+-	_IOC(_IOC_NONE, 'P', 18, sizeof(struct privcmd_map_hva))
+ #define IOCTL_PRIVCMD_HYPERCALL					\
+ 	_IOC(_IOC_NONE, 'P', 0, sizeof(struct privcmd_hypercall))
+ #define IOCTL_PRIVCMD_MMAP					\
+-- 
+2.17.1
+

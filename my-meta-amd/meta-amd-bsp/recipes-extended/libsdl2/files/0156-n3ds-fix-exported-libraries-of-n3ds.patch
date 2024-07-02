@@ -1,0 +1,97 @@
+From f51f7fbb94b9658447086e3080ef042dc07db689 Mon Sep 17 00:00:00 2001
+From: Anonymous Maarten <anonymous.maarten@gmail.com>
+Date: Sun, 15 Jan 2023 15:57:56 +0100
+Subject: [PATCH 156/458] n3ds: fix exported libraries of n3ds
+
+---
+ .github/cmake/CMakeLists.txt | 16 ++++++++++++++++
+ .github/workflows/n3ds.yml   | 21 +++++++++++++++++++--
+ CMakeLists.txt               | 13 ++++++++++++-
+ 3 files changed, 47 insertions(+), 3 deletions(-)
+ create mode 100644 .github/cmake/CMakeLists.txt
+
+diff --git a/.github/cmake/CMakeLists.txt b/.github/cmake/CMakeLists.txt
+new file mode 100644
+index 000000000..39ebaf8b8
+--- /dev/null
++++ b/.github/cmake/CMakeLists.txt
+@@ -0,0 +1,16 @@
++cmake_minimum_required(VERSION 3.0)
++project(ci_utils C CXX)
++
++set(txt "CC=${CMAKE_C_COMPILER}
++CXX=${CMAKE_CXX_COMPILER}
++CFLAGS=${CMAKE_C_FLAGS}
++CXXFLAGS=${CMAKE_CXX_FLAGS}
++LDFLAGS=${CMAKE_EXE_LINKER_FLAGS} ${CMAKE_C_STANDARD_LIBRARIES}
++")
++
++message("${txt}")
++
++set(VAR_PATH "/tmp/env.txt" CACHE PATH "Where to write environment file")
++message(STATUS "Writing CC/CXX/CFLAGS/CXXFLAGS/LDFLAGS environment to ${VAR_PATH}")
++
++file(WRITE "${VAR_PATH}" "${txt}")
+diff --git a/.github/workflows/n3ds.yml b/.github/workflows/n3ds.yml
+index f35577e66..964f44503 100644
+--- a/.github/workflows/n3ds.yml
++++ b/.github/workflows/n3ds.yml
+@@ -38,5 +38,22 @@ jobs:
+             -DCMAKE_PREFIX_PATH=${{ env.SDL2_DIR }} \
+             -DCMAKE_BUILD_TYPE=Release
+           cmake --build cmake_config_build --verbose
+-      # Not running test_pkgconfig.sh and test_sdlconfig.sh
+-      # as invoking the compiler manually is not supported
++      - name: Extract CC/CXX/CFLAGS/CXXFLAGS from CMake toolchain
++        run: |
++          cmake -S .github/cmake -B /tmp/cmake_extract \
++            -DCMAKE_TOOLCHAIN_FILE=${DEVKITPRO}/cmake/3DS.cmake \
++            -DCMAKE_BUILD_TYPE=Release \
++            -DVAR_PATH=/tmp/n3ds_env.txt
++          cat /tmp/n3ds_env.txt >> $GITHUB_ENV
++      - name: Verify sdl2-config
++        run: |
++          export EXTRA_CFLAGS="$CFLAGS"
++          export EXTRA_LDFLAGS="$LDFLAGS"
++          export PATH=${{ env.SDL2_DIR }}/bin:$PATH
++          cmake/test/test_sdlconfig.sh
++      - name: Verify sdl2.pc
++        run: |
++          export EXTRA_CFLAGS="$CFLAGS"
++          export EXTRA_LDFLAGS="$LDFLAGS"
++          export PKG_CONFIG_PATH=${{ env.SDL2_DIR }}/lib/pkgconfig
++          cmake/test/test_pkgconfig.sh
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index d649250a6..d68a96092 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -2643,7 +2643,7 @@ elseif(PSP)
+   )
+   if(NOT SDL2_DISABLE_SDL2MAIN)
+     list(INSERT SDL_LIBS 0 "-lSDL2main")
+-  endif(NOT SDL2_DISABLE_SDL2MAIN)
++  endif()
+ 
+ elseif(PS2)
+   list(APPEND EXTRA_CFLAGS "-DPS2" "-D__PS2__" "-I$ENV{PS2SDK}/ports/include" "-I$ENV{PS2DEV}/gsKit/include")
+@@ -2841,6 +2841,17 @@ elseif(N3DS)
+   else()
+     message_error("SDL_FILE must be enabled to build on N3DS")
+   endif()
++
++  if(NOT SDL2_DISABLE_SDL2MAIN)
++    list(INSERT SDL_LIBS 0 "-lSDL2main")
++  endif()
++
++  foreach(lib ${CMAKE_C_STANDARD_LIBRARIES})
++    if(lib MATCHES "^-l")
++      string(SUBSTRING "${lib}" 2 -1 lib)
++    endif()
++    list(APPEND EXTRA_LIBS ${lib})
++  endforeach()
+ endif()
+ 
+ if(HAVE_VULKAN AND NOT SDL_LOADSO)
+-- 
+2.17.1
+

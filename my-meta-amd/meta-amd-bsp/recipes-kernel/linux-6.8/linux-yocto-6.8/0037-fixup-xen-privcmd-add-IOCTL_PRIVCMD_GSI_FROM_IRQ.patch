@@ -1,0 +1,24 @@
+From 83fa1e1bc50d017e5d442477f2c2af70e190787c Mon Sep 17 00:00:00 2001
+From: Pierre-Eric Pelloux-Prayer <pierre-eric.pelloux-prayer@amd.com>
+Date: Wed, 3 Apr 2024 10:47:23 +0200
+Subject: [PATCH 37/49] fixup! xen: privcmd: add IOCTL_PRIVCMD_GSI_FROM_IRQ
+
+---
+ drivers/xen/privcmd.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/drivers/xen/privcmd.c b/drivers/xen/privcmd.c
+index 806a379f58ca..bd24a1c402f0 100644
+--- a/drivers/xen/privcmd.c
++++ b/drivers/xen/privcmd.c
+@@ -1788,6 +1788,7 @@ static long privcmd_ioctl(struct file *file,
+ 
+ 	case IOCTL_PRIVCMD_IOEVENTFD:
+ 		ret = privcmd_ioctl_ioeventfd(file, udata);
++		break;
+ 
+ 	case IOCTL_PRIVCMD_GSI_FROM_IRQ:
+ 		ret = privcmd_ioctl_gsi_from_irq(file, udata);
+-- 
+2.17.1
+

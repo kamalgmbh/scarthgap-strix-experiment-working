@@ -1,0 +1,38 @@
+From 2d2fda0223392ef39ea00b8ee80d33ec29ef0eab Mon Sep 17 00:00:00 2001
+From: Michal Orzel <michal.orzel@amd.com>
+Date: Fri, 18 Nov 2022 12:46:16 +0100
+Subject: [PATCH 066/221] xen/arm: Drop early_uart_init macro from
+ debug-meson.inc
+
+early_uart_init macro is only used if CONFIG_EARLY_UART_INIT is set.
+This config option depends on EARLY_UART_PL011, so there is no point
+in defining it for MESON, especially if it is empty. Remove it and adapt
+the existing comment.
+
+Signed-off-by: Michal Orzel <michal.orzel@amd.com>
+Acked-by: Julien Grall <julien@xen.org>
+---
+ xen/arch/arm/arm64/debug-meson.inc | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/xen/arch/arm/arm64/debug-meson.inc b/xen/arch/arm/arm64/debug-meson.inc
+index e1a8fa8ab9..e65e1ccde4 100644
+--- a/xen/arch/arm/arm64/debug-meson.inc
++++ b/xen/arch/arm/arm64/debug-meson.inc
+@@ -23,9 +23,10 @@
+ 
+ #define AML_UART_TX_FIFO_FULL   21
+ 
+-.macro early_uart_init xb, c
+-/* Uart has already been initialized by Firmware, for instance by TF-A */
+-.endm
++/*
++ * No need for early_uart_init, as UART has already been initialized
++ * by Firmware, for instance by TF-A.
++ */
+ 
+ /*
+  * MESON UART wait UART to be ready to transmit
+-- 
+2.17.1
+

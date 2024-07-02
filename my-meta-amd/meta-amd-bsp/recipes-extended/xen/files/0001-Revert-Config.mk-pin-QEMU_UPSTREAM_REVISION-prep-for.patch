@@ -1,0 +1,31 @@
+From 7190edeaaf2768bf14f53ad15af1005fa2c9b19f Mon Sep 17 00:00:00 2001
+From: Julien Grall <jgrall@amazon.com>
+Date: Thu, 1 Dec 2022 13:56:36 +0000
+Subject: [PATCH 001/221] Revert "Config.mk pin QEMU_UPSTREAM_REVISION (prep
+ for Xen 4.17 RC1)"
+
+The branch is unstable again.
+
+This reverts commit b4ddd34d3a199167d48a50c72729be397c50f8cd.
+
+Signed-off-by: Julien Grall <jgrall@amazon.com>
+---
+ Config.mk | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/Config.mk b/Config.mk
+index e0ce593468..69af1e60d4 100644
+--- a/Config.mk
++++ b/Config.mk
+@@ -229,7 +229,7 @@ SEABIOS_UPSTREAM_URL ?= git://xenbits.xen.org/seabios.git
+ MINIOS_UPSTREAM_URL ?= git://xenbits.xen.org/mini-os.git
+ endif
+ OVMF_UPSTREAM_REVISION ?= 7b4a99be8a39c12d3a7fc4b8db9f0eab4ac688d5
+-QEMU_UPSTREAM_REVISION ?= b746458e1ce1bec85e58b458386f8b7a0bedfaa6
++QEMU_UPSTREAM_REVISION ?= master
+ MINIOS_UPSTREAM_REVISION ?= 5bcb28aaeba1c2506a82fab0cdad0201cd9b54b3
+ 
+ SEABIOS_UPSTREAM_REVISION ?= rel-1.16.0
+-- 
+2.17.1
+

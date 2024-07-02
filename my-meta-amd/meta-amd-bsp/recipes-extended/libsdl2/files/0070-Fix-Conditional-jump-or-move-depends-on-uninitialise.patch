@@ -1,0 +1,30 @@
+From 0a91a793cfc5a6aa650e00ebfedbc43c05e723aa Mon Sep 17 00:00:00 2001
+From: Sylvain <sylvain.becker@gmail.com>
+Date: Fri, 2 Dec 2022 21:11:33 +0100
+Subject: [PATCH 070/458] Fix Conditional jump or move depends on uninitialised
+ value(s) eg ./testsprite2 --trackmem
+
+---
+ src/test/SDL_test_memory.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/src/test/SDL_test_memory.c b/src/test/SDL_test_memory.c
+index 7cf707d92..4963deade 100644
+--- a/src/test/SDL_test_memory.c
++++ b/src/test/SDL_test_memory.c
+@@ -233,6 +233,12 @@ void SDLTest_LogAllocations()
+         return;
+     }
+ 
++    message = SDL_realloc_orig(NULL, 1);
++    if (!message) {
++        return;
++    }
++    *message = 0;
++
+ #define ADD_LINE()                                         \
+     message_size += (SDL_strlen(line) + 1);                \
+     tmp = (char *)SDL_realloc_orig(message, message_size); \
+-- 
+2.17.1
+

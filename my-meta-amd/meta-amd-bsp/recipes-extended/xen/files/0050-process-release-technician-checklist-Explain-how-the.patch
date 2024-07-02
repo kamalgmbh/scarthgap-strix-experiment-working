@@ -1,0 +1,35 @@
+From 15241c92677a027694e609b55a77ae5ba3616104 Mon Sep 17 00:00:00 2001
+From: Julien Grall <jgrall@amazon.com>
+Date: Mon, 5 Dec 2022 11:20:07 +0000
+Subject: [PATCH 050/221] process/release-technician-checklist: Explain how the
+ banner in README is generated
+
+Explain how the banner in README is generated and take the opportunity
+to mention what it should look like for RC.
+
+Signed-off-by: Julien Grall <jgrall@amazon.com>
+Acked-by: Jan Beulich <jbeulich@suse.com>
+---
+ docs/process/release-technician-checklist.txt | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/docs/process/release-technician-checklist.txt b/docs/process/release-technician-checklist.txt
+index 7515da202c..4b061bf5f2 100644
+--- a/docs/process/release-technician-checklist.txt
++++ b/docs/process/release-technician-checklist.txt
+@@ -48,7 +48,11 @@ t=RELEASE-$r
+ 
+ * consider bumping sonames of shlibs
+ 
+-* change xen-unstable README (should say "Xen 4.5" in releases and on stable branches, "Xen 4.5-unstable" on unstable)
++* change xen-unstable README. The banner (generated using figlet) should say:
++    - "Xen 4.5" in releases and on stable branches
++    - "Xen 4.5-unstable" on unstable
++    - "Xen 4.5-rc" for release candidate
++
+ * change xen-unstable Config.mk
+ #   QEMU_UPSTREAM_REVISION,
+ #   QEMU_TRADITIONAL_REVISION
+-- 
+2.17.1
+

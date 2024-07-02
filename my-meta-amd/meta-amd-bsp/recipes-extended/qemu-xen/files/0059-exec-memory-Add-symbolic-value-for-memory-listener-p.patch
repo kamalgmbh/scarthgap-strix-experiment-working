@@ -1,0 +1,172 @@
+From 613e995210910ce75068d444559ed08ba89e484c Mon Sep 17 00:00:00 2001
+From: Xenia Ragiadakou <xenia.ragiadakou@amd.com>
+Date: Tue, 16 Apr 2024 16:23:21 +0300
+Subject: [PATCH 59/70] exec/memory: Add symbolic value for memory listener
+ priority for accel
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Add MEMORY_LISTNER_PRIORITY_ACCEL for the symbolic value for the memory
+listener to replace the hard-coded value 10 for accel.
+
+No functional change intended.
+
+Signed-off-by: Isaku Yamahata <isaku.yamahata@intel.com>
+Reviewed-by: Philippe Mathieu-Daudé <philmd@linaro.org>
+Message-Id: <feebe423becc6e2aa375f59f6abce9a85bc15abb.1687279702.git.isaku.yamahata@intel.com>
+Signed-off-by: Philippe Mathieu-Daudé <philmd@linaro.org>
+---
+ accel/hvf/hvf-accel-ops.c   | 2 +-
+ accel/kvm/kvm-all.c         | 2 +-
+ hw/arm/xen_arm.c            | 2 +-
+ hw/i386/xen/xen-hvm.c       | 2 +-
+ hw/xen/xen-hvm-common.c     | 2 +-
+ hw/xen/xen_pt.c             | 4 ++--
+ include/exec/memory.h       | 2 ++
+ target/i386/hax/hax-mem.c   | 2 +-
+ target/i386/nvmm/nvmm-all.c | 2 +-
+ target/i386/whpx/whpx-all.c | 2 +-
+ 10 files changed, 12 insertions(+), 10 deletions(-)
+
+diff --git a/accel/hvf/hvf-accel-ops.c b/accel/hvf/hvf-accel-ops.c
+index 24913ca9c4..0b5525c985 100644
+--- a/accel/hvf/hvf-accel-ops.c
++++ b/accel/hvf/hvf-accel-ops.c
+@@ -303,7 +303,7 @@ static void hvf_region_del(MemoryListener *listener,
+ 
+ static MemoryListener hvf_memory_listener = {
+     .name = "hvf",
+-    .priority = 10,
++    .priority = MEMORY_LISTENER_PRIORITY_ACCEL,
+     .region_add = hvf_region_add,
+     .region_del = hvf_region_del,
+     .log_start = hvf_log_start,
+diff --git a/accel/kvm/kvm-all.c b/accel/kvm/kvm-all.c
+index cf3a88d90e..c6d7123aea 100644
+--- a/accel/kvm/kvm-all.c
++++ b/accel/kvm/kvm-all.c
+@@ -1702,7 +1702,7 @@ void kvm_memory_listener_register(KVMState *s, KVMMemoryListener *kml,
+     kml->listener.commit = kvm_region_commit;
+     kml->listener.log_start = kvm_log_start;
+     kml->listener.log_stop = kvm_log_stop;
+-    kml->listener.priority = 10;
++    kml->listener.priority = MEMORY_LISTENER_PRIORITY_ACCEL;
+     kml->listener.name = name;
+ 
+     if (s->kvm_dirty_ring_size) {
+diff --git a/hw/arm/xen_arm.c b/hw/arm/xen_arm.c
+index 19b1cb81ad..044093fec7 100644
+--- a/hw/arm/xen_arm.c
++++ b/hw/arm/xen_arm.c
+@@ -45,7 +45,7 @@ static MemoryListener xen_memory_listener = {
+     .log_sync = NULL,
+     .log_global_start = NULL,
+     .log_global_stop = NULL,
+-    .priority = 10,
++    .priority = MEMORY_LISTENER_PRIORITY_ACCEL,
+ };
+ 
+ struct XenArmState {
+diff --git a/hw/i386/xen/xen-hvm.c b/hw/i386/xen/xen-hvm.c
+index a1ff5be4e1..862dad1265 100644
+--- a/hw/i386/xen/xen-hvm.c
++++ b/hw/i386/xen/xen-hvm.c
+@@ -467,7 +467,7 @@ static MemoryListener xen_memory_listener = {
+     .log_sync = xen_log_sync,
+     .log_global_start = xen_log_global_start,
+     .log_global_stop = xen_log_global_stop,
+-    .priority = 10,
++    .priority = MEMORY_LISTENER_PRIORITY_ACCEL,
+ };
+ 
+ static void regs_to_cpu(vmware_regs_t *vmport_regs, ioreq_t *req)
+diff --git a/hw/xen/xen-hvm-common.c b/hw/xen/xen-hvm-common.c
+index 42339c96bd..886c3ee944 100644
+--- a/hw/xen/xen-hvm-common.c
++++ b/hw/xen/xen-hvm-common.c
+@@ -155,7 +155,7 @@ MemoryListener xen_io_listener = {
+     .name = "xen-io",
+     .region_add = xen_io_add,
+     .region_del = xen_io_del,
+-    .priority = 10,
++    .priority = MEMORY_LISTENER_PRIORITY_ACCEL,
+ };
+ 
+ DeviceListener xen_device_listener = {
+diff --git a/hw/xen/xen_pt.c b/hw/xen/xen_pt.c
+index bcf39cbcfe..fe6b57f067 100644
+--- a/hw/xen/xen_pt.c
++++ b/hw/xen/xen_pt.c
+@@ -740,14 +740,14 @@ static const MemoryListener xen_pt_memory_listener = {
+     .name = "xen-pt-mem",
+     .region_add = xen_pt_region_add,
+     .region_del = xen_pt_region_del,
+-    .priority = 10,
++    .priority = MEMORY_LISTENER_PRIORITY_ACCEL,
+ };
+ 
+ static const MemoryListener xen_pt_io_listener = {
+     .name = "xen-pt-io",
+     .region_add = xen_pt_io_region_add,
+     .region_del = xen_pt_io_region_del,
+-    .priority = 10,
++    .priority = MEMORY_LISTENER_PRIORITY_ACCEL,
+ };
+ 
+ /* destroy. */
+diff --git a/include/exec/memory.h b/include/exec/memory.h
+index dfa35c905b..4d496dd80a 100644
+--- a/include/exec/memory.h
++++ b/include/exec/memory.h
+@@ -806,6 +806,8 @@ struct IOMMUMemoryRegion {
+ #define IOMMU_NOTIFIER_FOREACH(n, mr) \
+     QLIST_FOREACH((n), &(mr)->iommu_notify, node)
+ 
++#define MEMORY_LISTENER_PRIORITY_ACCEL          10
++
+ /**
+  * struct MemoryListener: callbacks structure for updates to the physical memory map
+  *
+diff --git a/target/i386/hax/hax-mem.c b/target/i386/hax/hax-mem.c
+index 05dbe8cce3..bb5ffbc9ac 100644
+--- a/target/i386/hax/hax-mem.c
++++ b/target/i386/hax/hax-mem.c
+@@ -291,7 +291,7 @@ static MemoryListener hax_memory_listener = {
+     .region_add = hax_region_add,
+     .region_del = hax_region_del,
+     .log_sync = hax_log_sync,
+-    .priority = 10,
++    .priority = MEMORY_LISTENER_PRIORITY_ACCEL,
+ };
+ 
+ static void hax_ram_block_added(RAMBlockNotifier *n, void *host, size_t size,
+diff --git a/target/i386/nvmm/nvmm-all.c b/target/i386/nvmm/nvmm-all.c
+index b75738ee9c..19d2f7ef09 100644
+--- a/target/i386/nvmm/nvmm-all.c
++++ b/target/i386/nvmm/nvmm-all.c
+@@ -1138,7 +1138,7 @@ static MemoryListener nvmm_memory_listener = {
+     .region_add = nvmm_region_add,
+     .region_del = nvmm_region_del,
+     .log_sync = nvmm_log_sync,
+-    .priority = 10,
++    .priority = MEMORY_LISTENER_PRIORITY_ACCEL,
+ };
+ 
+ static void
+diff --git a/target/i386/whpx/whpx-all.c b/target/i386/whpx/whpx-all.c
+index 52af81683c..7f94dd4388 100644
+--- a/target/i386/whpx/whpx-all.c
++++ b/target/i386/whpx/whpx-all.c
+@@ -2427,7 +2427,7 @@ static MemoryListener whpx_memory_listener = {
+     .region_add = whpx_region_add,
+     .region_del = whpx_region_del,
+     .log_sync = whpx_log_sync,
+-    .priority = 10,
++    .priority = MEMORY_LISTENER_PRIORITY_ACCEL,
+ };
+ 
+ static void whpx_memory_init(void)
+-- 
+2.17.1
+

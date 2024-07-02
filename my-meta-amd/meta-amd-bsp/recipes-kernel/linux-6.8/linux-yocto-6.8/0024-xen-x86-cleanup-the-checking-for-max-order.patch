@@ -1,0 +1,53 @@
+From 2344cf1c3d13cc5df7c9299ceecd6ea2e0bcc7be Mon Sep 17 00:00:00 2001
+From: Huang Rui <ray.huang@amd.com>
+Date: Fri, 14 Apr 2023 10:36:16 +0800
+Subject: [PATCH 24/49] xen/x86: cleanup the checking for max order
+
+This checking won't be needed while we use dynamic allocation for array.
+
+Signed-off-by: Huang Rui <ray.huang@amd.com>
+---
+ arch/x86/xen/enlighten_pvh.c | 13 -------------
+ 1 file changed, 13 deletions(-)
+
+diff --git a/arch/x86/xen/enlighten_pvh.c b/arch/x86/xen/enlighten_pvh.c
+index 11665991c24b..00e9115edbbc 100644
+--- a/arch/x86/xen/enlighten_pvh.c
++++ b/arch/x86/xen/enlighten_pvh.c
+@@ -28,7 +28,6 @@
+ bool __ro_after_init xen_pvh;
+ EXPORT_SYMBOL_GPL(xen_pvh);
+ 
+-#define MAX_CONTIG_ORDER 9 /* 2MB */
+ static DEFINE_SPINLOCK(xen_reservation_lock);
+ 
+ void __init xen_pvh_init(struct boot_params *boot_params)
+@@ -128,15 +127,6 @@ int xen_pvh_create_contiguous_region(phys_addr_t pstart, unsigned int order,
+ 	int            success;
+ 	unsigned long vaddr, vstart = (unsigned long)phys_to_virt(pstart);
+ 
+-	/*
+-	 * Currently an auto-translated guest will not perform I/O, nor will
+-	 * it require PAE page directories below 4GB. Therefore any calls to
+-	 * this function are redundant and can be ignored.
+-	 */
+-
+-	if (unlikely(order > MAX_CONTIG_ORDER))
+-		return -ENOMEM;
+-
+ 	in_frames = kmalloc_array(1UL << order,
+ 				  sizeof(unsigned long), GFP_KERNEL);
+ 	if (!in_frames)
+@@ -170,9 +160,6 @@ void xen_pvh_destroy_contiguous_region(phys_addr_t pstart, unsigned int order)
+ 	int success;
+ 	unsigned long vaddr, vstart;
+ 
+-	if (unlikely(order > MAX_CONTIG_ORDER))
+-		return;
+-
+ 	vstart = (unsigned long)phys_to_virt(pstart);
+ 	memset((void *) vstart, 0, PAGE_SIZE << order);
+ 
+-- 
+2.17.1
+

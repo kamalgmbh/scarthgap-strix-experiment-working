@@ -1,0 +1,75 @@
+From 0b68c45fd3b6c0fb26046e3de86b7e07b04dafa9 Mon Sep 17 00:00:00 2001
+From: Ken Xue <Ken.Xue@amd.com>
+Date: Tue, 11 Jul 2023 17:41:15 +0800
+Subject: [PATCH 2/6] Update submodules url for internal build
+
+[Why]
+OVMF submodules come from opensource projects.
+And AMD internal build only trusts internal source.
+
+[How]
+update opensource submodules url, but keep same code,
+commit ID and tag in AMD gerrit server.
+
+JIRA ID: SWDEV-341416
+
+Signed-off-by: Ken Xue <Ken.Xue@amd.com>
+Change-Id: I3d639cca9dda25eff90b939d01a219ccfbd132ba
+---
+ .gitmodules | 24 ++++++++++++------------
+ 1 file changed, 12 insertions(+), 12 deletions(-)
+
+diff --git a/.gitmodules b/.gitmodules
+index 387794f05e..36f0c3e4de 100644
+--- a/.gitmodules
++++ b/.gitmodules
+@@ -1,34 +1,34 @@
+ [submodule "CryptoPkg/Library/OpensslLib/openssl"]
+ 	path = CryptoPkg/Library/OpensslLib/openssl
+-	url = https://github.com/openssl/openssl
++	url = ssh://gerritgit/brahma/ec/ovmf/CryptoPkg/openssl
+ [submodule "SoftFloat"]
+ 	path = ArmPkg/Library/ArmSoftFloatLib/berkeley-softfloat-3
+-	url = https://github.com/ucb-bar/berkeley-softfloat-3.git
++	url = ssh://gerritgit/brahma/ec/ovmf/ArmPkg/Library/ArmSoftFloatLib/berkeley-softfloat-3
+ [submodule "UnitTestFrameworkPkg/Library/CmockaLib/cmocka"]
+ 	path = UnitTestFrameworkPkg/Library/CmockaLib/cmocka
+-	url = https://github.com/tianocore/edk2-cmocka.git
++	url = ssh://gerritgit/brahma/ec/ovmf/UnitTestFrameworkPkg/Library/CmockaLib/cmocka
+ [submodule "MdeModulePkg/Universal/RegularExpressionDxe/oniguruma"]
+ 	path = MdeModulePkg/Universal/RegularExpressionDxe/oniguruma
+-	url = https://github.com/kkos/oniguruma
++	url = ssh://gerritgit/brahma/ec/ovmf/MdeModulePkg/Universal/RegularExpressionDxe/oniguruma
+ [submodule "MdeModulePkg/Library/BrotliCustomDecompressLib/brotli"]
+ 	path = MdeModulePkg/Library/BrotliCustomDecompressLib/brotli
+-	url = https://github.com/google/brotli
++	url = ssh://gerritgit/brahma/ec/ovmf/MdeModulePkg/brotli
+ [submodule "BaseTools/Source/C/BrotliCompress/brotli"]
+ 	path = BaseTools/Source/C/BrotliCompress/brotli
+-	url = https://github.com/google/brotli
+-	ignore = untracked
++	url = ssh://gerritgit/brahma/ec/ovmf/BaseTools/brotli
++	ignore = untracked
+ [submodule "RedfishPkg/Library/JsonLib/jansson"]
+ 	path = RedfishPkg/Library/JsonLib/jansson
+-	url = https://github.com/akheron/jansson
++	url = ssh://gerritgit/brahma/ec/ovmf/RedfishPkg/Library/JsonLib/jansson
+ [submodule "UnitTestFrameworkPkg/Library/GoogleTestLib/googletest"]
+ 	path = UnitTestFrameworkPkg/Library/GoogleTestLib/googletest
+-	url = https://github.com/google/googletest.git
++	url = ssh://gerritgit/brahma/ec/ovmf/UnitTestFrameworkPkg/Library/GoogleTestLib/googletest
+ [submodule "UnitTestFrameworkPkg/Library/SubhookLib/subhook"]
+ 	path = UnitTestFrameworkPkg/Library/SubhookLib/subhook
+-	url = https://github.com/Zeex/subhook.git
++	url = ssh://gerritgit/brahma/ec/ovmf/UnitTestFrameworkPkg/Library/SubhookLib/subhook
+ [submodule "MdePkg/Library/BaseFdtLib/libfdt"]
+ 	path = MdePkg/Library/BaseFdtLib/libfdt
+-	url = https://github.com/devicetree-org/pylibfdt.git
++	url = ssh://gerritgit/brahma/ec/ovmf/MdePkg/Library/BaseFdtLib/libfdt
+ [submodule "MdePkg/Library/MipiSysTLib/mipisyst"]
+ 	path = MdePkg/Library/MipiSysTLib/mipisyst
+-	url = https://github.com/MIPI-Alliance/public-mipi-sys-t.git
++	url = ssh://gerritgit/brahma/ec/ovmf/MdePkg/Library/MipiSysTLib/mipisyst
+-- 
+2.17.1
+

@@ -1,0 +1,266 @@
+From 4e3fc0c1dc5383f00af97c9a902a39667ea4c5af Mon Sep 17 00:00:00 2001
+From: Sylvain Becker <sylvain.becker@gmail.com>
+Date: Sun, 18 Dec 2022 12:07:38 +0100
+Subject: [PATCH 106/458] Android: make Detect devices common between aaudio
+ and android driver. (#6828)
+
+remove VLA, dynamic alloc, check max length get using GetIntArrayRegion
+---
+ src/audio/aaudio/SDL_aaudio.c        | 41 +--------------------
+ src/audio/android/SDL_androidaudio.c | 55 +++++-----------------------
+ src/core/android/SDL_android.c       | 55 +++++++++++++++++++++-------
+ src/core/android/SDL_android.h       |  3 +-
+ 4 files changed, 53 insertions(+), 101 deletions(-)
+
+diff --git a/src/audio/aaudio/SDL_aaudio.c b/src/audio/aaudio/SDL_aaudio.c
+index 7b7e662f2..695b6af65 100644
+--- a/src/audio/aaudio/SDL_aaudio.c
++++ b/src/audio/aaudio/SDL_aaudio.c
+@@ -70,45 +70,6 @@ void aaudio_errorCallback(AAudioStream *stream, void *userData, aaudio_result_t
+ 
+ #define LIB_AAUDIO_SO "libaaudio.so"
+ 
+-static void aaudio_DetectDevices(void)
+-{
+-    int *inputs;
+-    inputs = SDL_malloc(sizeof(int) * 100);
+-    SDL_zerop(inputs);
+-    int inputs_length = 0;
+-
+-    Android_JNI_GetAudioInputDevices(inputs, &inputs_length);
+-
+-    for (int i = 0; i < inputs_length; ++i) {
+-        int device_id = inputs[i];
+-        int n = (int) (log10(device_id) + 1);
+-        char device_name[n];
+-        SDL_itoa(device_id, device_name, 10);
+-        SDL_Log("Adding input device with name %s", device_name);
+-        SDL_AddAudioDevice(SDL_FALSE, SDL_strdup(device_name), NULL, (void *) ((size_t) device_id + 1));
+-    }
+-
+-    SDL_free(inputs);
+-
+-    int *outputs;
+-    outputs = SDL_malloc(sizeof(int) * 100);
+-    SDL_zerop(outputs);
+-    int outputs_length = 0;
+-
+-    Android_JNI_GetAudioOutputDevices(outputs, &outputs_length);
+-
+-    for (int i = 0; i < outputs_length; ++i) {
+-        int device_id = outputs[i];
+-        int n = (int) (log10(device_id) + 1);
+-        char device_name[n];
+-        SDL_itoa(device_id, device_name, 10);
+-        SDL_Log("Adding output device with name %s", device_name);
+-        SDL_AddAudioDevice(SDL_TRUE, SDL_strdup(device_name), NULL, (void *) ((size_t) device_id + 1));
+-    }
+-
+-    SDL_free(outputs);
+-}
+-
+ static int aaudio_OpenDevice(_THIS, const char *devname)
+ {
+     struct SDL_PrivateAudioData *private;
+@@ -344,7 +305,7 @@ static SDL_bool aaudio_Init(SDL_AudioDriverImpl *impl)
+         goto failure;
+     }
+ 
+-    impl->DetectDevices = aaudio_DetectDevices;
++    impl->DetectDevices = Android_DetectDevices;
+     impl->Deinitialize = aaudio_Deinitialize;
+     impl->OpenDevice = aaudio_OpenDevice;
+     impl->CloseDevice = aaudio_CloseDevice;
+diff --git a/src/audio/android/SDL_androidaudio.c b/src/audio/android/SDL_androidaudio.c
+index 3944e925e..86909b3bd 100644
+--- a/src/audio/android/SDL_androidaudio.c
++++ b/src/audio/android/SDL_androidaudio.c
+@@ -35,43 +35,6 @@
+ static SDL_AudioDevice *audioDevice = NULL;
+ static SDL_AudioDevice *captureDevice = NULL;
+ 
+-static void ANDROIDAUDIO_DetectDevices(void) {
+-    int *inputs;
+-    inputs = SDL_malloc(sizeof(int) * 100);
+-    SDL_zerop(inputs);
+-    int inputs_length = 0;
+-
+-    Android_JNI_GetAudioInputDevices(inputs, &inputs_length);
+-
+-    for (int i = 0; i < inputs_length; ++i) {
+-        int device_id = inputs[i];
+-        int n = (int) (log10(device_id) + 1);
+-        char device_name[n];
+-        SDL_itoa(device_id, device_name, 10);
+-        SDL_Log("Adding input device with name %s", device_name);
+-        SDL_AddAudioDevice(SDL_FALSE, SDL_strdup(device_name), NULL, (void *) ((size_t) device_id + 1));
+-    }
+-
+-    SDL_free(inputs);
+-
+-    int *outputs;
+-    outputs = SDL_malloc(sizeof(int) * 100);
+-    SDL_zerop(outputs);
+-    int outputs_length = 0;
+-
+-    Android_JNI_GetAudioOutputDevices(outputs, &outputs_length);
+-
+-    for (int i = 0; i < outputs_length; ++i) {
+-        int device_id = outputs[i];
+-        int n = (int) (log10(device_id) + 1);
+-        char device_name[n];
+-        SDL_itoa(device_id, device_name, 10);
+-        SDL_Log("Adding output device with name %s", device_name);
+-        SDL_AddAudioDevice(SDL_TRUE, SDL_strdup(device_name), NULL, (void *) ((size_t) device_id + 1));
+-    }
+-
+-    SDL_free(outputs);
+-}
+ 
+ static int ANDROIDAUDIO_OpenDevice(_THIS, const char *devname)
+ {
+@@ -101,19 +64,19 @@ static int ANDROIDAUDIO_OpenDevice(_THIS, const char *devname)
+         }
+     }
+ 
+-    int audio_device_id = 0;
+-
+-    if(devname != NULL) {
+-        audio_device_id = SDL_atoi(devname);
+-    }
+-
+     if (!test_format) {
+         /* Didn't find a compatible format :( */
+         return SDL_SetError("%s: Unsupported audio format", "android");
+     }
+ 
+-    if (Android_JNI_OpenAudioDevice(iscapture, audio_device_id, &this->spec) < 0) {
+-        return -1;
++    {
++        int audio_device_id = 0;
++        if (devname != NULL) {
++            audio_device_id = SDL_atoi(devname);
++        }
++        if (Android_JNI_OpenAudioDevice(iscapture, audio_device_id, &this->spec) < 0) {
++            return -1;
++        }
+     }
+ 
+     SDL_CalculateAudioSpec(&this->spec);
+@@ -160,7 +123,7 @@ static void ANDROIDAUDIO_CloseDevice(_THIS)
+ static SDL_bool ANDROIDAUDIO_Init(SDL_AudioDriverImpl *impl)
+ {
+     /* Set the function pointers */
+-    impl->DetectDevices = ANDROIDAUDIO_DetectDevices;
++    impl->DetectDevices = Android_DetectDevices;
+     impl->OpenDevice = ANDROIDAUDIO_OpenDevice;
+     impl->PlayDevice = ANDROIDAUDIO_PlayDevice;
+     impl->GetDeviceBuf = ANDROIDAUDIO_GetDeviceBuf;
+diff --git a/src/core/android/SDL_android.c b/src/core/android/SDL_android.c
+index ac8f9a34e..413c81600 100644
+--- a/src/core/android/SDL_android.c
++++ b/src/core/android/SDL_android.c
+@@ -938,17 +938,18 @@ extern void SDL_RemoveAudioDevice(const SDL_bool iscapture, void *handle);
+ 
+ JNIEXPORT void JNICALL
+ SDL_JAVA_AUDIO_INTERFACE(addAudioDevice)(JNIEnv *env, jclass jcls, jboolean is_capture,
+-                                         jint device_id) {
+-    int n = (int) (log10(device_id) + 1);
+-    char device_name[n];
+-    SDL_itoa(device_id, device_name, 10);
++                                         jint device_id)
++{
++    char device_name[64];
++    SDL_snprintf(device_name, sizeof (device_name), "%d", device_id);
+     SDL_Log("Adding device with name %s, capture %d", device_name, is_capture);
+     SDL_AddAudioDevice(is_capture, SDL_strdup(device_name), NULL, (void *) ((size_t) device_id + 1));
+ }
+ 
+ JNIEXPORT void JNICALL
+ SDL_JAVA_AUDIO_INTERFACE(removeAudioDevice)(JNIEnv *env, jclass jcls, jboolean is_capture,
+-                                            jint device_id) {
++                                            jint device_id)
++{
+     SDL_Log("Removing device with handle %d, capture %d", device_id + 1, is_capture);
+     SDL_RemoveAudioDevice(is_capture, (void *) ((size_t) device_id + 1));
+ }
+@@ -1471,26 +1472,54 @@ static void *audioBufferPinned = NULL;
+ static int captureBufferFormat = 0;
+ static jobject captureBuffer = NULL;
+ 
+-void Android_JNI_GetAudioOutputDevices(int *devices, int *length) {
++static void Android_JNI_GetAudioDevices(int *devices, int *length, int max_len, int is_input)
++{
+     JNIEnv *env = Android_JNI_GetEnv();
+     jintArray result;
+ 
+-    result = (*env)->CallStaticObjectMethod(env, mAudioManagerClass, midGetAudioOutputDevices);
++    if (is_input) {
++        result = (*env)->CallStaticObjectMethod(env, mAudioManagerClass, midGetAudioInputDevices);
++    } else {
++        result = (*env)->CallStaticObjectMethod(env, mAudioManagerClass, midGetAudioOutputDevices);
++    }
+ 
+     *length = (*env)->GetArrayLength(env, result);
+ 
++    *length = SDL_min(*length, max_len);
++
+     (*env)->GetIntArrayRegion(env, result, 0, *length, devices);
+ }
+ 
+-void Android_JNI_GetAudioInputDevices(int * devices, int *length) {
+-    JNIEnv *env = Android_JNI_GetEnv();
+-    jintArray result;
++void Android_DetectDevices(void)
++{
++    int inputs[100];
++    int outputs[100];
++    int inputs_length = 0;
++    int outputs_length = 0;
+ 
+-    result = (*env)->CallStaticObjectMethod(env, mAudioManagerClass, midGetAudioInputDevices);
++    SDL_zeroa(inputs);
+ 
+-    *length = (*env)->GetArrayLength(env, result);
++    Android_JNI_GetAudioDevices(inputs, &inputs_length, 100, 1 /* input devices */);
+ 
+-    (*env)->GetIntArrayRegion(env, result, 0, *length, devices);
++    for (int i = 0; i < inputs_length; ++i) {
++        int device_id = inputs[i];
++        char device_name[64];
++        SDL_snprintf(device_name, sizeof (device_name), "%d", device_id);
++        SDL_Log("Adding input device with name %s", device_name);
++        SDL_AddAudioDevice(SDL_FALSE, SDL_strdup(device_name), NULL, (void *) ((size_t) device_id + 1));
++    }
++
++    SDL_zeroa(outputs);
++
++    Android_JNI_GetAudioDevices(outputs, &outputs_length, 100, 0 /* output devices */);
++
++    for (int i = 0; i < outputs_length; ++i) {
++        int device_id = outputs[i];
++        char device_name[64];
++        SDL_snprintf(device_name, sizeof (device_name), "%d", device_id);
++        SDL_Log("Adding output device with name %s", device_name);
++        SDL_AddAudioDevice(SDL_TRUE, SDL_strdup(device_name), NULL, (void *) ((size_t) device_id + 1));
++    }
+ }
+ 
+ int Android_JNI_OpenAudioDevice(int iscapture, int device_id, SDL_AudioSpec *spec)
+diff --git a/src/core/android/SDL_android.h b/src/core/android/SDL_android.h
+index a1027124f..d1c1f564e 100644
+--- a/src/core/android/SDL_android.h
++++ b/src/core/android/SDL_android.h
+@@ -52,8 +52,7 @@ extern SDL_DisplayOrientation Android_JNI_GetDisplayOrientation(void);
+ extern int Android_JNI_GetDisplayDPI(float *ddpi, float *xdpi, float *ydpi);
+ 
+ /* Audio support */
+-extern void Android_JNI_GetAudioOutputDevices(int* devices, int *length);
+-extern void Android_JNI_GetAudioInputDevices(int* devices, int *length);
++extern void Android_DetectDevices(void);
+ extern int Android_JNI_OpenAudioDevice(int iscapture, int device_id, SDL_AudioSpec *spec);
+ extern void *Android_JNI_GetAudioBuffer(void);
+ extern void Android_JNI_WriteAudioBuffer(void);
+-- 
+2.17.1
+

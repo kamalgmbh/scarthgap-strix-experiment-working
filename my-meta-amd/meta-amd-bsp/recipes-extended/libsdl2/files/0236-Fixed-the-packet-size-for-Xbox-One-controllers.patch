@@ -1,0 +1,44 @@
+From 35c9b1042f84d6b93d76743e5196e7e7a4e20774 Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Tue, 21 Feb 2023 12:47:33 -0800
+Subject: [PATCH 236/458] Fixed the packet size for Xbox One controllers
+
+(cherry picked from commit 021a7cfa13c20d518ebfb6e96c3305150256983b)
+---
+ src/joystick/hidapi/SDL_hidapi_xboxone.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/joystick/hidapi/SDL_hidapi_xboxone.c b/src/joystick/hidapi/SDL_hidapi_xboxone.c
+index fc8d6751f..755daa5dd 100644
+--- a/src/joystick/hidapi/SDL_hidapi_xboxone.c
++++ b/src/joystick/hidapi/SDL_hidapi_xboxone.c
+@@ -656,7 +656,7 @@ static void HIDAPI_DriverXboxOne_HandleStatePacket(SDL_Joystick *joystick, SDL_D
+     Sint16 axis;
+ 
+     /* Some controllers have larger packets over NDIS, but the real size is in data[3] */
+-    size = SDL_min(data[3], size);
++    size = SDL_min(4 + data[3], size);
+ 
+     /* Enable paddles on the Xbox Elite controller when connected over USB */
+     if (ctx->has_paddles && !ctx->has_unmapped_state && size == 50) {
+@@ -696,7 +696,7 @@ static void HIDAPI_DriverXboxOne_HandleStatePacket(SDL_Joystick *joystick, SDL_D
+          * Xbox Series X firmware version 5.1, report is 44 bytes, share button is in byte 18
+          * Xbox Series X firmware version 5.5, report is 48 bytes, share button is in byte 22
+          * Victrix Gambit Tournament Controller, report is 50 bytes, share button is in byte 32
+-         * ThrustMaster eSwap PRO Controller Xbox, report is 60 bytes, share button is in byte 46
++         * ThrustMaster eSwap PRO Controller Xbox, report is 64 bytes, share button is in byte 46
+          */
+         if (size < 48) {
+             if (ctx->last_state[18] != data[18]) {
+@@ -710,7 +710,7 @@ static void HIDAPI_DriverXboxOne_HandleStatePacket(SDL_Joystick *joystick, SDL_D
+             if (ctx->last_state[32] != data[32]) {
+                 SDL_PrivateJoystickButton(joystick, SDL_CONTROLLER_BUTTON_MISC1, (data[32] & 0x01) ? SDL_PRESSED : SDL_RELEASED);
+             }
+-        } else if (size == 60) {
++        } else if (size == 64) {
+             if (ctx->last_state[46] != data[46]) {
+                 SDL_PrivateJoystickButton(joystick, SDL_CONTROLLER_BUTTON_MISC1, (data[46] & 0x01) ? SDL_PRESSED : SDL_RELEASED);
+             }
+-- 
+2.17.1
+

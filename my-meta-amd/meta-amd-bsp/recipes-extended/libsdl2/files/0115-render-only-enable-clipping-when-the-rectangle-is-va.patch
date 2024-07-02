@@ -1,0 +1,29 @@
+From 3dbc6a40ae8cfbed8f2d65310274a1dd1391d099 Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Mon, 26 Dec 2022 10:24:25 -0800
+Subject: [PATCH 115/458] render: only enable clipping when the rectangle is
+ valid
+
+Fixes https://github.com/libsdl-org/SDL/issues/6896
+
+(cherry picked from commit 00f05dcf49602889733262fc810386592ff51736)
+---
+ src/render/SDL_render.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/render/SDL_render.c b/src/render/SDL_render.c
+index 35357ec11..399863dcd 100644
+--- a/src/render/SDL_render.c
++++ b/src/render/SDL_render.c
+@@ -2488,7 +2488,7 @@ int SDL_RenderSetClipRect(SDL_Renderer *renderer, const SDL_Rect *rect)
+     int retval;
+     CHECK_RENDERER_MAGIC(renderer, -1)
+ 
+-    if (rect) {
++    if (rect && rect->w > 0 && rect->h > 0) {
+         renderer->clipping_enabled = SDL_TRUE;
+         renderer->clip_rect.x = (double)rect->x * renderer->scale.x;
+         renderer->clip_rect.y = (double)rect->y * renderer->scale.y;
+-- 
+2.17.1
+

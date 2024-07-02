@@ -1,0 +1,88 @@
+From d329ca6baf51b229f866af2542cfdc0d5f5a4c2c Mon Sep 17 00:00:00 2001
+From: Andrew Cooper <andrew.cooper3@citrix.com>
+Date: Thu, 29 Dec 2022 15:52:50 +0000
+Subject: [PATCH 171/221] CI: Express HYPERVISOR_ONLY in build.yml
+
+Whether to build only Xen, or everything, is a property of container,
+toolchain and/or testcase.  It is not a property of XEN_TARGET_ARCH.
+
+Capitalise HYPERVISOR_ONLY and have it set by all the
+debian-unstable-gcc-arm32-* testcases at the point that arm32 get matched with
+a container that can only build Xen.
+
+To reduce the churn elsewhere, retain the RANDCONFIG implies HYPERVISOR_ONLY
+property.
+
+Signed-off-by: Andrew Cooper <andrew.cooper3@citrix.com>
+Reviewed-by: Stefano Stabellini <sstabellini@kernel.org>
+---
+ automation/gitlab-ci/build.yaml |  4 ++++
+ automation/scripts/build        | 11 ++++-------
+ 2 files changed, 8 insertions(+), 7 deletions(-)
+
+diff --git a/automation/gitlab-ci/build.yaml b/automation/gitlab-ci/build.yaml
+index 93d9ff69a9..43dbef8aba 100644
+--- a/automation/gitlab-ci/build.yaml
++++ b/automation/gitlab-ci/build.yaml
+@@ -516,22 +516,26 @@ debian-unstable-gcc-arm32:
+   extends: .gcc-arm32-cross-build
+   variables:
+     CONTAINER: debian:unstable-arm32-gcc
++    HYPERVISOR_ONLY: y
+ 
+ debian-unstable-gcc-arm32-debug:
+   extends: .gcc-arm32-cross-build-debug
+   variables:
+     CONTAINER: debian:unstable-arm32-gcc
++    HYPERVISOR_ONLY: y
+ 
+ debian-unstable-gcc-arm32-randconfig:
+   extends: .gcc-arm32-cross-build
+   variables:
+     CONTAINER: debian:unstable-arm32-gcc
++    HYPERVISOR_ONLY: y
+     RANDCONFIG: y
+ 
+ debian-unstable-gcc-arm32-debug-randconfig:
+   extends: .gcc-arm32-cross-build-debug
+   variables:
+     CONTAINER: debian:unstable-arm32-gcc
++    HYPERVISOR_ONLY: y
+     RANDCONFIG: y
+ 
+ # Arm builds
+diff --git a/automation/scripts/build b/automation/scripts/build
+index f2301d0878..4c6d1f3b70 100755
+--- a/automation/scripts/build
++++ b/automation/scripts/build
+@@ -19,7 +19,9 @@ if [[ "${RANDCONFIG}" == "y" ]]; then
+     fi
+ 
+     make -j$(nproc) -C xen KCONFIG_ALLCONFIG=tools/kconfig/allrandom.config randconfig
+-    hypervisor_only="y"
++
++    # RANDCONFIG implies HYPERVISOR_ONLY
++    HYPERVISOR_ONLY="y"
+ else
+     echo "CONFIG_DEBUG=${debug}" > xen/.config
+ 
+@@ -34,15 +36,10 @@ fi
+ # to exit early -- bash is invoked with -e.
+ cp xen/.config xen-config
+ 
+-# arm32 only cross-compiles the hypervisor
+-if [[ "${XEN_TARGET_ARCH}" = "arm32" ]]; then
+-    hypervisor_only="y"
+-fi
+-
+ # Directory for the artefacts to be dumped into
+ mkdir binaries
+ 
+-if [[ "${hypervisor_only}" == "y" ]]; then
++if [[ "${HYPERVISOR_ONLY}" == "y" ]]; then
+     # Xen-only build
+     make -j$(nproc) xen
+ 
+-- 
+2.17.1
+

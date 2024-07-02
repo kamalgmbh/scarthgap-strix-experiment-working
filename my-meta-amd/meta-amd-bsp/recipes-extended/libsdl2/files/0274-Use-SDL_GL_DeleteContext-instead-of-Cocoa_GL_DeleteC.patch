@@ -1,0 +1,61 @@
+From 63e6c19b7d74212ff2e7018963332ff408d10d97 Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Wed, 8 Mar 2023 01:13:00 -0800
+Subject: [PATCH 274/458] Use SDL_GL_DeleteContext instead of
+ Cocoa_GL_DeleteContext for context cleanup
+
+That will make the current context NULL before deleting the context.
+---
+ src/video/cocoa/SDL_cocoaopengl.m | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/video/cocoa/SDL_cocoaopengl.m b/src/video/cocoa/SDL_cocoaopengl.m
+index 266123a40..b65d9b0e6 100644
+--- a/src/video/cocoa/SDL_cocoaopengl.m
++++ b/src/video/cocoa/SDL_cocoaopengl.m
+@@ -380,8 +380,8 @@ Cocoa_GL_CreateContext(_THIS, SDL_Window * window)
+     interval = 0;
+     [context setValues:&interval forParameter:NSOpenGLCPSwapInterval];
+ 
+-    if ( Cocoa_GL_MakeCurrent(_this, window, (__bridge SDL_GLContext)context) < 0 ) {
+-        Cocoa_GL_DeleteContext(_this, (__bridge SDL_GLContext)context);
++    if (Cocoa_GL_MakeCurrent(_this, window, sdlcontext) < 0) {
++        SDL_GL_DeleteContext(sdlcontext);
+         SDL_SetError("Failed making OpenGL context current");
+         return NULL;
+     }
+@@ -395,27 +395,27 @@ Cocoa_GL_CreateContext(_THIS, SDL_Window * window)
+ 
+         glGetStringFunc = (const GLubyte *(APIENTRY *)(GLenum)) SDL_GL_GetProcAddress("glGetString");
+         if (!glGetStringFunc) {
+-            Cocoa_GL_DeleteContext(_this, (__bridge SDL_GLContext)context);
++            SDL_GL_DeleteContext(sdlcontext);
+             SDL_SetError ("Failed getting OpenGL glGetString entry point");
+             return NULL;
+         }
+ 
+         glversion = (const char *)glGetStringFunc(GL_VERSION);
+         if (glversion == NULL) {
+-            Cocoa_GL_DeleteContext(_this, (__bridge SDL_GLContext)context);
++            SDL_GL_DeleteContext(sdlcontext);
+             SDL_SetError ("Failed getting OpenGL context version");
+             return NULL;
+         }
+ 
+         if (SDL_sscanf(glversion, "%d.%d", &glversion_major, &glversion_minor) != 2) {
+-            Cocoa_GL_DeleteContext(_this, (__bridge SDL_GLContext)context);
++            SDL_GL_DeleteContext(sdlcontext);
+             SDL_SetError ("Failed parsing OpenGL context version");
+             return NULL;
+         }
+ 
+         if ((glversion_major < _this->gl_config.major_version) ||
+            ((glversion_major == _this->gl_config.major_version) && (glversion_minor < _this->gl_config.minor_version))) {
+-            Cocoa_GL_DeleteContext(_this, (__bridge SDL_GLContext)context);
++            SDL_GL_DeleteContext(sdlcontext);
+             SDL_SetError ("Failed creating OpenGL context at version requested");
+             return NULL;
+         }
+-- 
+2.17.1
+

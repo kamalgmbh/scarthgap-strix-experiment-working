@@ -1,0 +1,170 @@
+From 01a4cf8a10c64c4b9914881dcfe59d9da317e2ca Mon Sep 17 00:00:00 2001
+From: Anonymous Maarten <anonymous.maarten@gmail.com>
+Date: Sun, 15 Jan 2023 16:54:22 +0100
+Subject: [PATCH 157/458] ci: don't require EXTRA_ prefix on input environment
+ variables
+
+---
+ .github/workflows/n3ds.yml   |  4 ----
+ .github/workflows/ps2.yaml   |  4 ++--
+ .github/workflows/psp.yaml   |  4 ++--
+ cmake/test/test_pkgconfig.sh | 30 +++++++++++++++---------------
+ cmake/test/test_sdlconfig.sh | 30 +++++++++++++++---------------
+ 5 files changed, 34 insertions(+), 38 deletions(-)
+
+diff --git a/.github/workflows/n3ds.yml b/.github/workflows/n3ds.yml
+index 964f44503..20f7a15ff 100644
+--- a/.github/workflows/n3ds.yml
++++ b/.github/workflows/n3ds.yml
+@@ -47,13 +47,9 @@ jobs:
+           cat /tmp/n3ds_env.txt >> $GITHUB_ENV
+       - name: Verify sdl2-config
+         run: |
+-          export EXTRA_CFLAGS="$CFLAGS"
+-          export EXTRA_LDFLAGS="$LDFLAGS"
+           export PATH=${{ env.SDL2_DIR }}/bin:$PATH
+           cmake/test/test_sdlconfig.sh
+       - name: Verify sdl2.pc
+         run: |
+-          export EXTRA_CFLAGS="$CFLAGS"
+-          export EXTRA_LDFLAGS="$LDFLAGS"
+           export PKG_CONFIG_PATH=${{ env.SDL2_DIR }}/lib/pkgconfig
+           cmake/test/test_pkgconfig.sh
+diff --git a/.github/workflows/ps2.yaml b/.github/workflows/ps2.yaml
+index bfb0b1ceb..fdf6329fc 100644
+--- a/.github/workflows/ps2.yaml
++++ b/.github/workflows/ps2.yaml
+@@ -50,13 +50,13 @@ jobs:
+     - name: Verify sdl2-config
+       run: |
+         export CC=mips64r5900el-ps2-elf-gcc
++        export LDFLAGS="-L$PS2DEV/ps2sdk/ee/lib -L$PS2DEV/gsKit/lib -L$PS2DEV/ps2sdk/ports/lib"
+         export PATH=${{ env.SDL2_DIR }}/bin:$PATH
+-        export EXTRA_LDFLAGS="-L$PS2DEV/ps2sdk/ee/lib -L$PS2DEV/gsKit/lib -L$PS2DEV/ps2sdk/ports/lib"
+         cmake/test/test_sdlconfig.sh
+     - name: Verify sdl2.pc
+       run: |
+         export CC=mips64r5900el-ps2-elf-gcc
+-        export EXTRA_LDFLAGS="-L$PS2DEV/ps2sdk/ee/lib -L$PS2DEV/gsKit/lib -L$PS2DEV/ps2sdk/ports/lib"
++        export LDFLAGS="-L$PS2DEV/ps2sdk/ee/lib -L$PS2DEV/gsKit/lib -L$PS2DEV/ps2sdk/ports/lib"
+         export PKG_CONFIG_PATH=${{ env.SDL2_DIR }}/lib/pkgconfig
+         cmake/test/test_pkgconfig.sh
+     
+diff --git a/.github/workflows/psp.yaml b/.github/workflows/psp.yaml
+index addc7b11f..d9f7620bd 100644
+--- a/.github/workflows/psp.yaml
++++ b/.github/workflows/psp.yaml
+@@ -39,12 +39,12 @@ jobs:
+     - name: Verify sdl2-config
+       run: |
+         export CC=psp-gcc
++        export LDFLAGS="-L$PSPDEV/lib -L$PSPDEV/psp/lib -L$PSPDEV/psp/sdk/lib"
+         export PATH=${{ env.SDL2_DIR }}/bin:$PATH
+-        export EXTRA_LDFLAGS="-L$PSPDEV/lib -L$PSPDEV/psp/lib -L$PSPDEV/psp/sdk/lib"
+         cmake/test/test_sdlconfig.sh
+     - name: Verify sdl2.pc
+       run: |
+         export CC=psp-gcc
++        export LDFLAGS="-L$PSPDEV/lib -L$PSPDEV/psp/lib -L$PSPDEV/psp/sdk/lib"
+         export PKG_CONFIG_PATH=${{ env.SDL2_DIR }}/lib/pkgconfig
+-        export EXTRA_LDFLAGS="-L$PSPDEV/lib -L$PSPDEV/psp/lib -L$PSPDEV/psp/sdk/lib"
+         cmake/test/test_pkgconfig.sh
+diff --git a/cmake/test/test_pkgconfig.sh b/cmake/test/test_pkgconfig.sh
+index 7afc00b09..500cd0984 100755
+--- a/cmake/test/test_pkgconfig.sh
++++ b/cmake/test/test_pkgconfig.sh
+@@ -13,7 +13,7 @@ case "$machine" in
+     *android* )
+         EXEPREFIX="lib"
+         EXESUFFIX=".so"
+-        EXTRA_LDFLAGS="$EXTRA_LDFLAGS -shared"
++        LDFLAGS="$LDFLAGS -shared"
+         ;;
+     * )
+         EXEPREFIX=""
+@@ -25,20 +25,20 @@ set -e
+ 
+ # Get the canonical path of the folder containing this script
+ testdir=$(cd -P -- "$(dirname -- "$0")" && printf '%s\n' "$(pwd -P)")
+-CFLAGS="$( pkg-config sdl2 --cflags )"
+-LDFLAGS="$( pkg-config sdl2 --libs )"
+-STATIC_LDFLAGS="$( pkg-config sdl2 --libs --static )"
+-
+-compile_cmd="$CC -c "$testdir/main_gui.c" -o main_gui_pkgconfig.c.o $CFLAGS $EXTRA_CFLAGS"
+-link_cmd="$CC main_gui_pkgconfig.c.o -o ${EXEPREFIX}main_gui_pkgconfig${EXESUFFIX} $LDFLAGS $EXTRA_LDFLAGS"
+-static_link_cmd="$CC main_gui_pkgconfig.c.o -o ${EXEPREFIX}main_gui_pkgconfig_static${EXESUFFIX} $STATIC_LDFLAGS $EXTRA_LDFLAGS"
+-
+-echo "-- CC:                $CC"
+-echo "-- CFLAGS:            $CFLAGS"
+-echo "-- EXTRA_CFLAGS:      $EXTRA_CFLAGS"
+-echo "-- LDFLASG:           $LDFLAGS"
+-echo "-- STATIC_LDFLAGS:    $STATIC_LDFLAGS"
+-echo "-- EXTRA_LDFLAGS:     $EXTRA_LDFLAGS"
++SDL_CFLAGS="$( pkg-config sdl2 --cflags )"
++SDL_LDFLAGS="$( pkg-config sdl2 --libs )"
++SDL_STATIC_LDFLAGS="$( pkg-config sdl2 --libs --static )"
++
++compile_cmd="$CC -c "$testdir/main_gui.c" -o main_gui_pkgconfig.c.o $SDL_CFLAGS $CFLAGS"
++link_cmd="$CC main_gui_pkgconfig.c.o -o ${EXEPREFIX}main_gui_pkgconfig${EXESUFFIX} $SDL_LDFLAGS $LDFLAGS"
++static_link_cmd="$CC main_gui_pkgconfig.c.o -o ${EXEPREFIX}main_gui_pkgconfig_static${EXESUFFIX} $SDL_STATIC_LDFLAGS $LDFLAGS"
++
++echo "-- CC:                 $CC"
++echo "-- CFLAGS:             $CFLAGS"
++echo "-- LDFLASG:            $LDFLAGS"
++echo "-- SDL_CFLAGS:         $SDL_CFLAGS"
++echo "-- SDL_LDFLAGS:        $SDL_LDFLAGS"
++echo "-- SDL_STATIC_LDFLAGS: $SDL_STATIC_LDFLAGS"
+ 
+ echo "-- COMPILE:       $compile_cmd"
+ echo "-- LINK:          $link_cmd"
+diff --git a/cmake/test/test_sdlconfig.sh b/cmake/test/test_sdlconfig.sh
+index 8de5421dc..fa41dbb25 100755
+--- a/cmake/test/test_sdlconfig.sh
++++ b/cmake/test/test_sdlconfig.sh
+@@ -13,7 +13,7 @@ case "$machine" in
+     *android* )
+         EXEPREFIX="lib"
+         EXESUFFIX=".so"
+-        EXTRA_LDFLAGS="$EXTRA_LDFLAGS -shared"
++        LDFLAGS="$LDFLAGS -shared"
+         ;;
+     * )
+         EXEPREFIX=""
+@@ -25,20 +25,20 @@ set -e
+ 
+ # Get the canonical path of the folder containing this script
+ testdir=$(cd -P -- "$(dirname -- "$0")" && printf '%s\n' "$(pwd -P)")
+-CFLAGS="$( sdl2-config --cflags )"
+-LDFLAGS="$( sdl2-config --libs )"
+-STATIC_LDFLAGS="$( sdl2-config --static-libs )"
+-
+-compile_cmd="$CC -c "$testdir/main_gui.c" -o main_gui_sdlconfig.c.o $CFLAGS $EXTRA_CFLAGS"
+-link_cmd="$CC main_gui_sdlconfig.c.o -o ${EXEPREFIX}main_gui_sdlconfig${EXESUFFIX} $LDFLAGS $EXTRA_LDFLAGS"
+-static_link_cmd="$CC main_gui_sdlconfig.c.o -o ${EXEPREFIX}main_gui_sdlconfig_static${EXESUFFIX} $STATIC_LDFLAGS $EXTRA_LDFLAGS"
+-
+-echo "-- CC:                $CC"
+-echo "-- CFLAGS:            $CFLAGS"
+-echo "-- EXTRA_CFLAGS:      $EXTRA_CFLAGS"
+-echo "-- LDFLAGS:           $LDFLAGS"
+-echo "-- STATIC_LDFLAGS:    $STATIC_LDFLAGS"
+-echo "-- EXTRA_LDFLAGS:     $EXTRA_LDFLAGS"
++SDL_CFLAGS="$( sdl2-config --cflags )"
++SDL_LDFLAGS="$( sdl2-config --libs )"
++SDL_STATIC_LDFLAGS="$( sdl2-config --static-libs )"
++
++compile_cmd="$CC -c "$testdir/main_gui.c" -o main_gui_sdlconfig.c.o $CFLAGS $SDL_CFLAGS"
++link_cmd="$CC main_gui_sdlconfig.c.o -o ${EXEPREFIX}main_gui_sdlconfig${EXESUFFIX} $SDL_LDFLAGS $LDFLAGS"
++static_link_cmd="$CC main_gui_sdlconfig.c.o -o ${EXEPREFIX}main_gui_sdlconfig_static${EXESUFFIX} $SDL_STATIC_LDFLAGS $LDFLAGS"
++
++echo "-- CC:                 $CC"
++echo "-- CFLAGS:             $CFLAGS"
++echo "-- LDFLAGS:            $LDFLAGS"
++echo "-- SDL_CFLAGS:         $SDL_CFLAGS"
++echo "-- SDL_LDFLAGS:        $SDL_LDFLAGS"
++echo "-- SDL_STATIC_LDFLAGS: $SDL_STATIC_LDFLAGS"
+ 
+ echo "-- COMPILE:       $compile_cmd"
+ echo "-- LINK:          $link_cmd"
+-- 
+2.17.1
+

@@ -1,0 +1,33 @@
+From ded355eaa4e20cd3dfd22d51332451b110d8c954 Mon Sep 17 00:00:00 2001
+From: Jan Beulich <jbeulich@suse.com>
+Date: Mon, 5 Dec 2022 13:40:23 +0100
+Subject: [PATCH 052/221] CODING_STYLE: explicitly call out label indentation
+
+Since the behavior of "diff -p" to use an unindented label as context
+identifier often makes it harder to review patches, make explicit the
+requirement for labels to be indented.
+
+Signed-off-by: Jan Beulich <jbeulich@suse.com>
+Acked-by: Stefano Stabellini <sstabellini@kernel.org>
+---
+ CODING_STYLE | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/CODING_STYLE b/CODING_STYLE
+index 5faf274b3a..7d75debcbf 100644
+--- a/CODING_STYLE
++++ b/CODING_STYLE
+@@ -47,6 +47,10 @@ void fun(void)
+     }
+ }
+ 
++Due to the behavior of GNU diffutils "diff -p", labels should be
++indented by at least one blank.  Non-case labels inside switch() bodies
++are preferred to be indented the same as the block's case labels.
++
+ White space
+ -----------
+ 
+-- 
+2.17.1
+

@@ -1,0 +1,265 @@
+From e3bfacde3e51492255baefa1ef146c11626fa188 Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Fri, 2 Jun 2023 11:16:07 -0700
+Subject: [PATCH 411/458] Don't use raw input while Remote Desktop is active
+
+Raw input will not send game controller events while Remote Desktop is active, so dynamically switch between XInput and raw input when Remote Desktop state changes.
+
+Fixes https://github.com/libsdl-org/SDL/issues/7759
+
+(cherry picked from commit 767507fcf6f4607edb413acb53a6c029863701ed)
+---
+ src/joystick/windows/SDL_dinputjoystick.c     |  4 +-
+ src/joystick/windows/SDL_rawinputjoystick.c   | 70 +++++++++++++------
+ .../windows/SDL_windows_gaming_input.c        |  4 +-
+ src/joystick/windows/SDL_windowsjoystick.c    | 13 ++--
+ src/joystick/windows/SDL_xinputjoystick.c     | 14 ++--
+ 5 files changed, 69 insertions(+), 36 deletions(-)
+
+diff --git a/src/joystick/windows/SDL_dinputjoystick.c b/src/joystick/windows/SDL_dinputjoystick.c
+index bac795683..92996192f 100644
+--- a/src/joystick/windows/SDL_dinputjoystick.c
++++ b/src/joystick/windows/SDL_dinputjoystick.c
+@@ -240,7 +240,7 @@ static int SetDIerror(const char *function, HRESULT code)
+ 
+ static SDL_bool SDL_IsXInputDevice(Uint16 vendor_id, Uint16 product_id, const char *hidPath)
+ {
+-#ifdef SDL_JOYSTICK_XINPUT
++#if defined(SDL_JOYSTICK_XINPUT) || defined(SDL_JOYSTICK_RAWINPUT)
+     SDL_GameControllerType type;
+ 
+     /* XInput and RawInput backends will pick up XInput-compatible devices */
+@@ -264,7 +264,7 @@ static SDL_bool SDL_IsXInputDevice(Uint16 vendor_id, Uint16 product_id, const ch
+         (vendor_id == USB_VENDOR_VALVE && product_id == USB_PRODUCT_STEAM_VIRTUAL_GAMEPAD)) {
+         return SDL_TRUE;
+     }
+-#endif /* SDL_JOYSTICK_XINPUT */
++#endif /* SDL_JOYSTICK_XINPUT || SDL_JOYSTICK_RAWINPUT */
+ 
+     return SDL_FALSE;
+ }
+diff --git a/src/joystick/windows/SDL_rawinputjoystick.c b/src/joystick/windows/SDL_rawinputjoystick.c
+index 6331bc7e0..fe0855351 100644
+--- a/src/joystick/windows/SDL_rawinputjoystick.c
++++ b/src/joystick/windows/SDL_rawinputjoystick.c
+@@ -96,7 +96,11 @@ typedef struct WindowsGamingInputGamepadState WindowsGamingInputGamepadState;
+ #define GIDC_REMOVAL 2
+ #endif
+ 
++extern void WINDOWS_RAWINPUTEnabledChanged(void);
++extern void WINDOWS_JoystickDetect(void);
++
+ static SDL_bool SDL_RAWINPUT_inited = SDL_FALSE;
++static SDL_bool SDL_RAWINPUT_remote_desktop = SDL_FALSE;
+ static int SDL_RAWINPUT_numjoysticks = 0;
+ 
+ static void RAWINPUT_JoystickClose(SDL_Joystick *joystick);
+@@ -843,10 +847,36 @@ static void RAWINPUT_DelDevice(SDL_RAWINPUT_Device *device, SDL_bool send_event)
+     }
+ }
+ 
+-static int RAWINPUT_JoystickInit(void)
++static void RAWINPUT_DetectDevices(void)
+ {
+     UINT device_count = 0;
+ 
++    if ((GetRawInputDeviceList(NULL, &device_count, sizeof(RAWINPUTDEVICELIST)) != -1) && device_count > 0) {
++        PRAWINPUTDEVICELIST devices = NULL;
++        UINT i;
++
++        devices = (PRAWINPUTDEVICELIST)SDL_malloc(sizeof(RAWINPUTDEVICELIST) * device_count);
++        if (devices) {
++            if (GetRawInputDeviceList(devices, &device_count, sizeof(RAWINPUTDEVICELIST)) != -1) {
++                for (i = 0; i < device_count; ++i) {
++                    RAWINPUT_AddDevice(devices[i].hDevice);
++                }
++            }
++            SDL_free(devices);
++        }
++    }
++}
++
++static void RAWINPUT_RemoveDevices(void)
++{
++    while (SDL_RAWINPUT_devices) {
++        RAWINPUT_DelDevice(SDL_RAWINPUT_devices, SDL_FALSE);
++    }
++    SDL_assert(SDL_RAWINPUT_numjoysticks == 0);
++}
++
++static int RAWINPUT_JoystickInit(void)
++{
+     SDL_assert(!SDL_RAWINPUT_inited);
+ 
+     if (!WIN_IsWindowsVistaOrGreater()) {
+@@ -864,20 +894,7 @@ static int RAWINPUT_JoystickInit(void)
+ 
+     SDL_RAWINPUT_inited = SDL_TRUE;
+ 
+-    if ((GetRawInputDeviceList(NULL, &device_count, sizeof(RAWINPUTDEVICELIST)) != -1) && device_count > 0) {
+-        PRAWINPUTDEVICELIST devices = NULL;
+-        UINT i;
+-
+-        devices = (PRAWINPUTDEVICELIST)SDL_malloc(sizeof(RAWINPUTDEVICELIST) * device_count);
+-        if (devices) {
+-            if (GetRawInputDeviceList(devices, &device_count, sizeof(RAWINPUTDEVICELIST)) != -1) {
+-                for (i = 0; i < device_count; ++i) {
+-                    RAWINPUT_AddDevice(devices[i].hDevice);
+-                }
+-            }
+-            SDL_free(devices);
+-        }
+-    }
++    RAWINPUT_DetectDevices();
+ 
+     return 0;
+ }
+@@ -889,7 +906,7 @@ static int RAWINPUT_JoystickGetCount(void)
+ 
+ SDL_bool RAWINPUT_IsEnabled()
+ {
+-    return SDL_RAWINPUT_inited;
++    return SDL_RAWINPUT_inited && !SDL_RAWINPUT_remote_desktop;
+ }
+ 
+ SDL_bool RAWINPUT_IsDevicePresent(Uint16 vendor_id, Uint16 product_id, Uint16 version, const char *name)
+@@ -991,6 +1008,21 @@ static void RAWINPUT_PostUpdate(void)
+ 
+ static void RAWINPUT_JoystickDetect(void)
+ {
++    SDL_bool remote_desktop = GetSystemMetrics(SM_REMOTESESSION) ? SDL_TRUE : SDL_FALSE;
++
++    if (remote_desktop != SDL_RAWINPUT_remote_desktop) {
++        SDL_RAWINPUT_remote_desktop = remote_desktop;
++
++        WINDOWS_RAWINPUTEnabledChanged();
++
++        if (remote_desktop) {
++            RAWINPUT_RemoveDevices();
++            WINDOWS_JoystickDetect();
++        } else {
++            WINDOWS_JoystickDetect();
++            RAWINPUT_DetectDevices();
++        }
++    }
+     RAWINPUT_PostUpdate();
+ }
+ 
+@@ -1981,14 +2013,10 @@ static void RAWINPUT_JoystickQuit(void)
+         return;
+     }
+ 
+-    while (SDL_RAWINPUT_devices) {
+-        RAWINPUT_DelDevice(SDL_RAWINPUT_devices, SDL_FALSE);
+-    }
++    RAWINPUT_RemoveDevices();
+ 
+     WIN_UnloadHIDDLL();
+ 
+-    SDL_RAWINPUT_numjoysticks = 0;
+-
+     SDL_RAWINPUT_inited = SDL_FALSE;
+ }
+ 
+diff --git a/src/joystick/windows/SDL_windows_gaming_input.c b/src/joystick/windows/SDL_windows_gaming_input.c
+index 828977cb9..06e555cb5 100644
+--- a/src/joystick/windows/SDL_windows_gaming_input.c
++++ b/src/joystick/windows/SDL_windows_gaming_input.c
+@@ -108,7 +108,7 @@ extern SDL_bool SDL_DINPUT_JoystickPresent(Uint16 vendor, Uint16 product, Uint16
+ 
+ static SDL_bool SDL_IsXInputDevice(Uint16 vendor, Uint16 product)
+ {
+-#ifdef SDL_JOYSTICK_XINPUT
++#if defined(SDL_JOYSTICK_XINPUT) || defined(SDL_JOYSTICK_RAWINPUT)
+     PRAWINPUTDEVICELIST raw_devices = NULL;
+     UINT i, raw_device_count = 0;
+     LONG vidpid = MAKELONG(vendor, product);
+@@ -206,7 +206,7 @@ static SDL_bool SDL_IsXInputDevice(Uint16 vendor, Uint16 product)
+     }
+ 
+     SDL_free(raw_devices);
+-#endif /* SDL_JOYSTICK_XINPUT */
++#endif /* SDL_JOYSTICK_XINPUT || SDL_JOYSTICK_RAWINPUT */
+ 
+     return SDL_FALSE;
+ }
+diff --git a/src/joystick/windows/SDL_windowsjoystick.c b/src/joystick/windows/SDL_windowsjoystick.c
+index 0f46a740c..d94b314cd 100644
+--- a/src/joystick/windows/SDL_windowsjoystick.c
++++ b/src/joystick/windows/SDL_windowsjoystick.c
+@@ -165,6 +165,11 @@ static CM_Register_NotificationFunc CM_Register_Notification;
+ static CM_Unregister_NotificationFunc CM_Unregister_Notification;
+ static HCMNOTIFICATION s_DeviceNotificationFuncHandle;
+ 
++void WINDOWS_RAWINPUTEnabledChanged(void)
++{
++    s_bWindowsDeviceChanged = SDL_TRUE;
++}
++
+ static DWORD CALLBACK SDL_DeviceNotificationFunc(HCMNOTIFICATION hNotify, PVOID context, CM_NOTIFY_ACTION action, PCM_NOTIFY_EVENT_DATA eventData, DWORD event_data_size)
+ {
+     if (action == CM_NOTIFY_ACTION_DEVICEINTERFACEARRIVAL ||
+@@ -459,8 +464,8 @@ void WINDOWS_AddJoystickDevice(JoyStick_DeviceData *device)
+     SYS_Joystick = device;
+ }
+ 
+-static void WINDOWS_JoystickDetect(void);
+-static void WINDOWS_JoystickQuit(void);
++void WINDOWS_JoystickDetect(void);
++void WINDOWS_JoystickQuit(void);
+ 
+ /* Function to scan the system for joysticks.
+  * Joystick 0 should be the system default joystick.
+@@ -521,7 +526,7 @@ static int WINDOWS_JoystickGetCount(void)
+ }
+ 
+ /* detect any new joysticks being inserted into the system */
+-static void WINDOWS_JoystickDetect(void)
++void WINDOWS_JoystickDetect(void)
+ {
+     JoyStick_DeviceData *pCurList = NULL;
+ 
+@@ -750,7 +755,7 @@ static void WINDOWS_JoystickClose(SDL_Joystick *joystick)
+ }
+ 
+ /* Function to perform any system-specific joystick related cleanup */
+-static void WINDOWS_JoystickQuit(void)
++void WINDOWS_JoystickQuit(void)
+ {
+     JoyStick_DeviceData *device = SYS_Joystick;
+ 
+diff --git a/src/joystick/windows/SDL_xinputjoystick.c b/src/joystick/windows/SDL_xinputjoystick.c
+index a0cf91102..1cc8a2edd 100644
+--- a/src/joystick/windows/SDL_xinputjoystick.c
++++ b/src/joystick/windows/SDL_xinputjoystick.c
+@@ -68,13 +68,6 @@ int SDL_XINPUT_JoystickInit(void)
+ {
+     s_bXInputEnabled = SDL_GetHintBoolean(SDL_HINT_XINPUT_ENABLED, SDL_TRUE);
+ 
+-#ifdef SDL_JOYSTICK_RAWINPUT
+-    if (RAWINPUT_IsEnabled()) {
+-        /* The raw input driver handles more than 4 controllers, so prefer that when available */
+-        s_bXInputEnabled = SDL_FALSE;
+-    }
+-#endif
+-
+     if (s_bXInputEnabled && WIN_LoadXInputDLL() < 0) {
+         s_bXInputEnabled = SDL_FALSE; /* oh well. */
+     }
+@@ -329,6 +322,13 @@ void SDL_XINPUT_JoystickDetect(JoyStick_DeviceData **pContext)
+         return;
+     }
+ 
++#ifdef SDL_JOYSTICK_RAWINPUT
++    if (RAWINPUT_IsEnabled()) {
++        /* The raw input driver handles more than 4 controllers, so prefer that when available */
++        return;
++    }
++#endif
++
+     /* iterate in reverse, so these are in the final list in ascending numeric order. */
+     for (iuserid = XUSER_MAX_COUNT - 1; iuserid >= 0; iuserid--) {
+         const Uint8 userid = (Uint8)iuserid;
+-- 
+2.17.1
+

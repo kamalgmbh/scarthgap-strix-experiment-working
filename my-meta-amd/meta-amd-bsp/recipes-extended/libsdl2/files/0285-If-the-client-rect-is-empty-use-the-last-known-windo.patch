@@ -1,0 +1,53 @@
+From 46d143376a55817c240a58f226ca944581d414cf Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Thu, 9 Mar 2023 10:31:39 -0800
+Subject: [PATCH 285/458] If the client rect is empty, use the last known
+ window size
+
+This happens on Windows 11 with fullscreen desktop windows when the desktop is brought up with the Windows+D shortcut.
+
+Fixes https://github.com/libsdl-org/SDL/issues/7419
+
+(cherry picked from commit 2ca727aec6f5f264620f80999beb5ef77eefec4a)
+---
+ src/video/windows/SDL_windowsevents.c | 3 +--
+ src/video/windows/SDL_windowswindow.c | 6 +++---
+ 2 files changed, 4 insertions(+), 5 deletions(-)
+
+diff --git a/src/video/windows/SDL_windowsevents.c b/src/video/windows/SDL_windowsevents.c
+index d2a0a0546..95a6f8d90 100644
+--- a/src/video/windows/SDL_windowsevents.c
++++ b/src/video/windows/SDL_windowsevents.c
+@@ -1349,8 +1349,7 @@ WIN_WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+                 RECT rect;
+                 float x, y;
+ 
+-                if (!GetClientRect(hwnd, &rect) ||
+-                    (rect.right == rect.left && rect.bottom == rect.top)) {
++                if (!GetClientRect(hwnd, &rect) || IsRectEmpty(&rect)) {
+                     if (inputs) {
+                         SDL_small_free(inputs, isstack);
+                     }
+diff --git a/src/video/windows/SDL_windowswindow.c b/src/video/windows/SDL_windowswindow.c
+index 12f3c0094..82a4282ea 100644
+--- a/src/video/windows/SDL_windowswindow.c
++++ b/src/video/windows/SDL_windowswindow.c
+@@ -779,12 +779,12 @@ void WIN_GetWindowSizeInPixels(_THIS, SDL_Window *window, int *w, int *h)
+     HWND hwnd = data->hwnd;
+     RECT rect;
+ 
+-    if (GetClientRect(hwnd, &rect)) {
++    if (GetClientRect(hwnd, &rect) && !IsRectEmpty(&rect)) {
+         *w = rect.right;
+         *h = rect.bottom;
+     } else {
+-        *w = 0;
+-        *h = 0;
++        *w = window->w;
++        *h = window->h;
+     }
+ }
+ 
+-- 
+2.17.1
+

@@ -1,0 +1,31 @@
+From c1df06afe578f698ebe91a1e3817463b9d165123 Mon Sep 17 00:00:00 2001
+From: Andrew Cooper <andrew.cooper3@citrix.com>
+Date: Thu, 29 Dec 2022 22:19:40 +0000
+Subject: [PATCH 173/221] CI: Simplify the MUSL check
+
+There's no need to do ad-hoc string parsing.  Use grep -q instead.
+
+No functional change.
+
+Signed-off-by: Andrew Cooper <andrew.cooper3@citrix.com>
+Reviewed-by: Stefano Stabellini <sstabellini@kernel.org>
+---
+ automation/scripts/build | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/automation/scripts/build b/automation/scripts/build
+index 206312ecc7..f2f5e55bc0 100755
+--- a/automation/scripts/build
++++ b/automation/scripts/build
+@@ -65,7 +65,7 @@ else
+         cfgargs+=("--disable-stubdom")
+     fi
+ 
+-    if  ! test -z "$(ldd /bin/ls|grep musl|head -1)"; then
++    if ldd /bin/ls | grep -q musl; then
+         # disable --disable-werror for QEMUU when building with MUSL
+         cfgargs+=("--with-extra-qemuu-configure-args=\"--disable-werror\"")
+         # SeaBIOS doesn't build on MUSL systems
+-- 
+2.17.1
+

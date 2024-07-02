@@ -1,0 +1,124 @@
+From d78719ff0eb5e9710694eb9a839729cb3a44d34f Mon Sep 17 00:00:00 2001
+From: Sunil V L <sunilvl@ventanamicro.com>
+Date: Mon, 18 Dec 2023 20:32:44 +0530
+Subject: [PATCH 54/70] hw/pci-host/gpex: Define properties for MMIO ranges
+
+ACPI DSDT generator needs information like ECAM range, PIO range, 32-bit
+and 64-bit PCI MMIO range etc related to the PCI host bridge. Instead of
+making these values machine specific, create properties for the GPEX
+host bridge with default value 0. During initialization, the firmware
+can initialize these properties with correct values for the platform.
+This basically allows DSDT generator code independent of the machine
+specific memory map accesses.
+
+Suggested-by: Igor Mammedov <imammedo@redhat.com>
+Signed-off-by: Sunil V L <sunilvl@ventanamicro.com>
+Acked-by: Alistair Francis <alistair.francis@wdc.com>
+Acked-by: Michael S. Tsirkin <mst@redhat.com>
+Reviewed-by: Daniel Henrique Barboza <dbarboza@ventanamicro.com>
+Message-ID: <20231218150247.466427-11-sunilvl@ventanamicro.com>
+Signed-off-by: Alistair Francis <alistair.francis@wdc.com>
+---
+ hw/pci-host/gpex-acpi.c    | 13 +++++++++++++
+ hw/pci-host/gpex.c         | 12 ++++++++++++
+ include/hw/pci-host/gpex.h | 28 ++++++++++++++++++++--------
+ 3 files changed, 45 insertions(+), 8 deletions(-)
+
+diff --git a/hw/pci-host/gpex-acpi.c b/hw/pci-host/gpex-acpi.c
+index 7c7316bc96..0983af3d9e 100644
+--- a/hw/pci-host/gpex-acpi.c
++++ b/hw/pci-host/gpex-acpi.c
+@@ -281,3 +281,16 @@ void acpi_dsdt_add_gpex(Aml *scope, struct GPEXConfig *cfg)
+ 
+     crs_range_set_free(&crs_range_set);
+ }
++
++void acpi_dsdt_add_gpex_host(Aml *scope, uint32_t irq)
++{
++    bool ambig;
++    Object *obj = object_resolve_path_type("", TYPE_GPEX_HOST, &ambig);
++
++    if (!obj || ambig) {
++        return;
++    }
++
++    GPEX_HOST(obj)->gpex_cfg.irq = irq;
++    acpi_dsdt_add_gpex(scope, &GPEX_HOST(obj)->gpex_cfg);
++}
+diff --git a/hw/pci-host/gpex.c b/hw/pci-host/gpex.c
+index a6752fac5e..41f4e73f6e 100644
+--- a/hw/pci-host/gpex.c
++++ b/hw/pci-host/gpex.c
+@@ -154,6 +154,18 @@ static Property gpex_host_properties[] = {
+      */
+     DEFINE_PROP_BOOL("allow-unmapped-accesses", GPEXHost,
+                      allow_unmapped_accesses, true),
++    DEFINE_PROP_UINT64(PCI_HOST_ECAM_BASE, GPEXHost, gpex_cfg.ecam.base, 0),
++    DEFINE_PROP_SIZE(PCI_HOST_ECAM_SIZE, GPEXHost, gpex_cfg.ecam.size, 0),
++    DEFINE_PROP_UINT64(PCI_HOST_PIO_BASE, GPEXHost, gpex_cfg.pio.base, 0),
++    DEFINE_PROP_SIZE(PCI_HOST_PIO_SIZE, GPEXHost, gpex_cfg.pio.size, 0),
++    DEFINE_PROP_UINT64(PCI_HOST_BELOW_4G_MMIO_BASE, GPEXHost,
++                       gpex_cfg.mmio32.base, 0),
++    DEFINE_PROP_SIZE(PCI_HOST_BELOW_4G_MMIO_SIZE, GPEXHost,
++                     gpex_cfg.mmio32.size, 0),
++    DEFINE_PROP_UINT64(PCI_HOST_ABOVE_4G_MMIO_BASE, GPEXHost,
++                       gpex_cfg.mmio64.base, 0),
++    DEFINE_PROP_SIZE(PCI_HOST_ABOVE_4G_MMIO_SIZE, GPEXHost,
++                     gpex_cfg.mmio64.size, 0),
+     DEFINE_PROP_END_OF_LIST(),
+ };
+ 
+diff --git a/include/hw/pci-host/gpex.h b/include/hw/pci-host/gpex.h
+index b0240bd768..dce883573b 100644
+--- a/include/hw/pci-host/gpex.h
++++ b/include/hw/pci-host/gpex.h
+@@ -40,6 +40,15 @@ struct GPEXRootState {
+     /*< public >*/
+ };
+ 
++struct GPEXConfig {
++    MemMapEntry ecam;
++    MemMapEntry mmio32;
++    MemMapEntry mmio64;
++    MemMapEntry pio;
++    int         irq;
++    PCIBus      *bus;
++};
++
+ struct GPEXHost {
+     /*< private >*/
+     PCIExpressHost parent_obj;
+@@ -55,19 +64,22 @@ struct GPEXHost {
+     int irq_num[GPEX_NUM_IRQS];
+ 
+     bool allow_unmapped_accesses;
+-};
+ 
+-struct GPEXConfig {
+-    MemMapEntry ecam;
+-    MemMapEntry mmio32;
+-    MemMapEntry mmio64;
+-    MemMapEntry pio;
+-    int         irq;
+-    PCIBus      *bus;
++    struct GPEXConfig gpex_cfg;
+ };
+ 
+ int gpex_set_irq_num(GPEXHost *s, int index, int gsi);
+ 
+ void acpi_dsdt_add_gpex(Aml *scope, struct GPEXConfig *cfg);
++void acpi_dsdt_add_gpex_host(Aml *scope, uint32_t irq);
++
++#define PCI_HOST_PIO_BASE               "x-pio-base"
++#define PCI_HOST_PIO_SIZE               "x-pio-size"
++#define PCI_HOST_ECAM_BASE              "x-ecam-base"
++#define PCI_HOST_ECAM_SIZE              "x-ecam-size"
++#define PCI_HOST_BELOW_4G_MMIO_BASE     "x-below-4g-mmio-base"
++#define PCI_HOST_BELOW_4G_MMIO_SIZE     "x-below-4g-mmio-size"
++#define PCI_HOST_ABOVE_4G_MMIO_BASE     "x-above-4g-mmio-base"
++#define PCI_HOST_ABOVE_4G_MMIO_SIZE     "x-above-4g-mmio-size"
+ 
+ #endif /* HW_GPEX_H */
+-- 
+2.17.1
+

@@ -1,0 +1,32 @@
+From ee17d521b808a918bec2a27bbeeebd0f1bb0303b Mon Sep 17 00:00:00 2001
+From: Luca Fancellu <luca.fancellu@arm.com>
+Date: Thu, 22 Dec 2022 10:04:34 +0100
+Subject: [PATCH 159/221] public: misra rule 20.7 fix on memory.h
+
+Cppcheck has found a violation of rule 20.7 for the macro
+XENMEM_SHARING_OP_FIELD_MAKE_GREF, the argument "val" is used in an
+expression, hence add parenthesis to the argument "val" to fix the
+violation.
+
+Signed-off-by: Luca Fancellu <luca.fancellu@arm.com>
+Acked-by: Jan Beulich <jbeulich@suse.com>
+---
+ xen/include/public/memory.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/xen/include/public/memory.h b/xen/include/public/memory.h
+index 29cf5c8239..c5f0d31e23 100644
+--- a/xen/include/public/memory.h
++++ b/xen/include/public/memory.h
+@@ -485,7 +485,7 @@ DEFINE_XEN_GUEST_HANDLE(xen_mem_access_op_t);
+ #define XENMEM_SHARING_OP_FIELD_IS_GREF_FLAG   (xen_mk_ullong(1) << 62)
+ 
+ #define XENMEM_SHARING_OP_FIELD_MAKE_GREF(field, val)  \
+-    (field) = (XENMEM_SHARING_OP_FIELD_IS_GREF_FLAG | val)
++    (field) = (XENMEM_SHARING_OP_FIELD_IS_GREF_FLAG | (val))
+ #define XENMEM_SHARING_OP_FIELD_IS_GREF(field)         \
+     ((field) & XENMEM_SHARING_OP_FIELD_IS_GREF_FLAG)
+ #define XENMEM_SHARING_OP_FIELD_GET_GREF(field)        \
+-- 
+2.17.1
+

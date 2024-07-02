@@ -1,0 +1,77 @@
+From 711a458be5154063f2abdc3b9fb21670918e4bde Mon Sep 17 00:00:00 2001
+From: Torge Matthies <openglfreak@googlemail.com>
+Date: Thu, 16 Feb 2023 19:11:43 +0100
+Subject: [PATCH 250/458] x11: Fix duplicate Xinput2 event reception
+
+Passing True for owner_events in the XGrabPointer call makes all
+XI_RawMotion events appear in the queue twice, with the only difference
+between them being the value of XGenericEventCookie::cookie. These have
+always been filtered out by a check in the XI_RawMotion handler,
+however with a mouse that polls at more than 1 kHz frequency, there
+also exist legitimate events that appear indistinguishable from these
+duplicated events. These must not be filtered out, otherwise the
+pointer may move at an inconsistent speed, appearing like a bad pointer
+acceleration implementation.
+
+Change owner_events to False in the XGrabPointer and remove the
+duplicate event detection code to fix this.
+
+Signed-off-by: Torge Matthies <openglfreak@googlemail.com>
+(cherry picked from commit f18b5656f6f859e4d4e096d290afd9fae884a5b8)
+---
+ src/video/x11/SDL_x11mouse.h   | 1 -
+ src/video/x11/SDL_x11window.c  | 2 +-
+ src/video/x11/SDL_x11xinput2.c | 5 -----
+ 3 files changed, 1 insertion(+), 7 deletions(-)
+
+diff --git a/src/video/x11/SDL_x11mouse.h b/src/video/x11/SDL_x11mouse.h
+index c884f4282..0a7f165b1 100644
+--- a/src/video/x11/SDL_x11mouse.h
++++ b/src/video/x11/SDL_x11mouse.h
+@@ -30,7 +30,6 @@ typedef struct SDL_XInput2DeviceInfo
+     double minval[2];
+     double maxval[2];
+     double prev_coords[2];
+-    Time prev_time;
+     struct SDL_XInput2DeviceInfo *next;
+ } SDL_XInput2DeviceInfo;
+ 
+diff --git a/src/video/x11/SDL_x11window.c b/src/video/x11/SDL_x11window.c
+index 7aa5ad589..a022800af 100644
+--- a/src/video/x11/SDL_x11window.c
++++ b/src/video/x11/SDL_x11window.c
+@@ -1624,7 +1624,7 @@ void X11_SetWindowMouseGrab(_THIS, SDL_Window *window, SDL_bool grabbed)
+ 
+             /* Try for up to 5000ms (5s) to grab. If it still fails, stop trying. */
+             for (attempts = 0; attempts < 100; attempts++) {
+-                result = X11_XGrabPointer(display, data->xwindow, True, mask, GrabModeAsync,
++                result = X11_XGrabPointer(display, data->xwindow, False, mask, GrabModeAsync,
+                                           GrabModeAsync, data->xwindow, None, CurrentTime);
+                 if (result == GrabSuccess) {
+                     data->mouse_grabbed = SDL_TRUE;
+diff --git a/src/video/x11/SDL_x11xinput2.c b/src/video/x11/SDL_x11xinput2.c
+index 1ce601858..c20e7f62e 100644
+--- a/src/video/x11/SDL_x11xinput2.c
++++ b/src/video/x11/SDL_x11xinput2.c
+@@ -294,10 +294,6 @@ int X11_HandleXinput2Event(SDL_VideoData *videodata, XGenericEventCookie *cookie
+         parse_valuators(rawev->raw_values, rawev->valuators.mask,
+                         rawev->valuators.mask_len, coords, 2);
+ 
+-        if ((rawev->time == devinfo->prev_time) && (coords[0] == devinfo->prev_coords[0]) && (coords[1] == devinfo->prev_coords[1])) {
+-            return 0; /* duplicate event, drop it. */
+-        }
+-
+         for (i = 0; i < 2; i++) {
+             if (devinfo->relative[i]) {
+                 processed_coords[i] = coords[i];
+@@ -309,7 +305,6 @@ int X11_HandleXinput2Event(SDL_VideoData *videodata, XGenericEventCookie *cookie
+         SDL_SendMouseMotion(mouse->focus, mouse->mouseID, 1, (int)processed_coords[0], (int)processed_coords[1]);
+         devinfo->prev_coords[0] = coords[0];
+         devinfo->prev_coords[1] = coords[1];
+-        devinfo->prev_time = rawev->time;
+         return 1;
+     } break;
+ 
+-- 
+2.17.1
+

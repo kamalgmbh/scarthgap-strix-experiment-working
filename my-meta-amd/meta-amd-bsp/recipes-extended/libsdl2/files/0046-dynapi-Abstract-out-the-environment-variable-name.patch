@@ -1,0 +1,51 @@
+From 69f0223474374c174d788395b43022e8b7c78954 Mon Sep 17 00:00:00 2001
+From: "Ryan C. Gordon" <icculus@icculus.org>
+Date: Tue, 29 Nov 2022 14:13:02 -0500
+Subject: [PATCH 046/458] dynapi: Abstract out the environment variable name.
+
+(cherry picked from commit cc487ffb801f862aec7e2b415e74c563c4d528d5)
+---
+ src/dynapi/SDL_dynapi.c | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/src/dynapi/SDL_dynapi.c b/src/dynapi/SDL_dynapi.c
+index 9a7e4c994..936c1a0f8 100644
+--- a/src/dynapi/SDL_dynapi.c
++++ b/src/dynapi/SDL_dynapi.c
+@@ -24,6 +24,8 @@
+ 
+ #if SDL_DYNAMIC_API
+ 
++#define SDL_DYNAMIC_API_ENVVAR "SDL_DYNAMIC_API"
++
+ #if defined(__OS2__)
+ #define INCL_DOS
+ #define INCL_DOSERRORS
+@@ -400,21 +402,21 @@ SDL_NORETURN void SDL_ExitProcess(int exitcode);
+ static void
+ SDL_InitDynamicAPILocked(void)
+ {
+-    const char *libname = SDL_getenv_REAL("SDL_DYNAMIC_API");
++    const char *libname = SDL_getenv_REAL(SDL_DYNAMIC_API_ENVVAR);
+     SDL_DYNAPI_ENTRYFN entry = NULL;  /* funcs from here by default. */
+     SDL_bool use_internal = SDL_TRUE;
+ 
+     if (libname) {
+         entry = (SDL_DYNAPI_ENTRYFN) get_sdlapi_entry(libname, "SDL_DYNAPI_entry");
+         if (!entry) {
+-            dynapi_warn("Couldn't load overriding SDL library. Please fix or remove the SDL_DYNAMIC_API environment variable. Using the default SDL.");
++            dynapi_warn("Couldn't load overriding SDL library. Please fix or remove the " SDL_DYNAMIC_API_ENVVAR " environment variable. Using the default SDL.");
+             /* Just fill in the function pointers from this library, later. */
+         }
+     }
+ 
+     if (entry) {
+         if (entry(SDL_DYNAPI_VERSION, &jump_table, sizeof (jump_table)) < 0) {
+-            dynapi_warn("Couldn't override SDL library. Using a newer SDL build might help. Please fix or remove the SDL_DYNAMIC_API environment variable. Using the default SDL.");
++            dynapi_warn("Couldn't override SDL library. Using a newer SDL build might help. Please fix or remove the " SDL_DYNAMIC_API_ENVVAR " environment variable. Using the default SDL.");
+             /* Just fill in the function pointers from this library, later. */
+         } else {
+             use_internal = SDL_FALSE;   /* We overrode SDL! Don't use the internal version! */
+-- 
+2.17.1
+

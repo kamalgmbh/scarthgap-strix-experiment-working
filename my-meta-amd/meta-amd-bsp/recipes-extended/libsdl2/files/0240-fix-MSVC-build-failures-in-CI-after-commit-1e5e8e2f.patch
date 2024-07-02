@@ -1,0 +1,35 @@
+From 5a7ea76ed3ed45a498ddc17ae039323eb213876f Mon Sep 17 00:00:00 2001
+From: Ozkan Sezer <sezeroz@gmail.com>
+Date: Wed, 22 Feb 2023 10:30:56 +0300
+Subject: [PATCH 240/458] fix MSVC build failures in CI after commit 1e5e8e2f
+
+(cherry picked from commit a2f8cf8fc0c6f4fe8a904284060f61f19f129efa)
+---
+ src/audio/SDL_audiocvt.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/audio/SDL_audiocvt.c b/src/audio/SDL_audiocvt.c
+index d0eeff4af..b18c8c9aa 100644
+--- a/src/audio/SDL_audiocvt.c
++++ b/src/audio/SDL_audiocvt.c
+@@ -241,7 +241,7 @@ static int SDL_ResampleAudio(const int chans, const int inrate, const int outrat
+                 const int srcframe = srcindex - j;
+                 /* !!! FIXME: we can bubble this conditional out of here by doing a pre loop. */
+                 const float insample = (srcframe < 0) ? lpadding[((paddinglen + srcframe) * chans) + chan] : inbuf[(srcframe * chans) + chan];
+-                outsample += (insample * (ResamplerFilter[filterindex1 + (j * RESAMPLER_SAMPLES_PER_ZERO_CROSSING)] + (interpolation1 * ResamplerFilterDifference[filterindex1 + (j * RESAMPLER_SAMPLES_PER_ZERO_CROSSING)])));
++                outsample += (float) (insample * (ResamplerFilter[filterindex1 + (j * RESAMPLER_SAMPLES_PER_ZERO_CROSSING)] + (interpolation1 * ResamplerFilterDifference[filterindex1 + (j * RESAMPLER_SAMPLES_PER_ZERO_CROSSING)])));
+             }
+ 
+             /* Do the right wing! */
+@@ -250,7 +250,7 @@ static int SDL_ResampleAudio(const int chans, const int inrate, const int outrat
+                 const int srcframe = srcindex + 1 + j;
+                 /* !!! FIXME: we can bubble this conditional out of here by doing a post loop. */
+                 const float insample = (srcframe >= inframes) ? rpadding[((srcframe - inframes) * chans) + chan] : inbuf[(srcframe * chans) + chan];
+-                outsample += (insample * (ResamplerFilter[filterindex2 + jsamples] + (interpolation2 * ResamplerFilterDifference[filterindex2 + jsamples])));
++                outsample += (float) (insample * (ResamplerFilter[filterindex2 + jsamples] + (interpolation2 * ResamplerFilterDifference[filterindex2 + jsamples])));
+             }
+ 
+             *(dst++) = outsample;
+-- 
+2.17.1
+

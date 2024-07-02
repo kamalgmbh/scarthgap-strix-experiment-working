@@ -1,0 +1,54 @@
+From b049fa789a476ff9de2f7458cb457af806c1706b Mon Sep 17 00:00:00 2001
+From: Jiqian Chen <Jiqian.Chen@amd.com>
+Date: Tue, 28 Nov 2023 19:05:17 +0800
+Subject: [PATCH 217/221] x86/mm: Workaround add a condition to check page
+ usage
+
+For ticket SWDEV-432065.
+
+When tee driver creates contiguous region, the got host page is
+still referenced by guest(in steal_page, the references is not two).
+But the usage info of the page is zero, it means there is no one
+using it, so this patch add a condition to check if the type_info is
+zero.
+
+There are two methods to reproduce this issue:
+One is that create and destroy Ubuntu guest, and then run tee tests
+aes_sample_10k. The reason is after destroying guest, there are some
+shared pages not be unreferenced correctly by virtio-gpu. If we use
+"xl shutdown" to close guest, it doesn't has the issue. So root cause
+exist in the process of "xl destroy".
+
+Another is that running CTS on Android guest with enabling FBE.
+Because without enabling FBE, CTS can pass. FBE will use contiguous
+region through tee driver and when running CTS, they don't destroy
+guest, only reboot it, so there may be some page not be unreferenced
+correctly by tee driver like method one. So root cause exist in the
+process of the page management of tee driver.
+
+Above two situation have different root cause, but the same phenomenon.
+So this workaround can fix both situation.
+
+Signed-off-by: Jiqian Chen <Jiqian.Chen@amd.com>
+Signed-off-by: Ramesh Babu Nalluri <rameshbabu.nalluri@amd.com>
+Change-Id: Iec73a53b28244afb8be7cae42c8c9c5e207d845e
+---
+ xen/arch/x86/mm.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/xen/arch/x86/mm.c b/xen/arch/x86/mm.c
+index 5e28352957..0078096e65 100644
+--- a/xen/arch/x86/mm.c
++++ b/xen/arch/x86/mm.c
+@@ -4385,7 +4385,7 @@ int steal_page(
+     y = page->count_info;
+     do {
+         x = y;
+-        if ( (x & (PGC_count_mask|PGC_allocated)) != (2 | PGC_allocated) )
++        if ( (x & (PGC_count_mask|PGC_allocated)) != (2 | PGC_allocated) && page->u.inuse.type_info != 0)
+             goto fail_put;
+         y = cmpxchg(&page->count_info, x, x & ~(PGC_count_mask|PGC_allocated));
+     } while ( y != x );
+-- 
+2.17.1
+

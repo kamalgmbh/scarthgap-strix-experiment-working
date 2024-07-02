@@ -1,0 +1,51 @@
+From 3b0cd441584ada86c4456afb4e8b3edaf2173073 Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Sat, 17 Dec 2022 06:51:02 -0800
+Subject: [PATCH 104/458] Fixed compiler warning
+
+```
+ ./src/joystick/SDL_joystick.c:105:12: warning: no previous extern declaration for non-static variable 'SDL_joystick_lock' [-Wmissing-variable-declarations]
+SDL_mutex *SDL_joystick_lock = NULL; /* This needs to support recursive locks */
+           ^
+./src/joystick/SDL_joystick.c:105:1: note: declare 'static' if the variable is not intended to be used outside of this translation unit
+SDL_mutex *SDL_joystick_lock = NULL; /* This needs to support recursive locks */
+^
+```
+1 warning generated.
+---
+ src/joystick/SDL_joystick.c             | 4 ++++
+ src/joystick/hidapi/SDL_hidapi_rumble.c | 3 +++
+ 2 files changed, 7 insertions(+)
+
+diff --git a/src/joystick/SDL_joystick.c b/src/joystick/SDL_joystick.c
+index dd9c4bdb4..3cdcba9d1 100644
+--- a/src/joystick/SDL_joystick.c
++++ b/src/joystick/SDL_joystick.c
+@@ -109,6 +109,10 @@ static SDL_JoystickDriver *SDL_joystick_drivers[] = {
+         &SDL_DUMMY_JoystickDriver
+ #endif
+ };
++
++#ifndef SDL_THREAD_SAFETY_ANALYSIS
++static
++#endif
+ SDL_mutex *SDL_joystick_lock = NULL; /* This needs to support recursive locks */
+ static int SDL_joysticks_locked;
+ static SDL_bool SDL_joysticks_initialized;
+diff --git a/src/joystick/hidapi/SDL_hidapi_rumble.c b/src/joystick/hidapi/SDL_hidapi_rumble.c
+index 6cd8dd535..2144b556d 100644
+--- a/src/joystick/hidapi/SDL_hidapi_rumble.c
++++ b/src/joystick/hidapi/SDL_hidapi_rumble.c
+@@ -51,6 +51,9 @@ typedef struct SDL_HIDAPI_RumbleContext
+     SDL_HIDAPI_RumbleRequest *requests_tail;
+ } SDL_HIDAPI_RumbleContext;
+ 
++#ifndef SDL_THREAD_SAFETY_ANALYSIS
++static
++#endif
+ SDL_mutex *SDL_HIDAPI_rumble_lock;
+ static SDL_HIDAPI_RumbleContext rumble_context SDL_GUARDED_BY(SDL_HIDAPI_rumble_lock);
+ 
+-- 
+2.17.1
+

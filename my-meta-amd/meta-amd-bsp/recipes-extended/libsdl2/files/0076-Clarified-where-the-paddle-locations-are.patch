@@ -1,0 +1,32 @@
+From c2b2f2a71ea82dcf692d4f7305aa9df4c4d3d64d Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Wed, 7 Dec 2022 14:17:58 -0800
+Subject: [PATCH 076/458] Clarified where the paddle locations are
+
+(cherry picked from commit ea714956b6e6851a279d1334309dd17b6d73cadc)
+---
+ include/SDL_gamecontroller.h | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/include/SDL_gamecontroller.h b/include/SDL_gamecontroller.h
+index 4703b6394..9277a6690 100644
+--- a/include/SDL_gamecontroller.h
++++ b/include/SDL_gamecontroller.h
+@@ -724,10 +724,10 @@ typedef enum
+     SDL_CONTROLLER_BUTTON_DPAD_LEFT,
+     SDL_CONTROLLER_BUTTON_DPAD_RIGHT,
+     SDL_CONTROLLER_BUTTON_MISC1,    /* Xbox Series X share button, PS5 microphone button, Nintendo Switch Pro capture button, Amazon Luna microphone button */
+-    SDL_CONTROLLER_BUTTON_PADDLE1,  /* Xbox Elite paddle P1 */
+-    SDL_CONTROLLER_BUTTON_PADDLE2,  /* Xbox Elite paddle P3 */
+-    SDL_CONTROLLER_BUTTON_PADDLE3,  /* Xbox Elite paddle P2 */
+-    SDL_CONTROLLER_BUTTON_PADDLE4,  /* Xbox Elite paddle P4 */
++    SDL_CONTROLLER_BUTTON_PADDLE1,  /* Xbox Elite paddle P1 (upper left, facing the back) */
++    SDL_CONTROLLER_BUTTON_PADDLE2,  /* Xbox Elite paddle P3 (upper right, facing the back) */
++    SDL_CONTROLLER_BUTTON_PADDLE3,  /* Xbox Elite paddle P2 (lower left, facing the back) */
++    SDL_CONTROLLER_BUTTON_PADDLE4,  /* Xbox Elite paddle P4 (lower right, facing the back) */
+     SDL_CONTROLLER_BUTTON_TOUCHPAD, /* PS4/PS5 touchpad button */
+     SDL_CONTROLLER_BUTTON_MAX
+ } SDL_GameControllerButton;
+-- 
+2.17.1
+

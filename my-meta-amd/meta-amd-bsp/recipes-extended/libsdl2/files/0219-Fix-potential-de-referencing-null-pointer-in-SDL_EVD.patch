@@ -1,0 +1,32 @@
+From d948e6c3c592db7bfdcf14d4e869ff8db238e50a Mon Sep 17 00:00:00 2001
+From: Sylvain <sylvain.becker@gmail.com>
+Date: Wed, 15 Feb 2023 22:38:57 +0100
+Subject: [PATCH 219/458] Fix potential de-referencing null pointer in
+ SDL_EVDEV_kbd_keycode()
+
+---
+ src/core/freebsd/SDL_evdev_kbd_freebsd.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/core/freebsd/SDL_evdev_kbd_freebsd.c b/src/core/freebsd/SDL_evdev_kbd_freebsd.c
+index be00b1e46..a5cedbf14 100644
+--- a/src/core/freebsd/SDL_evdev_kbd_freebsd.c
++++ b/src/core/freebsd/SDL_evdev_kbd_freebsd.c
+@@ -476,12 +476,12 @@ void SDL_EVDEV_kbd_keycode(SDL_EVDEV_keyboard_state *kbd, unsigned int keycode,
+     unsigned int final_key_state;
+     unsigned int map_from_key_sym;
+ 
+-    key_map = *kbd->key_map;
+-
+     if (kbd == NULL) {
+         return;
+     }
+ 
++    key_map = *kbd->key_map;
++
+     kbd->rep = (down == 2);
+ 
+     if (keycode < NUM_KEYS) {
+-- 
+2.17.1
+

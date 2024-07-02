@@ -1,0 +1,27 @@
+From 57043825ba04c1cbf729123ceed09c8e033adcbb Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Tue, 4 Apr 2023 12:33:41 -0700
+Subject: [PATCH 346/458] Fixed crash if dbus can't be initialized
+
+(cherry picked from commit cf2c6fa58dea02edb870cff7090fd69f3dfbd081)
+---
+ src/core/linux/SDL_fcitx.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/core/linux/SDL_fcitx.c b/src/core/linux/SDL_fcitx.c
+index d6484f708..244aa2309 100644
+--- a/src/core/linux/SDL_fcitx.c
++++ b/src/core/linux/SDL_fcitx.c
+@@ -278,7 +278,8 @@ static SDL_bool FcitxCreateInputContext(SDL_DBusContext *dbus, const char *appna
+ {
+     const char *program = "program";
+     SDL_bool retval = SDL_FALSE;
+-    if (dbus->session_conn) {
++
++    if (dbus && dbus->session_conn) {
+         DBusMessage *msg = dbus->message_new_method_call(FCITX_DBUS_SERVICE, FCITX_IM_DBUS_PATH, FCITX_IM_DBUS_INTERFACE, "CreateInputContext");
+         if (msg) {
+             DBusMessage *reply = NULL;
+-- 
+2.17.1
+

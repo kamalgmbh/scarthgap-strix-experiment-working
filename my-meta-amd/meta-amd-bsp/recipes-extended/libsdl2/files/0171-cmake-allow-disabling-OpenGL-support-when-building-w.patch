@@ -1,0 +1,47 @@
+From a8a5bd3d6b6dae1cddaff71e1c88d850571ad338 Mon Sep 17 00:00:00 2001
+From: Anonymous Maarten <anonymous.maarten@gmail.com>
+Date: Mon, 23 Jan 2023 20:41:00 +0100
+Subject: [PATCH 171/458] cmake: allow disabling OpenGL support when building
+ with GLES using PSP2-PVR
+
+---
+ CMakeLists.txt | 16 +++++++++-------
+ 1 file changed, 9 insertions(+), 7 deletions(-)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 2d461ee9c..0f105d978 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -2497,7 +2497,6 @@ elseif(VITA)
+       check_include_file(gpu_es4/psp2_pvr_hint.h HAVE_PVR_H)
+       if(HAVE_PVR_H)
+         target_compile_definitions(sdl-build-options INTERFACE "-D__psp2__")
+-        check_include_file(gl4esinit.h HAVE_GL4ES_H)
+         set(SDL_VIDEO_OPENGL_EGL 1)
+         set(HAVE_OPENGLES TRUE)
+         set(SDL_VIDEO_OPENGL_ES 1)
+@@ -2514,12 +2513,15 @@ elseif(VITA)
+         set(HAVE_VIDEO_VITA_PVR ON)
+         set(SDL_VIDEO_VITA_PVR 1)
+ 
+-        if(HAVE_GL4ES_H)
+-          set(HAVE_OPENGL TRUE)
+-          set(SDL_VIDEO_OPENGL 1)
+-          set(SDL_VIDEO_RENDER_OGL 1)
+-          list(APPEND EXTRA_LIBS libGL_stub)
+-          set(SDL_VIDEO_VITA_PVR_OGL 1)
++        if(SDL_OPENGL)
++          check_include_file(gl4esinit.h HAVE_GL4ES_H)
++          if(HAVE_GL4ES_H)
++            set(HAVE_OPENGL TRUE)
++            set(SDL_VIDEO_OPENGL 1)
++            set(SDL_VIDEO_RENDER_OGL 1)
++            list(APPEND EXTRA_LIBS libGL_stub)
++            set(SDL_VIDEO_VITA_PVR_OGL 1)
++          endif()
+         endif()
+ 
+       else()
+-- 
+2.17.1
+

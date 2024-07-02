@@ -1,0 +1,60 @@
+From 866ce2657e136ccd0c278bbe335701d8ce8e2a86 Mon Sep 17 00:00:00 2001
+From: Viresh Kumar <viresh.kumar@linaro.org>
+Date: Thu, 8 Sep 2022 14:23:00 +0530
+Subject: [PATCH 070/221] libxl: arm: Split make_virtio_mmio_node()
+
+make_virtio_mmio_node() creates the DT node for simple MMIO devices
+currently, i.e. the ones that don't require any additional properties.
+
+In order to allow using it for other complex device types, split the
+functionality into two, one where the fdt node isn't closed and the
+other one to create a simple DT node.
+
+Signed-off-by: Viresh Kumar <viresh.kumar@linaro.org>
+Reviewed-by: Oleksandr Tyshchenko <oleksandr_tyshchenko@epam.com>
+Reviewed-by: Anthony PERARD <anthony.perard@citrix.com>
+---
+ tools/libs/light/libxl_arm.c | 18 +++++++++++++-----
+ 1 file changed, 13 insertions(+), 5 deletions(-)
+
+diff --git a/tools/libs/light/libxl_arm.c b/tools/libs/light/libxl_arm.c
+index 23c76dae88..500904d2fa 100644
+--- a/tools/libs/light/libxl_arm.c
++++ b/tools/libs/light/libxl_arm.c
+@@ -907,9 +907,9 @@ static int make_xen_iommu_node(libxl__gc *gc, void *fdt)
+     return 0;
+ }
+ 
+-static int make_virtio_mmio_node(libxl__gc *gc, void *fdt,
+-                                 uint64_t base, uint32_t irq,
+-                                 uint32_t backend_domid)
++/* The caller is responsible to complete / close the fdt node */
++static int make_virtio_mmio_node_common(libxl__gc *gc, void *fdt, uint64_t base,
++                                        uint32_t irq, uint32_t backend_domid)
+ {
+     int res;
+     gic_interrupt intr;
+@@ -942,10 +942,18 @@ static int make_virtio_mmio_node(libxl__gc *gc, void *fdt,
+         if (res) return res;
+     }
+ 
+-    res = fdt_end_node(fdt);
++    return res;
++}
++
++static int make_virtio_mmio_node(libxl__gc *gc, void *fdt, uint64_t base,
++                                 uint32_t irq, uint32_t backend_domid)
++{
++    int res;
++
++    res = make_virtio_mmio_node_common(gc, fdt, base, irq, backend_domid);
+     if (res) return res;
+ 
+-    return 0;
++    return fdt_end_node(fdt);
+ }
+ 
+ static const struct arch_info *get_arch_info(libxl__gc *gc,
+-- 
+2.17.1
+

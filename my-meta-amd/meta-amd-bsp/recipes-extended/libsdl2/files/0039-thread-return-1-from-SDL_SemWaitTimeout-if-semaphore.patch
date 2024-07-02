@@ -1,0 +1,58 @@
+From ee13e8c76be6848f3ea74c8e68127c39d7fa41f5 Mon Sep 17 00:00:00 2001
+From: pionere <pionere@freemail.hu>
+Date: Tue, 29 Nov 2022 09:46:20 +0100
+Subject: [PATCH 039/458] thread: return -1 from SDL_SemWaitTimeout if
+ semaphore is NULL
+
+(cherry picked from commit f6db1aba664079e63df44cbb6e6925a088b8f3a8)
+---
+ src/thread/ps2/SDL_syssem.c  | 3 +--
+ src/thread/psp/SDL_syssem.c  | 3 +--
+ src/thread/vita/SDL_syssem.c | 3 +--
+ 3 files changed, 3 insertions(+), 6 deletions(-)
+
+diff --git a/src/thread/ps2/SDL_syssem.c b/src/thread/ps2/SDL_syssem.c
+index a4c7de806..7dc875695 100644
+--- a/src/thread/ps2/SDL_syssem.c
++++ b/src/thread/ps2/SDL_syssem.c
+@@ -87,8 +87,7 @@ int SDL_SemWaitTimeout(SDL_sem *sem, Uint32 timeout)
+     InitializeTimerAlarm(&alarm);
+     
+     if (sem == NULL) {
+-        SDL_InvalidParamError("sem");
+-        return 0;
++        return SDL_InvalidParamError("sem");
+     }
+ 
+     if (timeout == 0) {
+diff --git a/src/thread/psp/SDL_syssem.c b/src/thread/psp/SDL_syssem.c
+index 293354e08..b3d145701 100644
+--- a/src/thread/psp/SDL_syssem.c
++++ b/src/thread/psp/SDL_syssem.c
+@@ -82,8 +82,7 @@ int SDL_SemWaitTimeout(SDL_sem *sem, Uint32 timeout)
+     int res;
+ 
+     if (sem == NULL) {
+-        SDL_InvalidParamError("sem");
+-        return 0;
++        return SDL_InvalidParamError("sem");
+     }
+ 
+     if (timeout == 0) {
+diff --git a/src/thread/vita/SDL_syssem.c b/src/thread/vita/SDL_syssem.c
+index 7fecd6ca2..0082e0005 100644
+--- a/src/thread/vita/SDL_syssem.c
++++ b/src/thread/vita/SDL_syssem.c
+@@ -83,8 +83,7 @@ int SDL_SemWaitTimeout(SDL_sem *sem, Uint32 timeout)
+        unsigned int res;
+ 
+     if (sem == NULL) {
+-        SDL_InvalidParamError("sem");
+-        return 0;
++        return SDL_InvalidParamError("sem");
+     }
+ 
+     if (timeout == 0) {
+-- 
+2.17.1
+

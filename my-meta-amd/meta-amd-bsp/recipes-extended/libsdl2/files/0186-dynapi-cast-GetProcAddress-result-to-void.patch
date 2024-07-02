@@ -1,0 +1,25 @@
+From 06b305d232cd4eb83bb607d2e729919d4874ac36 Mon Sep 17 00:00:00 2001
+From: Ozkan Sezer <sezeroz@gmail.com>
+Date: Fri, 3 Feb 2023 17:40:40 +0300
+Subject: [PATCH 186/458] dynapi: cast GetProcAddress() result to void*
+
+---
+ src/dynapi/SDL_dynapi.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/dynapi/SDL_dynapi.c b/src/dynapi/SDL_dynapi.c
+index cd900ce9b..eac122aef 100644
+--- a/src/dynapi/SDL_dynapi.c
++++ b/src/dynapi/SDL_dynapi.c
+@@ -372,7 +372,7 @@ static SDL_INLINE void *get_sdlapi_entry(const char *fname, const char *sym)
+     HMODULE lib = LoadLibraryA(fname);
+     void *retval = NULL;
+     if (lib) {
+-        retval = GetProcAddress(lib, sym);
++        retval = (void *) GetProcAddress(lib, sym);
+         if (retval == NULL) {
+             FreeLibrary(lib);
+         }
+-- 
+2.17.1
+

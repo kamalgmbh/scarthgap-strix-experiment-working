@@ -1,0 +1,87 @@
+From 1233294a8d6dd25ae3fe5d055d25524bd9f5984c Mon Sep 17 00:00:00 2001
+From: Sergey Dyasli <sergey.dyasli@citrix.com>
+Date: Mon, 19 Dec 2022 14:45:31 +0000
+Subject: [PATCH 154/221] xen/multiboot: add proper struct definitions to
+ typedefs
+
+This allows to use them for forward declaration in other headers.
+
+Signed-off-by: Sergey Dyasli <sergey.dyasli@citrix.com>
+Acked-by: Jan Beulich <jbeulich@suse.com>
+---
+ xen/include/xen/multiboot.h | 25 +++++++++++++++----------
+ 1 file changed, 15 insertions(+), 10 deletions(-)
+
+diff --git a/xen/include/xen/multiboot.h b/xen/include/xen/multiboot.h
+index d1b43e1183..80a1761d9e 100644
+--- a/xen/include/xen/multiboot.h
++++ b/xen/include/xen/multiboot.h
+@@ -46,23 +46,25 @@
+ #ifndef __ASSEMBLY__
+ 
+ /* The symbol table for a.out.  */
+-typedef struct {
++struct aout_symbol_table {
+     u32 tabsize;
+     u32 strsize;
+     u32 addr;
+     u32 reserved;
+-} aout_symbol_table_t;
++};
++typedef struct aout_symbol_table aout_symbol_table_t;
+ 
+ /* The section header table for ELF.  */
+-typedef struct {
++struct elf_section_header_table {
+     u32 num;
+     u32 size;
+     u32 addr;
+     u32 shndx;
+-} elf_section_header_table_t;
++};
++typedef struct elf_section_header_table elf_section_header_table_t;
+ 
+ /* The Multiboot information.  */
+-typedef struct {
++struct multiboot_info {
+     u32 flags;
+ 
+     /* Valid if flags sets MBI_MEMLIMITS */
+@@ -101,26 +103,29 @@ typedef struct {
+ 
+     /* Valid if flags sets MBI_APM */
+     u32 apm_table;
+-} multiboot_info_t;
++};
++typedef struct multiboot_info multiboot_info_t;
+ 
+ /* The module structure.  */
+-typedef struct {
++struct module {
+     u32 mod_start;
+     u32 mod_end;
+     u32 string;
+     u32 reserved;
+-} module_t;
++};
++typedef struct module module_t;
+ 
+ /* The memory map. Be careful that the offset 0 is base_addr_low
+    but no size.  */
+-typedef struct {
++struct memory_map {
+     u32 size;
+     u32 base_addr_low;
+     u32 base_addr_high;
+     u32 length_low;
+     u32 length_high;
+     u32 type;
+-} memory_map_t;
++};
++typedef struct memory_map memory_map_t;
+ 
+ 
+ #endif /* __ASSEMBLY__ */
+-- 
+2.17.1
+

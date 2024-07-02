@@ -1,0 +1,167 @@
+From 30700c2bbfe47f4d522be895675a019d7f31f293 Mon Sep 17 00:00:00 2001
+From: Juergen Gross <jgross@suse.com>
+Date: Tue, 5 Dec 2023 09:56:08 +0100
+Subject: [PATCH 100/106] xen/public: fix flexible array definitions
+
+Flexible arrays in public headers can be problematic with some
+compilers.
+
+With XEN_FLEX_ARRAY_DIM there is a mechanism available to deal with
+this issue, but care must be taken to not change the affected structs
+in an incompatible way.
+
+So bump __XEN_LATEST_INTERFACE_VERSION__ and introduce a new macro
+XENPV_FLEX_ARRAY_DIM which will be XENPV_FLEX_ARRAY_DIM with the
+interface version being new enough and "1" (the value used today in
+the affected headers) when the interface version is an old one.
+
+Replace the arr[1] instances (this includes the ones seen to be
+problematic in recent Linux kernels [1]) with arr[XENPV_FLEX_ARRAY_DIM]
+in order to avoid compilation errors.
+
+[1]: https://bugzilla.kernel.org/show_bug.cgi?id=217693
+
+Signed-off-by: Juergen Gross <jgross@suse.com>
+Acked-by: Henry Wang <Henry.Wang@arm.com> # CHANGELOG
+Reviewed-by: Jan Beulich <jbeulich@suse.com>
+Acked-by: Julien Grall <jgrall@amazon.com>
+Change-Id: I2ce788773ce4608f60117cdf6cc721f80ffbebb4
+---
+ xen/include/public/io/cameraif.h |  2 +-
+ xen/include/public/io/displif.h  |  2 +-
+ xen/include/public/io/fsif.h     |  4 ++--
+ xen/include/public/io/pvcalls.h  |  2 +-
+ xen/include/public/io/ring.h     | 12 ++++++++++--
+ xen/include/public/io/sndif.h    |  2 +-
+ xen/include/public/xen-compat.h  |  2 +-
+ 7 files changed, 17 insertions(+), 9 deletions(-)
+
+diff --git a/xen/include/public/io/cameraif.h b/xen/include/public/io/cameraif.h
+index 13763abef9..a389443769 100644
+--- a/xen/include/public/io/cameraif.h
++++ b/xen/include/public/io/cameraif.h
+@@ -763,7 +763,7 @@ struct xencamera_buf_create_req {
+  */
+ struct xencamera_page_directory {
+     grant_ref_t gref_dir_next_page;
+-    grant_ref_t gref[1]; /* Variable length */
++    grant_ref_t gref[XENPV_FLEX_ARRAY_DIM];
+ };
+ 
+ /*
+diff --git a/xen/include/public/io/displif.h b/xen/include/public/io/displif.h
+index 73d0cbdf15..132c96fa5c 100644
+--- a/xen/include/public/io/displif.h
++++ b/xen/include/public/io/displif.h
+@@ -537,7 +537,7 @@ struct xendispl_dbuf_create_req {
+ 
+ struct xendispl_page_directory {
+     grant_ref_t gref_dir_next_page;
+-    grant_ref_t gref[1]; /* Variable length */
++    grant_ref_t gref[XENPV_FLEX_ARRAY_DIM];
+ };
+ 
+ /*
+diff --git a/xen/include/public/io/fsif.h b/xen/include/public/io/fsif.h
+index ec57850233..dcade1c698 100644
+--- a/xen/include/public/io/fsif.h
++++ b/xen/include/public/io/fsif.h
+@@ -40,7 +40,7 @@ struct fsif_read_request {
+     int32_t pad;
+     uint64_t len;
+     uint64_t offset;
+-    grant_ref_t grefs[1];  /* Variable length */
++    grant_ref_t grefs[XENPV_FLEX_ARRAY_DIM];
+ };
+ 
+ struct fsif_write_request {
+@@ -48,7 +48,7 @@ struct fsif_write_request {
+     int32_t pad;
+     uint64_t len;
+     uint64_t offset;
+-    grant_ref_t grefs[1];  /* Variable length */
++    grant_ref_t grefs[XENPV_FLEX_ARRAY_DIM];
+ };
+ 
+ struct fsif_stat_request {
+diff --git a/xen/include/public/io/pvcalls.h b/xen/include/public/io/pvcalls.h
+index 230b0719e3..c8c7602470 100644
+--- a/xen/include/public/io/pvcalls.h
++++ b/xen/include/public/io/pvcalls.h
+@@ -30,7 +30,7 @@ struct pvcalls_data_intf {
+     uint8_t pad2[52];
+ 
+     RING_IDX ring_order;
+-    grant_ref_t ref[];
++    grant_ref_t ref[XEN_FLEX_ARRAY_DIM];
+ };
+ DEFINE_XEN_FLEX_RING(pvcalls);
+ 
+diff --git a/xen/include/public/io/ring.h b/xen/include/public/io/ring.h
+index 0cae4367be..a79d913142 100644
+--- a/xen/include/public/io/ring.h
++++ b/xen/include/public/io/ring.h
+@@ -25,8 +25,16 @@
+  * and grant_table.h from the Xen public headers.
+  */
+ 
++#include "../xen.h"
+ #include "../xen-compat.h"
+ 
++/* Some PV I/O interfaces need a compatibility variant. */
++#if __XEN_INTERFACE_VERSION__ < 0x00041300
++#define XENPV_FLEX_ARRAY_DIM  1 /* variable size */
++#else
++#define XENPV_FLEX_ARRAY_DIM  XEN_FLEX_ARRAY_DIM
++#endif
++
+ #if __XEN_INTERFACE_VERSION__ < 0x00030208
+ #define xen_mb()  mb()
+ #define xen_rmb() rmb()
+@@ -110,7 +118,7 @@ struct __name##_sring {                                                 \
+         uint8_t pvt_pad[4];                                             \
+     } pvt;                                                              \
+     uint8_t __pad[44];                                                  \
+-    union __name##_sring_entry ring[1]; /* variable-length */           \
++    union __name##_sring_entry ring[XENPV_FLEX_ARRAY_DIM];              \
+ };                                                                      \
+                                                                         \
+ /* "Front" end's private variables */                                   \
+@@ -479,7 +487,7 @@ struct name##_data_intf {                                                     \
+     uint8_t pad2[56];                                                         \
+                                                                               \
+     RING_IDX ring_order;                                                      \
+-    grant_ref_t ref[];                                                        \
++    grant_ref_t ref[XEN_FLEX_ARRAY_DIM];                                      \
+ };                                                                            \
+ DEFINE_XEN_FLEX_RING(name)
+ 
+diff --git a/xen/include/public/io/sndif.h b/xen/include/public/io/sndif.h
+index 4234a47c87..cce1459b7b 100644
+--- a/xen/include/public/io/sndif.h
++++ b/xen/include/public/io/sndif.h
+@@ -659,7 +659,7 @@ struct xensnd_open_req {
+ 
+ struct xensnd_page_directory {
+     grant_ref_t gref_dir_next_page;
+-    grant_ref_t gref[1]; /* Variable length */
++    grant_ref_t gref[XENPV_FLEX_ARRAY_DIM];
+ };
+ 
+ /*
+diff --git a/xen/include/public/xen-compat.h b/xen/include/public/xen-compat.h
+index 97fe698498..078b796664 100644
+--- a/xen/include/public/xen-compat.h
++++ b/xen/include/public/xen-compat.h
+@@ -10,7 +10,7 @@
+ #ifndef __XEN_PUBLIC_XEN_COMPAT_H__
+ #define __XEN_PUBLIC_XEN_COMPAT_H__
+ 
+-#define __XEN_LATEST_INTERFACE_VERSION__ 0x00040e00
++#define __XEN_LATEST_INTERFACE_VERSION__ 0x00041300
+ 
+ #if defined(__XEN__) || defined(__XEN_TOOLS__)
+ /* Xen is built with matching headers and implements the latest interface. */
+-- 
+2.25.1
+

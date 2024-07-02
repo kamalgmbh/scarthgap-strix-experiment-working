@@ -1,0 +1,52 @@
+From 23bce27b26aa078a902ed73878b21d2fe94cc6e5 Mon Sep 17 00:00:00 2001
+From: Sylvain <sylvain.becker@gmail.com>
+Date: Thu, 16 Mar 2023 09:49:15 +0100
+Subject: [PATCH 303/458]  Change SDL_BLENDMODE_MUL for gl renderers  Add FIXME
+ for PSP and DirectFB
+
+---
+ src/render/SDL_render.c                  | 2 +-
+ src/render/psp/SDL_render_psp.c          | 1 +
+ src/video/directfb/SDL_DirectFB_render.c | 1 +
+ 3 files changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/render/SDL_render.c b/src/render/SDL_render.c
+index f2f088fce..2df36c69a 100644
+--- a/src/render/SDL_render.c
++++ b/src/render/SDL_render.c
+@@ -87,7 +87,7 @@ this should probably be removed at some point in the future.  --ryan. */
+ 
+ #define SDL_BLENDMODE_MUL_FULL                                                                                    \
+     SDL_COMPOSE_BLENDMODE(SDL_BLENDFACTOR_DST_COLOR, SDL_BLENDFACTOR_ONE_MINUS_SRC_ALPHA, SDL_BLENDOPERATION_ADD, \
+-                          SDL_BLENDFACTOR_DST_ALPHA, SDL_BLENDFACTOR_ONE_MINUS_SRC_ALPHA, SDL_BLENDOPERATION_ADD)
++                          SDL_BLENDFACTOR_ZERO, SDL_BLENDFACTOR_ONE, SDL_BLENDOPERATION_ADD)
+ 
+ #if !SDL_RENDER_DISABLED
+ static const SDL_RenderDriver *render_drivers[] = {
+diff --git a/src/render/psp/SDL_render_psp.c b/src/render/psp/SDL_render_psp.c
+index 1b55d08d0..4fb6a64ca 100644
+--- a/src/render/psp/SDL_render_psp.c
++++ b/src/render/psp/SDL_render_psp.c
+@@ -993,6 +993,7 @@ static void PSP_SetBlendState(PSP_RenderData *data, PSP_BlendState *state)
+             break;
+         case SDL_BLENDMODE_MUL:
+             sceGuTexFunc(GU_TFX_MODULATE, GU_TCC_RGBA);
++            /* FIXME SDL_BLENDMODE_MUL is simplified, and dstA is in fact un-changed.*/
+             sceGuBlendFunc(GU_ADD, GU_DST_COLOR, GU_ONE_MINUS_SRC_ALPHA, 0, 0);
+             sceGuEnable(GU_BLEND);
+             break;
+diff --git a/src/video/directfb/SDL_DirectFB_render.c b/src/video/directfb/SDL_DirectFB_render.c
+index f7b901483..00460c5a1 100644
+--- a/src/video/directfb/SDL_DirectFB_render.c
++++ b/src/video/directfb/SDL_DirectFB_render.c
+@@ -201,6 +201,7 @@ SetBlendMode(DirectFB_RenderData * data, int blendMode,
+         case SDL_BLENDMODE_MUL:
+             data->blitFlags = DSBLIT_BLEND_ALPHACHANNEL;
+             data->drawFlags = DSDRAW_BLEND;
++            /* FIXME SDL_BLENDMODE_MUL is simplified, and dstA is in fact un-changed.*/
+             SDL_DFB_CHECK(destsurf->SetSrcBlendFunction(destsurf, DSBF_DESTCOLOR));
+             SDL_DFB_CHECK(destsurf->SetDstBlendFunction(destsurf, DSBF_INVSRCALPHA));
+ 
+-- 
+2.17.1
+

@@ -1,0 +1,89 @@
+From b8d5ea6de0f8dabe4f88379398d44f1f148ac807 Mon Sep 17 00:00:00 2001
+From: Jiamei Xie <jiamei.xie@arm.com>
+Date: Mon, 5 Dec 2022 15:26:39 +0800
+Subject: [PATCH 165/221] xen/arm: vpl011: emulate non-SBSA registers as WI/RAZ
+
+When the guest kernel enables DMA engine with "CONFIG_DMA_ENGINE=y",
+Linux SBSA PL011 driver will access PL011 DMACR register in some
+functions. As chapter "B Generic UART" in "ARM Server Base System
+Architecture"[1] documentation describes, SBSA UART doesn't support
+DMA. In current code, when the kernel tries to access DMACR register,
+Xen will inject a data abort:
+Unhandled fault at 0xffffffc00944d048
+Mem abort info:
+  ESR = 0x96000000
+  EC = 0x25: DABT (current EL), IL = 32 bits
+  SET = 0, FnV = 0
+  EA = 0, S1PTW = 0
+  FSC = 0x00: ttbr address size fault
+Data abort info:
+  ISV = 0, ISS = 0x00000000
+  CM = 0, WnR = 0
+swapper pgtable: 4k pages, 39-bit VAs, pgdp=0000000020e2e000
+[ffffffc00944d048] pgd=100000003ffff803, p4d=100000003ffff803, pud=100000003ffff803, pmd=100000003fffa803, pte=006800009c090f13
+Internal error: ttbr address size fault: 96000000 [#1] PREEMPT SMP
+...
+Call trace:
+ pl011_stop_rx+0x70/0x80
+ tty_port_shutdown+0x7c/0xb4
+ tty_port_close+0x60/0xcc
+ uart_close+0x34/0x8c
+ tty_release+0x144/0x4c0
+ __fput+0x78/0x220
+ ____fput+0x1c/0x30
+ task_work_run+0x88/0xc0
+ do_notify_resume+0x8d0/0x123c
+ el0_svc+0xa8/0xc0
+ el0t_64_sync_handler+0xa4/0x130
+ el0t_64_sync+0x1a0/0x1a4
+Code: b9000083 b901f001 794038a0 8b000042 (b9000041)
+---[ end trace 83dd93df15c3216f ]---
+note: bootlogd[132] exited with preempt_count 1
+/etc/rcS.d/S07bootlogd: line 47: 132 Segmentation fault start-stop-daemon
+
+As discussed in [2], this commit makes the access to non-SBSA registers
+RAZ/WI as an improvement.
+
+[1] https://developer.arm.com/documentation/den0094/c/?lang=en
+[2] https://lore.kernel.org/xen-devel/alpine.DEB.2.22.394.2211161552420.4020@ubuntu-linux-20-04-desktop/
+
+Signed-off-by: Jiamei Xie <jiamei.xie@arm.com>
+Acked-by: Julien Grall <jgrall@amazon.com>
+Reviewed-by: Michal Orzel <michal.orzel@amd.com>
+---
+ xen/arch/arm/vpl011.c | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/xen/arch/arm/vpl011.c b/xen/arch/arm/vpl011.c
+index f6144da1d7..c5b695469b 100644
+--- a/xen/arch/arm/vpl011.c
++++ b/xen/arch/arm/vpl011.c
+@@ -403,11 +403,15 @@ static int vpl011_mmio_read(struct vcpu *v,
+     default:
+         gprintk(XENLOG_ERR, "vpl011: unhandled read r%d offset %#08x\n",
+                 dabt.reg, vpl011_reg);
+-        return 0;
++        goto read_as_zero;
+     }
+ 
+     return 1;
+ 
++read_as_zero:
++    *r = 0;
++    return 1;
++
+ bad_width:
+     gprintk(XENLOG_ERR, "vpl011: bad read width %d r%d offset %#08x\n",
+             dabt.size, dabt.reg, vpl011_reg);
+@@ -475,7 +479,7 @@ static int vpl011_mmio_write(struct vcpu *v,
+     default:
+         gprintk(XENLOG_ERR, "vpl011: unhandled write r%d offset %#08x\n",
+                 dabt.reg, vpl011_reg);
+-        return 0;
++        goto write_ignore;
+     }
+ 
+ write_ignore:
+-- 
+2.17.1
+

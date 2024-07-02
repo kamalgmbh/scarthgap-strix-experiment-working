@@ -1,0 +1,33 @@
+From c22a731f0e1c8c877912ef02f85156405a924234 Mon Sep 17 00:00:00 2001
+From: Vikram Garhwal <vikram.garhwal@amd.com>
+Date: Wed, 14 Jun 2023 17:03:38 -0700
+Subject: [PATCH 56/70] meson.build: enable xenpv machine build for ARM
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Add CONFIG_XEN for aarch64 device to support build for ARM targets.
+
+Signed-off-by: Vikram Garhwal <vikram.garhwal@amd.com>
+Signed-off-by: Stefano Stabellini <stefano.stabellini@amd.com>
+Reviewed-by: Alex Bennée <alex.bennee@linaro.org>
+---
+ meson.build | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/meson.build b/meson.build
+index 3a3d4955fa..4b447d6076 100644
+--- a/meson.build
++++ b/meson.build
+@@ -135,7 +135,7 @@ endif
+ if cpu in ['x86', 'x86_64', 'arm', 'aarch64']
+   # i386 emulator provides xenpv machine type for multiple architectures
+   accelerator_targets += {
+-    'CONFIG_XEN': ['i386-softmmu', 'x86_64-softmmu'],
++    'CONFIG_XEN': ['i386-softmmu', 'x86_64-softmmu', 'aarch64-softmmu'],
+   }
+ endif
+ if cpu in ['x86', 'x86_64']
+-- 
+2.17.1
+

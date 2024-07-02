@@ -1,0 +1,37 @@
+From 630dc3798e1d0d1b95f7be8b176563eb40e866e5 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Marek=20Marczykowski-G=C3=B3recki?=
+ <marmarek@invisiblethingslab.com>
+Date: Tue, 13 Dec 2022 15:23:54 +0100
+Subject: [PATCH 106/221] libxl: abort on memory allocation errors
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Use abort() instead of just _exit() in libxl__alloc_failed(). This
+is more friendly for debugging, as it will trap into debugger,
+systemd-coredump will collect coredump/backtrace etc. It's much more
+useful than just "libxl: FATAL ERROR: memory allocation failure (...)"
+message without context where it actually failed.
+
+Signed-off-by: Marek Marczykowski-Górecki <marmarek@invisiblethingslab.com>
+Acked-by: Anthony PERARD <anthony.perard@citrix.com>
+---
+ tools/libs/light/libxl_internal.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/tools/libs/light/libxl_internal.c b/tools/libs/light/libxl_internal.c
+index 86556b6113..c95624933f 100644
+--- a/tools/libs/light/libxl_internal.c
++++ b/tools/libs/light/libxl_internal.c
+@@ -36,7 +36,7 @@ void libxl__alloc_failed(libxl_ctx *ctx, const char *func,
+     }
+ 
+     fflush(stderr);
+-    _exit(-1);
++    abort();
+ #undef M_NSIZE
+ #undef M_SIZE
+ #undef M
+-- 
+2.17.1
+

@@ -1,0 +1,61 @@
+From 5488cc3a4d7caa75259cdeb5f5b9da227fc12360 Mon Sep 17 00:00:00 2001
+From: Jan Beulich <jbeulich@suse.com>
+Date: Fri, 2 Dec 2022 10:25:59 +0100
+Subject: [PATCH 033/221] gnttab: bail from GFN-storing loops early in case of
+ error
+
+The contents of the output arrays are undefined anyway when the
+operation itself gets marked as failed. There's no value in trying to
+continue after a guest memory access failure.
+
+Signed-off-by: Jan Beulich <jbeulich@suse.com>
+Reviewed-by: Andrew Cooper <andrew.cooper3@citrix.com>
+---
+ xen/common/compat/grant_table.c | 3 +++
+ xen/common/grant_table.c        | 6 ++++++
+ 2 files changed, 9 insertions(+)
+
+diff --git a/xen/common/compat/grant_table.c b/xen/common/compat/grant_table.c
+index 4f6d0b05fb..744f9b6e3d 100644
+--- a/xen/common/compat/grant_table.c
++++ b/xen/common/compat/grant_table.c
+@@ -179,7 +179,10 @@ int compat_grant_table_op(
+                             unsigned int frame = (_s_)->frame_list.p[i]; \
+                             if ( __copy_to_compat_offset((_d_)->frame_list, \
+                                                          i, &frame, 1) ) \
++                            { \
+                                 (_s_)->status = GNTST_bad_virt_addr; \
++                                break; \
++                            } \
+                         } \
+                     } \
+                 } while (0)
+diff --git a/xen/common/grant_table.c b/xen/common/grant_table.c
+index 6326bae5aa..fa28c3cb7b 100644
+--- a/xen/common/grant_table.c
++++ b/xen/common/grant_table.c
+@@ -2101,7 +2101,10 @@ gnttab_setup_table(
+         BUG_ON(SHARED_M2P(gmfn));
+ 
+         if ( __copy_to_guest_offset(op.frame_list, i, &gmfn, 1) )
++        {
+             op.status = GNTST_bad_virt_addr;
++            break;
++        }
+     }
+ 
+  unlock:
+@@ -3311,7 +3314,10 @@ gnttab_get_status_frames(XEN_GUEST_HANDLE_PARAM(gnttab_get_status_frames_t) uop,
+     {
+         gmfn = gfn_x(gnttab_status_gfn(d, gt, i));
+         if ( __copy_to_guest_offset(op.frame_list, i, &gmfn, 1) )
++        {
+             op.status = GNTST_bad_virt_addr;
++            break;
++        }
+     }
+ 
+  unlock:
+-- 
+2.17.1
+

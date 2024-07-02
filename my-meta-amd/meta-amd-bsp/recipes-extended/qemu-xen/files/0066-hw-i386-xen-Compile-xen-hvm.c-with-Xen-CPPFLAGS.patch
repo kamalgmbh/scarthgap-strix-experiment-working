@@ -1,0 +1,38 @@
+From 6a02a762d58f4d872c3a95a20d2a79b86216f356 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Philippe=20Mathieu-Daud=C3=A9?= <philmd@linaro.org>
+Date: Tue, 14 Nov 2023 15:23:24 +0100
+Subject: [PATCH 66/70] hw/i386/xen: Compile 'xen-hvm.c' with Xen CPPFLAGS
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+xen-hvm.c calls xc_set_hvm_param() from <xenctrl.h>,
+so better compile it with Xen CPPFLAGS.
+
+Signed-off-by: Philippe Mathieu-Daudé <philmd@linaro.org>
+Reviewed-by: David Woodhouse <dwmw@amazon.co.uk>
+Message-Id: <20231114143816.71079-19-philmd@linaro.org>
+Change-Id: I084bbd25023f8e5133577fb6f855798f22a9dc70
+---
+ hw/i386/xen/meson.build | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/hw/i386/xen/meson.build b/hw/i386/xen/meson.build
+index 3dc4c4f106..3f0df8bc07 100644
+--- a/hw/i386/xen/meson.build
++++ b/hw/i386/xen/meson.build
+@@ -1,8 +1,10 @@
+ i386_ss.add(when: 'CONFIG_XEN', if_true: files(
+-  'xen-hvm.c',
+   'xen_apic.c',
+   'xen_pvdevice.c',
+ ))
++i386_ss.add(when: ['CONFIG_XEN', xen], if_true: files(
++  'xen-hvm.c',
++))
+ 
+ i386_ss.add(when: 'CONFIG_XEN_BUS', if_true: files(
+   'xen_platform.c',
+-- 
+2.17.1
+

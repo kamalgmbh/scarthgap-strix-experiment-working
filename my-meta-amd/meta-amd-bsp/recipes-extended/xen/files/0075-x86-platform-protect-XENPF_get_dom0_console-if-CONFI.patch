@@ -1,0 +1,48 @@
+From 11b4ff64841efd9724e5c1fce81ec2b5484b8d57 Mon Sep 17 00:00:00 2001
+From: Michal Orzel <michal.orzel@amd.com>
+Date: Wed, 7 Dec 2022 12:18:36 +0100
+Subject: [PATCH 075/221] x86/platform: protect XENPF_get_dom0_console if
+ CONFIG_VIDEO not set
+
+A build failure [1] is observed if CONFIG_VGA (and thus CONFIG_VIDEO) is
+not set. This is because XENPF_get_dom0_console cmd of platform hypercall
+makes a call to fill_console_start_info, which is defined in video/vga.c
+and built only if CONFIG_VGA is set.
+
+To fix this issue, protect XENPF_get_dom0_console with CONFIG_VIDEO
+ifdefery.
+
+[1]:
+ld: prelink.o: in function `do_platform_op':
+(.text.do_platform_op+0x1a7): undefined reference to `fill_console_start_info'
+
+Fixes: 4dd160583c79 ("x86/platform: introduce hypercall to get initial video console settings")
+Signed-off-by: Michal Orzel <michal.orzel@amd.com>
+Acked-by: Jan Beulich <jbeulich@suse.com>
+---
+ xen/arch/x86/platform_hypercall.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/xen/arch/x86/platform_hypercall.c b/xen/arch/x86/platform_hypercall.c
+index 3f0d0389af..08ab2fea62 100644
+--- a/xen/arch/x86/platform_hypercall.c
++++ b/xen/arch/x86/platform_hypercall.c
+@@ -839,6 +839,7 @@ ret_t do_platform_op(
+     }
+     break;
+ 
++#ifdef CONFIG_VIDEO
+     case XENPF_get_dom0_console:
+         if ( !fill_console_start_info(&op->u.dom0_console) )
+         {
+@@ -849,6 +850,7 @@ ret_t do_platform_op(
+         if ( copy_field_to_guest(u_xenpf_op, op, u.dom0_console) )
+             ret = -EFAULT;
+         break;
++#endif
+ 
+     default:
+         ret = -ENOSYS;
+-- 
+2.17.1
+

@@ -1,0 +1,27 @@
+From b1324fbc9f23c2be21f923e34f4dda690ed578fa Mon Sep 17 00:00:00 2001
+From: Ozkan Sezer <sezeroz@gmail.com>
+Date: Mon, 5 Jun 2023 11:50:50 +0300
+Subject: [PATCH 423/458] fixed os/2 mouse relative motion not working (thanks
+ Andrey Vasilkin,)
+
+for issue reported at https://github.com/bitwiseworks/SDL2-os2/issues/5
+---
+ src/video/os2/SDL_os2mouse.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/src/video/os2/SDL_os2mouse.c b/src/video/os2/SDL_os2mouse.c
+index 869420c9a..bcbb4b403 100644
+--- a/src/video/os2/SDL_os2mouse.c
++++ b/src/video/os2/SDL_os2mouse.c
+@@ -126,6 +126,8 @@ static void OS2_WarpMouse(SDL_Window * window, int x, int y)
+     WinMapWindowPoints(pWinData->hwnd, HWND_DESKTOP, &pointl, 1);
+ /*  pWinData->lSkipWMMouseMove++; ???*/
+     WinSetPointerPos(HWND_DESKTOP, pointl.x, pointl.y);
++
++    SDL_SendMouseMotion(window, SDL_GetMouse()->mouseID, 0, x, y);
+ }
+ 
+ static int OS2_WarpMouseGlobal(int x, int y)
+-- 
+2.17.1
+

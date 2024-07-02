@@ -1,0 +1,30 @@
+From a47a045128f74ae66b67668ceb346343554eb452 Mon Sep 17 00:00:00 2001
+From: Frank Praznik <frank.praznik@gmail.com>
+Date: Thu, 12 Jan 2023 16:32:04 -0500
+Subject: [PATCH 152/458] wayland: Don't try to restore non-resizable windows
+
+Libdecor can crash if attempting to un-maximize a window that was not set as resizable.
+
+(cherry picked from commit e35c3872dc6a8f7741baba8b786b202cef7503ac)
+---
+ src/video/wayland/SDL_waylandwindow.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/src/video/wayland/SDL_waylandwindow.c b/src/video/wayland/SDL_waylandwindow.c
+index 0307378b6..e2f0c611c 100644
+--- a/src/video/wayland/SDL_waylandwindow.c
++++ b/src/video/wayland/SDL_waylandwindow.c
+@@ -1760,6 +1760,10 @@ void Wayland_RestoreWindow(_THIS, SDL_Window *window)
+         return;
+     }
+ 
++    if (!(window->flags & SDL_WINDOW_RESIZABLE)) {
++            return;
++    }
++
+     /* Set this flag now even if we never actually maximized, eventually
+      * ShowWindow will take care of it along with the other window state.
+      */
+-- 
+2.17.1
+

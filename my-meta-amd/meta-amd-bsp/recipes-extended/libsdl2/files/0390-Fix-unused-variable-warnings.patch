@@ -1,0 +1,40 @@
+From 891c89eeb854ffff05744f7ce313769bc655e531 Mon Sep 17 00:00:00 2001
+From: Frank Praznik <frank.praznik@gmail.com>
+Date: Tue, 23 May 2023 11:15:48 -0400
+Subject: [PATCH 390/458] Fix unused variable warnings
+
+---
+ src/video/wayland/SDL_waylandevents.c | 3 ---
+ 1 file changed, 3 deletions(-)
+
+diff --git a/src/video/wayland/SDL_waylandevents.c b/src/video/wayland/SDL_waylandevents.c
+index a940f9752..160185ffc 100644
+--- a/src/video/wayland/SDL_waylandevents.c
++++ b/src/video/wayland/SDL_waylandevents.c
+@@ -804,7 +804,6 @@ static void touch_handler_down(void *data, struct wl_touch *touch, uint32_t seri
+                                uint32_t timestamp, struct wl_surface *surface,
+                                int id, wl_fixed_t fx, wl_fixed_t fy)
+ {
+-    struct SDL_WaylandInput *input = (struct SDL_WaylandInput *)data;
+     SDL_WindowData *window_data;
+ 
+     /* Check that this surface belongs to one of the SDL windows */
+@@ -829,7 +828,6 @@ static void touch_handler_down(void *data, struct wl_touch *touch, uint32_t seri
+ static void touch_handler_up(void *data, struct wl_touch *touch, uint32_t serial,
+                              uint32_t timestamp, int id)
+ {
+-    struct SDL_WaylandInput *input = (struct SDL_WaylandInput *)data;
+     wl_fixed_t fx = 0, fy = 0;
+     struct wl_surface *surface = NULL;
+ 
+@@ -853,7 +851,6 @@ static void touch_handler_up(void *data, struct wl_touch *touch, uint32_t serial
+ static void touch_handler_motion(void *data, struct wl_touch *touch, uint32_t timestamp,
+                                  int id, wl_fixed_t fx, wl_fixed_t fy)
+ {
+-    struct SDL_WaylandInput *input = (struct SDL_WaylandInput *)data;
+     struct wl_surface *surface = NULL;
+ 
+     touch_update(id, fx, fy, &surface);
+-- 
+2.17.1
+

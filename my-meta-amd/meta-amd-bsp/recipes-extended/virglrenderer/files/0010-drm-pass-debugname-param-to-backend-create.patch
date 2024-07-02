@@ -1,0 +1,58 @@
+From 68c75aa615549468bfbb02bbc8adc9bba321c146 Mon Sep 17 00:00:00 2001
+From: Pierre-Eric Pelloux-Prayer <pierre-eric.pelloux-prayer@amd.com>
+Date: Fri, 23 Feb 2024 09:40:09 +0100
+Subject: [PATCH 10/16] drm: pass debugname param to backend::create
+
+Useful for debugging.
+---
+ src/drm/drm_renderer.c     | 6 +++---
+ src/drm/msm/msm_renderer.c | 2 +-
+ 2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/drm/drm_renderer.c b/src/drm/drm_renderer.c
+index 8e3ebe30..c6c0c5ba 100644
+--- a/src/drm/drm_renderer.c
++++ b/src/drm/drm_renderer.c
+@@ -27,7 +27,7 @@ static const struct backend {
+    uint32_t context_type;
+    const char *name;
+    int (*probe)(int fd, struct virgl_renderer_capset_drm *capset);
+-   struct virgl_context *(*create)(int fd);
++   struct virgl_context *(*create)(int fd, size_t debug_len, const char *debug_name);
+ } backends[] = {
+ #ifdef ENABLE_DRM_MSM
+    {
+@@ -116,7 +116,7 @@ drm_renderer_capset(void *_c)
+ }
+ 
+ struct virgl_context *
+-drm_renderer_create(UNUSED size_t debug_len, UNUSED const char *debug_name)
++drm_renderer_create(size_t debug_len, const char *debug_name)
+ {
+    for (unsigned i = 0; i < ARRAY_SIZE(backends); i++) {
+       const struct backend *b = &backends[i];
+@@ -128,7 +128,7 @@ drm_renderer_create(UNUSED size_t debug_len, UNUSED const char *debug_name)
+       if (fd < 0)
+          return NULL;
+ 
+-      return b->create(fd);
++      return b->create(fd, debug_len, debug_name);
+    }
+ 
+    return NULL;
+diff --git a/src/drm/msm/msm_renderer.c b/src/drm/msm/msm_renderer.c
+index 5133672f..7307bf5c 100644
+--- a/src/drm/msm/msm_renderer.c
++++ b/src/drm/msm/msm_renderer.c
+@@ -1293,7 +1293,7 @@ msm_renderer_submit_fence(struct virgl_context *vctx, uint32_t flags, uint32_t r
+ }
+ 
+ struct virgl_context *
+-msm_renderer_create(int fd)
++msm_renderer_create(int fd, UNUSED size_t debug_len, UNUSED const char *debug_name)
+ {
+    struct msm_context *mctx;
+ 
+-- 
+2.17.1
+

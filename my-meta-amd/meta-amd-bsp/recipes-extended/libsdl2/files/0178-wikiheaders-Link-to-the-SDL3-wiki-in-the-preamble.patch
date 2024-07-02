@@ -1,0 +1,23 @@
+From c83428475d1b5a1011e2ab6f5c2babedc0462d9c Mon Sep 17 00:00:00 2001
+From: "Ryan C. Gordon" <icculus@icculus.org>
+Date: Thu, 26 Jan 2023 14:45:12 -0500
+Subject: [PATCH 178/458] wikiheaders: Link to the SDL3 wiki in the preamble.
+
+Reference Issue #6568.
+---
+ .wikiheaders-options | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/.wikiheaders-options b/.wikiheaders-options
+index f6b64fdb9..85f4f3053 100644
+--- a/.wikiheaders-options
++++ b/.wikiheaders-options
+@@ -13,4 +13,4 @@ projecturl = https://libsdl.org/
+ wikiurl = https://wiki.libsdl.org/SDL2
+ bugreporturl = https://github.com/libsdl-org/sdlwiki/issues/new
+ warn_about_missing = 0
+-wikipreamble = (This is the legacy documentation for stable SDL2, the current stable version; SDL3 is the current development version.)
++wikipreamble = (This is the legacy documentation for stable SDL2, the current stable version; [SDL3](https://wiki.libsdl.org/SDL3/) is the current development version.)
+-- 
+2.17.1
+

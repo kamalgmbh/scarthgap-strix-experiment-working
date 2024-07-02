@@ -1,0 +1,42 @@
+From 8fddf146bf90f84bbf5ff17360994c6daac00245 Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Sat, 26 Nov 2022 13:09:50 -0800
+Subject: [PATCH 028/458] Temporary hack to address performance issues in
+ https://github.com/libsdl-org/SDL/issues/6581#issuecomment-1327987916 (thanks
+ @icculus!)
+
+(cherry picked from commit 9c8369e097b229997875c0aeb4dc9cfdcde0e2b2)
+---
+ src/SDL.c | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/src/SDL.c b/src/SDL.c
+index 6297159e4..cde3434a9 100644
+--- a/src/SDL.c
++++ b/src/SDL.c
+@@ -519,13 +519,21 @@ SDL_Quit(void)
+ void
+ SDL_GetVersion(SDL_version * ver)
+ {
++    static SDL_bool check_hint = SDL_TRUE;
++    static SDL_bool legacy_version = SDL_FALSE;
++
+     if (!ver) {
+         return;
+     }
+ 
+     SDL_VERSION(ver);
+ 
+-    if (SDL_GetHintBoolean("SDL_LEGACY_VERSION", SDL_FALSE)) {
++    if (check_hint) {
++        check_hint = SDL_FALSE;
++        legacy_version = SDL_GetHintBoolean("SDL_LEGACY_VERSION", SDL_FALSE);
++    }
++
++    if (legacy_version) {
+         /* Prior to SDL 2.24.0, the patch version was incremented with every release */
+         ver->patch = ver->minor;
+         ver->minor = 0;
+-- 
+2.17.1
+

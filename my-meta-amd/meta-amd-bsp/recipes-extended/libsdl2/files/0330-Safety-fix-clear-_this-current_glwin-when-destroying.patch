@@ -1,0 +1,29 @@
+From 6574e5eb57da52d9072a196af70e7406b8757a35 Mon Sep 17 00:00:00 2001
+From: Sylvain <sylvain.becker@gmail.com>
+Date: Tue, 28 Mar 2023 09:48:58 +0200
+Subject: [PATCH 330/458] Safety fix: clear "_this->current_glwin" when
+ destroying the window
+
+(cherry picked from commit 0c048d98af449f1bc540e256c90eb792f1effff4)
+---
+ src/video/SDL_video.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/src/video/SDL_video.c b/src/video/SDL_video.c
+index 7e774913f..573b38f05 100644
+--- a/src/video/SDL_video.c
++++ b/src/video/SDL_video.c
+@@ -3272,6 +3272,10 @@ void SDL_DestroyWindow(SDL_Window *window)
+         _this->grabbed_window = NULL; /* ungrabbing input. */
+     }
+ 
++    if (_this->current_glwin == window) {
++        _this->current_glwin = NULL;
++    }
++
+     /* Now invalidate magic */
+     window->magic = NULL;
+ 
+-- 
+2.17.1
+

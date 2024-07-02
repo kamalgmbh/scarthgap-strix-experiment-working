@@ -1,0 +1,34 @@
+From d5680c5d203ed0bdf50477d61512150a2eb3b315 Mon Sep 17 00:00:00 2001
+From: "Ryan C. Gordon" <icculus@icculus.org>
+Date: Thu, 26 Jan 2023 10:19:23 -0500
+Subject: [PATCH 177/458] wikiheaders: Allow markdown in the wikipreamble
+ string.
+
+Reference Issue #6568.
+
+(cherry picked from commit a089b2ea19404f6dacd083327e13cae888b58993)
+---
+ build-scripts/wikiheaders.pl | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/build-scripts/wikiheaders.pl b/build-scripts/wikiheaders.pl
+index 79214c2ca..e9793d474 100755
+--- a/build-scripts/wikiheaders.pl
++++ b/build-scripts/wikiheaders.pl
+@@ -1169,10 +1169,11 @@ if ($copy_direction == 1) {  # --copy-to-headers
+         $$sectionsref{'[footer]'} = $footer;
+ 
+         if (defined $wikipreamble) {
++            my $wikified_preamble = wikify($wikitype, $wikipreamble);
+             if ($wikitype eq 'mediawiki') {
+-                print FH "====== $wikipreamble ======\n";
++                print FH "====== $wikified_preamble ======\n";
+             } elsif ($wikitype eq 'md') {
+-                print FH "###### $wikipreamble\n";
++                print FH "###### $wikified_preamble\n";
+             } else { die("Unexpected wikitype '$wikitype'\n"); }
+         }
+ 
+-- 
+2.17.1
+

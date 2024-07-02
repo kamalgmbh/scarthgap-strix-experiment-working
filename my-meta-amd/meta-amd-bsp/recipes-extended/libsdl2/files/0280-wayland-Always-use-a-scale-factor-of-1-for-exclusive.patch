@@ -1,0 +1,32 @@
+From 6a999d16faf29b49ed54efaec523cc028937fca8 Mon Sep 17 00:00:00 2001
+From: Frank Praznik <frank.praznik@gmail.com>
+Date: Wed, 8 Mar 2023 19:18:35 -0500
+Subject: [PATCH 280/458] wayland: Always use a scale factor of 1 for exclusive
+ fullscreen emulation
+
+---
+ src/video/wayland/SDL_waylandwindow.c | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/video/wayland/SDL_waylandwindow.c b/src/video/wayland/SDL_waylandwindow.c
+index 9c402fa74..e18db6825 100644
+--- a/src/video/wayland/SDL_waylandwindow.c
++++ b/src/video/wayland/SDL_waylandwindow.c
+@@ -266,8 +266,12 @@ static void ConfigureWindowGeometry(SDL_Window *window)
+             } else {
+                 UnsetDrawSurfaceViewport(window);
+ 
+-                /* Round to the next integer in case of a fractional value. */
+-                wl_surface_set_buffer_scale(data->surface, (int32_t)SDL_ceilf(data->scale_factor));
++                if (!FullscreenModeEmulation(window)) {
++                    /* Round to the next integer in case of a fractional value. */
++                    wl_surface_set_buffer_scale(data->surface, (int32_t)SDL_ceilf(data->scale_factor));
++                } else {
++                    wl_surface_set_buffer_scale(data->surface, 1);
++                }
+             }
+ 
+             /* Clamp the physical window size to the system minimum required size. */
+-- 
+2.17.1
+

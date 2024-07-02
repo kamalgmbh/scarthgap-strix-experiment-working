@@ -1,0 +1,82 @@
+From 6a3086fa231508920d6acd534f9a21b41fed62c8 Mon Sep 17 00:00:00 2001
+From: Chaudhary Amit Kumar <chaudharyamit.kumar@amd.com>
+Date: Tue, 18 Jun 2024 20:27:59 +0530
+Subject: [PATCH 5/5] wgp: wgp harvesting based on inactive WGP
+
+Change-Id: Ief044e796a63806ef76541aff3136ba4bf229b85
+---
+ drivers/gpu/drm/amd/amdgpu/gfx_v11_0.c | 51 +++++++++++++++++++++++++-
+ 1 file changed, 49 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/gpu/drm/amd/amdgpu/gfx_v11_0.c b/drivers/gpu/drm/amd/amdgpu/gfx_v11_0.c
+index 487ed1570cb2..47cbcdc7cb2b 100644
+--- a/drivers/gpu/drm/amd/amdgpu/gfx_v11_0.c
++++ b/drivers/gpu/drm/amd/amdgpu/gfx_v11_0.c
+@@ -6310,15 +6310,62 @@ static void gfx_v11_0_set_user_wgp_inactive_bitmap_per_sh(struct amdgpu_device *
+ 							  u32 bitmap)
+ {
+ 	u32 data;
+-
++	u32 mask = 0;
++	u32 dmask;
++	u32 flag = 0;
+ 	if (!bitmap)
+ 		return;
+ 
++	mask = RREG32_SOC15(GC, 0, regCC_GC_SHADER_ARRAY_CONFIG);
+ 	data = bitmap << GC_USER_SHADER_ARRAY_CONFIG__INACTIVE_WGPS__SHIFT;
+ 	data &= GC_USER_SHADER_ARRAY_CONFIG__INACTIVE_WGPS_MASK;
+ 
+ 	// Harvesting 2 WGP's from SA
+-	data |= 0x30000;
++
++	if(mask == 0xfff10000 && flag ==0)
++	{
++		dmask = 0x70000;
++		flag = 1;
++	}
++	if(mask == 0xfff80000 && flag == 1)
++	{
++		dmask=0x20000;
++	}
++
++	if(mask == 0xfff20000 && flag ==0)
++	{
++                dmask = 0x70000;
++                flag = 2;
++        }
++
++        if(mask == 0xfff80000 && flag == 2)
++	{
++                dmask=0x20000;
++	}
++
++        if(mask == 0xfff40000 && flag ==0)
++        {
++                dmask = 0x70000;
++                flag = 3;
++        }
++
++        if(mask == 0xfff80000 && flag == 3)
++	{
++                dmask=0x20000;
++	}
++
++	if(mask == 0xfff80000 && flag ==0)
++	{
++		dmask=0x30000;
++		flag = 4 ;
++	}
++
++        if(mask == 0xfff40000 && flag == 4)
++	{
++                dmask=0x30000;
++	}
++
++	data |= dmask;
+ 
+ 	WREG32_SOC15(GC, 0, regGC_USER_SHADER_ARRAY_CONFIG, data);
+ }
+-- 
+2.34.1
+

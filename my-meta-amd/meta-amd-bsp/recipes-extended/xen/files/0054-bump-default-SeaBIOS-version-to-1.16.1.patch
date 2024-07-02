@@ -1,0 +1,27 @@
+From 83c822a13f418c6192bab6758ce5dca49d456b91 Mon Sep 17 00:00:00 2001
+From: Jan Beulich <jbeulich@suse.com>
+Date: Mon, 5 Dec 2022 13:42:47 +0100
+Subject: [PATCH 054/221] bump default SeaBIOS version to 1.16.1
+
+Signed-off-by: Jan Beulich <jbeulich@suse.com>
+Acked-by: Andrew Cooper <andrew.cooper3@citrix.com>
+---
+ Config.mk | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/Config.mk b/Config.mk
+index 69af1e60d4..10eb443b17 100644
+--- a/Config.mk
++++ b/Config.mk
+@@ -232,7 +232,7 @@ OVMF_UPSTREAM_REVISION ?= 7b4a99be8a39c12d3a7fc4b8db9f0eab4ac688d5
+ QEMU_UPSTREAM_REVISION ?= master
+ MINIOS_UPSTREAM_REVISION ?= 5bcb28aaeba1c2506a82fab0cdad0201cd9b54b3
+ 
+-SEABIOS_UPSTREAM_REVISION ?= rel-1.16.0
++SEABIOS_UPSTREAM_REVISION ?= rel-1.16.1
+ 
+ ETHERBOOT_NICS ?= rtl8139 8086100e
+ 
+-- 
+2.17.1
+

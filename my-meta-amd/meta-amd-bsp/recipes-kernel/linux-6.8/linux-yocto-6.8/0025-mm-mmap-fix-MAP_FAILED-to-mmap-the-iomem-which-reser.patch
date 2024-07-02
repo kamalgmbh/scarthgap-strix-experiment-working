@@ -1,0 +1,42 @@
+From ffedaeb76075c7f09a43b44ed19f4e496e5df680 Mon Sep 17 00:00:00 2001
+From: Huang Rui <ray.huang@amd.com>
+Date: Tue, 20 Sep 2022 08:34:04 +0800
+Subject: [PATCH 25/49] mm/mmap: fix MAP_FAILED to mmap the iomem which
+ reserved for guest vm on Xen
+
+The mmap error is in virgl_renderer_resource_map():
+
+map = mmap(NULL, res->map_size, PROT_WRITE | PROT_READ, MAP_SHARED, res->fd, 0)
+
+{res_id = 1791, pipe_resource = 0x0, fd_type = VIRGL_RESOURCE_FD_DMABUF, fd =
+44, iov = 0x0, iov_count = 0, map_info = 3, map_size = 16777216, mapped = 0x0,
+private_data = 0x0}
+
+This map returns the MAP_FAILED to cause "Virgl blob resource map error:
+Invalid argument". The map_size is 10 Mbytes, I think it should be reasonable,
+so I guess the problem should be invalid shared buffer in the file (FD 44). The
+error reports the physmapping doesn't existed at 0000000200280000 (above 4G
+memory). So we add FMODE_WRITE flag once prot is requesting PROT_WRITE behavior
+to resolve MAP_FAILED problem.
+
+Signed-off-by: Huang Rui <ray.huang@amd.com>
+---
+ mm/mmap.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 3281287771c9..389c32b76f15 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -1314,7 +1314,7 @@ unsigned long do_mmap(struct file *file, unsigned long addr,
+ 				return -EOPNOTSUPP;
+ 			if (prot & PROT_WRITE) {
+ 				if (!(file->f_mode & FMODE_WRITE))
+-					return -EACCES;
++					file->f_mode |= FMODE_WRITE;
+ 				if (IS_SWAPFILE(file->f_mapping->host))
+ 					return -ETXTBSY;
+ 			}
+-- 
+2.17.1
+

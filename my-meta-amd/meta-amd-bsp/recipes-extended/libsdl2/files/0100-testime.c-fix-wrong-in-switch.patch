@@ -1,0 +1,32 @@
+From 8e72be31171dc4891169fa99ee78aaf4c0f20367 Mon Sep 17 00:00:00 2001
+From: Sylvain <sylvain.becker@gmail.com>
+Date: Thu, 15 Dec 2022 14:26:18 +0100
+Subject: [PATCH 100/458] testime.c: fix wrong {} in switch
+
+---
+ test/testime.c | 2 --
+ 1 file changed, 2 deletions(-)
+
+diff --git a/test/testime.c b/test/testime.c
+index 3e8cd97a5..318231ac1 100644
+--- a/test/testime.c
++++ b/test/testime.c
+@@ -689,7 +689,6 @@ int main(int argc, char *argv[])
+             SDLTest_CommonEvent(state, &event, &done);
+             switch (event.type) {
+             case SDL_KEYDOWN:
+-            {
+                 switch (event.key.keysym.sym) {
+                 case SDLK_RETURN:
+                     text[0] = 0x00;
+@@ -764,7 +763,6 @@ int main(int argc, char *argv[])
+                 cursor = event.edit.start;
+                 Redraw();
+                 break;
+-            } break;
+             }
+         }
+     }
+-- 
+2.17.1
+

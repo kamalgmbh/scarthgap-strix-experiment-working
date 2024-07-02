@@ -1,0 +1,114 @@
+From 0c6fb2ecc83675b4cf87dfe182538887fc55eaab Mon Sep 17 00:00:00 2001
+From: Sophia Gong <lili.gong@amd.com>
+Date: Fri, 5 Jan 2024 14:03:27 +0800
+Subject: [PATCH 456/458] wayland: add a new sdl window flag for crc check
+
+disable display crc check by this flag setting.
+
+Signed-off-by: Sophia Gong <lili.gong@amd.com>
+Change-Id: I1f323547306ffc513c0c3a3bc76cc3f2e4c7c945
+---
+ include/SDL_video.h                   | 1 +
+ src/video/SDL_video.c                 | 8 +++++++-
+ src/video/wayland/SDL_waylandvideo.c  | 7 +++++--
+ src/video/wayland/SDL_waylandvideo.h  | 1 +
+ src/video/wayland/SDL_waylandwindow.c | 7 +++++++
+ 5 files changed, 21 insertions(+), 3 deletions(-)
+
+diff --git a/include/SDL_video.h b/include/SDL_video.h
+index a8f67a188..e312b0695 100644
+--- a/include/SDL_video.h
++++ b/include/SDL_video.h
+@@ -126,6 +126,7 @@ typedef enum
+     SDL_WINDOW_KEYBOARD_GRABBED = 0x00100000,   /**< window has grabbed keyboard input */
+     SDL_WINDOW_VULKAN           = 0x10000000,   /**< window usable for Vulkan surface */
+     SDL_WINDOW_METAL            = 0x20000000,   /**< window usable for Metal view */
++    SDL_WINDOW_CRC_CHECK        = 0x40000000,   /**< window should perform secure check */
+ 
+     SDL_WINDOW_INPUT_GRABBED = SDL_WINDOW_MOUSE_GRABBED, /**< equivalent to SDL_WINDOW_MOUSE_GRABBED for compatibility */
+ 
+diff --git a/src/video/SDL_video.c b/src/video/SDL_video.c
+index ae7f6897b..0d5a5b517 100644
+--- a/src/video/SDL_video.c
++++ b/src/video/SDL_video.c
+@@ -1500,7 +1500,13 @@ static int SDL_UpdateFullscreenMode(SDL_Window *window, SDL_bool fullscreen)
+ }
+ 
+ #define CREATE_FLAGS \
+-    (SDL_WINDOW_OPENGL | SDL_WINDOW_BORDERLESS | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_ALWAYS_ON_TOP | SDL_WINDOW_SKIP_TASKBAR | SDL_WINDOW_POPUP_MENU | SDL_WINDOW_UTILITY | SDL_WINDOW_TOOLTIP | SDL_WINDOW_VULKAN | SDL_WINDOW_MINIMIZED | SDL_WINDOW_METAL)
++    (SDL_WINDOW_OPENGL | SDL_WINDOW_BORDERLESS | \
++     SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI | \
++     SDL_WINDOW_ALWAYS_ON_TOP | SDL_WINDOW_SKIP_TASKBAR | \
++     SDL_WINDOW_POPUP_MENU | SDL_WINDOW_UTILITY | \
++     SDL_WINDOW_TOOLTIP | SDL_WINDOW_VULKAN | \
++     SDL_WINDOW_MINIMIZED | SDL_WINDOW_METAL | \
++     SDL_WINDOW_CRC_CHECK)
+ 
+ static SDL_INLINE SDL_bool IsAcceptingDragAndDrop(void)
+ {
+diff --git a/src/video/wayland/SDL_waylandvideo.c b/src/video/wayland/SDL_waylandvideo.c
+index fdce0e1ef..9140f436d 100644
+--- a/src/video/wayland/SDL_waylandvideo.c
++++ b/src/video/wayland/SDL_waylandvideo.c
+@@ -695,6 +695,7 @@ static void Wayland_add_display(SDL_VideoData *d, uint32_t id)
+     data->registry_id = id;
+     data->scale_factor = 1.0f;
+     data->index = -1;
++    data->has_crc_check = SDL_FALSE;
+ 
+     wl_output_add_listener(output, &output_listener, data);
+     SDL_WAYLAND_register_output(output);
+@@ -750,9 +751,11 @@ static void Wayland_free_display(SDL_VideoData *d, uint32_t id)
+                 zxdg_output_v1_destroy(data->xdg_output);
+             }
+ 	    if (data->secure_crtc) {
+-                secure_display_crtc_v1_set_roi(data->secure_crtc, 0, 0, 0, 0, 0);
++                if (data->has_crc_check) {
++                    secure_display_crtc_v1_set_roi(data->secure_crtc, 0, 0, 0, 0, 0);
++                }
+                 secure_display_crtc_v1_destroy(data->secure_crtc);
+-	    }
++            }
+             wl_output_destroy(data->output);
+             SDL_free(data);
+ 
+diff --git a/src/video/wayland/SDL_waylandvideo.h b/src/video/wayland/SDL_waylandvideo.h
+index 76807f24b..753bb4ce5 100644
+--- a/src/video/wayland/SDL_waylandvideo.h
++++ b/src/video/wayland/SDL_waylandvideo.h
+@@ -118,6 +118,7 @@ struct SDL_WaylandOutputData
+     int physical_width, physical_height;
+     float ddpi, hdpi, vdpi;
+     SDL_bool has_logical_position, has_logical_size;
++    SDL_bool has_crc_check;
+     int index;
+     SDL_VideoDisplay placeholder;
+     int wl_output_done_count;
+diff --git a/src/video/wayland/SDL_waylandwindow.c b/src/video/wayland/SDL_waylandwindow.c
+index 8420ec724..2fd921bcb 100644
+--- a/src/video/wayland/SDL_waylandwindow.c
++++ b/src/video/wayland/SDL_waylandwindow.c
+@@ -2053,6 +2053,7 @@ int Wayland_CreateWindow(_THIS, SDL_Window *window)
+     SDL_WindowData *data;
+     SDL_VideoData *c;
+     SDL_WindowEglSurfaceData *egl_data;
++    SDL_WaylandOutputData *output;
+ 
+     data = SDL_calloc(1, sizeof(*data));
+     if (data == NULL) {
+@@ -2069,6 +2070,12 @@ int Wayland_CreateWindow(_THIS, SDL_Window *window)
+         }
+     }
+ 
++    output = (SDL_WaylandOutputData *)SDL_GetDisplayForWindow(window)->driverdata;
++    if (output) {
++        output->has_crc_check =
++           (window->flags & SDL_WINDOW_CRC_CHECK) ? SDL_TRUE : SDL_FALSE;
++    }
++
+     if (window->x == SDL_WINDOWPOS_UNDEFINED) {
+         window->x = 0;
+     }
+-- 
+2.17.1
+

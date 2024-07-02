@@ -1,0 +1,48 @@
+From 2afb49ba9a2edc361a3b35d8e30be977a5bcc0c4 Mon Sep 17 00:00:00 2001
+From: "Ryan C. Gordon" <icculus@icculus.org>
+Date: Sun, 11 Jun 2023 12:43:47 -0400
+Subject: [PATCH 433/458] cocoa: Warp mouse to center of window before enabling
+ relative mouse.
+
+This prevents the case where the mouse might be at the edge of the
+window when enabling relative mode, which confuses macOS, at it
+might believe the user is attempting to resize the window.
+
+Fixes #6994.
+---
+ src/video/cocoa/SDL_cocoamouse.m | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/src/video/cocoa/SDL_cocoamouse.m b/src/video/cocoa/SDL_cocoamouse.m
+index 0321c6c80..c148296a4 100644
+--- a/src/video/cocoa/SDL_cocoamouse.m
++++ b/src/video/cocoa/SDL_cocoamouse.m
+@@ -287,10 +287,16 @@ static void Cocoa_WarpMouse(SDL_Window * window, int x, int y)
+ 
+ static int Cocoa_SetRelativeMouseMode(SDL_bool enabled)
+ {
++    SDL_Window *window = SDL_GetKeyboardFocus();
+     CGError result;
+-    SDL_Window *window;
+     SDL_WindowData *data;
+     if (enabled) {
++        if (window) {
++            /* make sure the mouse isn't at the corner of the window, as this can confuse things if macOS thinks a window resize is happening on the first click. */
++            const CGPoint point = CGPointMake((float)(window->x + (window->w / 2)), (float)(window->y + (window->h / 2)));
++            Cocoa_HandleMouseWarp(point.x, point.y);
++            CGWarpMouseCursorPosition(point);
++        }
+         DLog("Turning on.");
+         result = CGAssociateMouseAndMouseCursorPosition(NO);
+     } else {
+@@ -304,7 +310,6 @@ static int Cocoa_SetRelativeMouseMode(SDL_bool enabled)
+     /* We will re-apply the non-relative mode when the window gets focus, if it
+      * doesn't have focus right now.
+      */
+-    window = SDL_GetKeyboardFocus();
+     if (!window) {
+         return 0;
+     }
+-- 
+2.17.1
+

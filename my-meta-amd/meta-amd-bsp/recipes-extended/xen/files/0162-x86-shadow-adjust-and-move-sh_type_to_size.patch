@@ -1,0 +1,149 @@
+From 4fec945409fcd52f5d95a66a2087920816b77854 Mon Sep 17 00:00:00 2001
+From: Jan Beulich <jbeulich@suse.com>
+Date: Thu, 22 Dec 2022 10:07:50 +0100
+Subject: [PATCH 162/221] x86/shadow: adjust and move sh_type_to_size[]
+
+Drop the SH_type_none entry - there are no allocation attempts with
+this type, and there also shouldn't be any. Adjust the shadow_size()
+alternative path to match that change. Also generalize two related
+assertions.
+
+While there move the entire table and the respective part of the comment
+there to hvm.c, resulting in one less #ifdef. In the course of the
+movement switch to using designated initializers.
+
+Signed-off-by: Jan Beulich <jbeulich@suse.com>
+Reviewed-by: Andrew Cooper <andrew.cooper3@citrix.com>
+---
+ xen/arch/x86/mm/shadow/common.c  | 37 ++------------------------------
+ xen/arch/x86/mm/shadow/hvm.c     | 31 ++++++++++++++++++++++++++
+ xen/arch/x86/mm/shadow/private.h |  2 +-
+ 3 files changed, 34 insertions(+), 36 deletions(-)
+
+diff --git a/xen/arch/x86/mm/shadow/common.c b/xen/arch/x86/mm/shadow/common.c
+index 16a5a2bcf8..b0ef574890 100644
+--- a/xen/arch/x86/mm/shadow/common.c
++++ b/xen/arch/x86/mm/shadow/common.c
+@@ -833,44 +833,11 @@ sh_validate_guest_entry(struct vcpu *v, mfn_t gmfn, void *entry, u32 size)
+  * not contiguous in memory; functions for handling offsets into them are
+  * defined in shadow/multi.c (shadow_l1_index() etc.)
+  *
+- * This table shows the allocation behaviour of the different modes:
+- *
+- * Xen paging      64b  64b  64b
+- * Guest paging    32b  pae  64b
+- * PV or HVM       HVM  HVM   *
+- * Shadow paging   pae  pae  64b
+- *
+- * sl1 size         8k   4k   4k
+- * sl2 size        16k   4k   4k
+- * sl3 size         -    -    4k
+- * sl4 size         -    -    4k
+- *
+  * In HVM guests, the p2m table is built out of shadow pages, and we provide
+  * a function for the p2m management to steal pages, in max-order chunks, from
+  * the free pool.
+  */
+ 
+-#ifdef CONFIG_HVM
+-const u8 sh_type_to_size[] = {
+-    1, /* SH_type_none           */
+-    2, /* SH_type_l1_32_shadow   */
+-    2, /* SH_type_fl1_32_shadow  */
+-    4, /* SH_type_l2_32_shadow   */
+-    1, /* SH_type_l1_pae_shadow  */
+-    1, /* SH_type_fl1_pae_shadow */
+-    1, /* SH_type_l2_pae_shadow  */
+-    1, /* SH_type_l1_64_shadow   */
+-    1, /* SH_type_fl1_64_shadow  */
+-    1, /* SH_type_l2_64_shadow   */
+-    1, /* SH_type_l2h_64_shadow  */
+-    1, /* SH_type_l3_64_shadow   */
+-    1, /* SH_type_l4_64_shadow   */
+-    1, /* SH_type_p2m_table      */
+-    1, /* SH_type_monitor_table  */
+-    1  /* SH_type_oos_snapshot   */
+-};
+-#endif
+-
+ /*
+  * Figure out the least acceptable quantity of shadow memory.
+  * The minimum memory requirement for always being able to free up a
+@@ -1116,7 +1083,7 @@ mfn_t shadow_alloc(struct domain *d,
+     unsigned int i;
+ 
+     ASSERT(paging_locked_by_me(d));
+-    ASSERT(shadow_type != SH_type_none);
++    ASSERT(pages);
+     perfc_incr(shadow_alloc);
+ 
+     if ( d->arch.paging.free_pages < pages )
+@@ -1196,9 +1163,9 @@ void shadow_free(struct domain *d, mfn_t smfn)
+     perfc_incr(shadow_free);
+ 
+     shadow_type = sp->u.sh.type;
+-    ASSERT(shadow_type != SH_type_none);
+     ASSERT(sp->u.sh.head || (shadow_type > SH_type_max_shadow));
+     pages = shadow_size(shadow_type);
++    ASSERT(pages);
+     pin_list = &d->arch.paging.shadow.pinned_shadows;
+ 
+     for ( i = 0; i < pages; i++ )
+diff --git a/xen/arch/x86/mm/shadow/hvm.c b/xen/arch/x86/mm/shadow/hvm.c
+index 88c3c16322..f14fc42eab 100644
+--- a/xen/arch/x86/mm/shadow/hvm.c
++++ b/xen/arch/x86/mm/shadow/hvm.c
+@@ -33,6 +33,37 @@
+ 
+ #include "private.h"
+ 
++/*
++ * This table shows the allocation behaviour of the different modes:
++ *
++ * Xen paging      64b  64b  64b
++ * Guest paging    32b  pae  64b
++ * PV or HVM       HVM  HVM   *
++ * Shadow paging   pae  pae  64b
++ *
++ * sl1 size         8k   4k   4k
++ * sl2 size        16k   4k   4k
++ * sl3 size         -    -    4k
++ * sl4 size         -    -    4k
++ */
++const uint8_t sh_type_to_size[] = {
++    [SH_type_l1_32_shadow]   = 2,
++    [SH_type_fl1_32_shadow]  = 2,
++    [SH_type_l2_32_shadow]   = 4,
++    [SH_type_l1_pae_shadow]  = 1,
++    [SH_type_fl1_pae_shadow] = 1,
++    [SH_type_l2_pae_shadow]  = 1,
++    [SH_type_l1_64_shadow]   = 1,
++    [SH_type_fl1_64_shadow]  = 1,
++    [SH_type_l2_64_shadow]   = 1,
++    [SH_type_l2h_64_shadow]  = 1,
++    [SH_type_l3_64_shadow]   = 1,
++    [SH_type_l4_64_shadow]   = 1,
++    [SH_type_p2m_table]      = 1,
++    [SH_type_monitor_table]  = 1,
++    [SH_type_oos_snapshot]   = 1,
++};
++
+ /**************************************************************************/
+ /* x86 emulator support for the shadow code
+  */
+diff --git a/xen/arch/x86/mm/shadow/private.h b/xen/arch/x86/mm/shadow/private.h
+index b8a62ec1ff..2c2c18985d 100644
+--- a/xen/arch/x86/mm/shadow/private.h
++++ b/xen/arch/x86/mm/shadow/private.h
+@@ -363,7 +363,7 @@ shadow_size(unsigned int shadow_type)
+     return sh_type_to_size[shadow_type];
+ #else
+     ASSERT(shadow_type < SH_type_unused);
+-    return 1;
++    return shadow_type != SH_type_none;
+ #endif
+ }
+ 
+-- 
+2.17.1
+

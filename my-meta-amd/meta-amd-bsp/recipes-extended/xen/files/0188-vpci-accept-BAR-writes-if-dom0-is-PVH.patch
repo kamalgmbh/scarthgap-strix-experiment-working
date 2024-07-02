@@ -1,0 +1,32 @@
+From d69ce523394b8392a12ee93fa4ad5f6797e0f11e Mon Sep 17 00:00:00 2001
+From: jiqichen <Jiqian.Chen@amd.com>
+Date: Mon, 30 Jan 2023 13:53:46 +0800
+Subject: [PATCH 188/221] vpci: accept BAR writes if dom0 is PVH
+
+When dom0 is PVH and we want to passthrough gpu to guest,
+we should allow BAR writes even through BAR is mapped. If
+not, the value of BARs are not initialized when guest firstly
+start.
+
+Signed-off-by: Chen Jiqian <Jiqian.Chen@amd.com>
+Change-Id: Id7182dacdf004e8cf6c8cc8d6c1c5b132796f0ed
+---
+ xen/drivers/vpci/header.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/xen/drivers/vpci/header.c b/xen/drivers/vpci/header.c
+index ec2e978a4e..918d11fbce 100644
+--- a/xen/drivers/vpci/header.c
++++ b/xen/drivers/vpci/header.c
+@@ -392,7 +392,7 @@ static void cf_check bar_write(
+      * Xen only cares whether the BAR is mapped into the p2m, so allow BAR
+      * writes as long as the BAR is not mapped into the p2m.
+      */
+-    if ( bar->enabled )
++    if ( pci_conf_read16(pdev->sbdf, PCI_COMMAND) & PCI_COMMAND_MEMORY )
+     {
+         /* If the value written is the current one avoid printing a warning. */
+         if ( val != (uint32_t)(bar->addr >> (hi ? 32 : 0)) )
+-- 
+2.17.1
+

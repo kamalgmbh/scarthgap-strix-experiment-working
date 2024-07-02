@@ -1,0 +1,26 @@
+From e0e79419b68ce80bb15621e736e37e6f6ae365e5 Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Tue, 7 Mar 2023 10:08:55 -0800
+Subject: [PATCH 272/458] Fixed which window we check flags for when updating
+ fullscreen mode
+
+---
+ src/video/SDL_video.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/video/SDL_video.c b/src/video/SDL_video.c
+index f30811c65..12f4e2176 100644
+--- a/src/video/SDL_video.c
++++ b/src/video/SDL_video.c
+@@ -1446,7 +1446,7 @@ static int SDL_UpdateFullscreenMode(SDL_Window *window, SDL_bool fullscreen)
+                 }
+ 
+                 /* only do the mode change if we want exclusive fullscreen */
+-                if ((window->flags & SDL_WINDOW_FULLSCREEN_DESKTOP) != SDL_WINDOW_FULLSCREEN_DESKTOP) {
++                if ((other->flags & SDL_WINDOW_FULLSCREEN_DESKTOP) != SDL_WINDOW_FULLSCREEN_DESKTOP) {
+                     if (SDL_SetDisplayModeForDisplay(display, &fullscreen_mode) < 0) {
+                         return -1;
+                     }
+-- 
+2.17.1
+

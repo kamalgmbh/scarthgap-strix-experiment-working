@@ -1,0 +1,38 @@
+From 6a0d1914f0b19742436367a0019602992573bd4b Mon Sep 17 00:00:00 2001
+From: Juergen Gross <jgross@suse.com>
+Date: Wed, 14 Dec 2022 12:01:47 +0100
+Subject: [PATCH 108/221] tools/xenstore: let tdb_logger() preserve errno
+
+tdb_logger() is called by TDB for logging errors. As errno is checked
+often after doing the logging, tdb_logger() should preserve errno.
+
+Signed-off-by: Juergen Gross <jgross@suse.com>
+Reviewed-by: Julien Grall <jgrall@amazon.com>
+---
+ tools/xenstore/xenstored_core.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/tools/xenstore/xenstored_core.c b/tools/xenstore/xenstored_core.c
+index 476d5c6d51..4cd54c8b5a 100644
+--- a/tools/xenstore/xenstored_core.c
++++ b/tools/xenstore/xenstored_core.c
+@@ -2347,6 +2347,7 @@ static void tdb_logger(TDB_CONTEXT *tdb, int level, const char * fmt, ...)
+ {
+ 	va_list ap;
+ 	char *s;
++	int saved_errno = errno;
+ 
+ 	va_start(ap, fmt);
+ 	s = talloc_vasprintf(NULL, fmt, ap);
+@@ -2362,6 +2363,8 @@ static void tdb_logger(TDB_CONTEXT *tdb, int level, const char * fmt, ...)
+ 		trace("talloc failure during logging\n");
+ 		syslog(LOG_ERR, "talloc failure during logging\n");
+ 	}
++
++	errno = saved_errno;
+ }
+ 
+ void setup_structure(bool live_update)
+-- 
+2.17.1
+

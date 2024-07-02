@@ -1,0 +1,48 @@
+From 4504c10f3b0eced75bc8720b32f18ea2c81567d5 Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Wed, 30 Nov 2022 16:37:20 -0800
+Subject: [PATCH 056/458] Re-enabled support for third party PS3 controllers
+
+---
+ src/joystick/hidapi/SDL_hidapi_ps3.c | 8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)
+
+diff --git a/src/joystick/hidapi/SDL_hidapi_ps3.c b/src/joystick/hidapi/SDL_hidapi_ps3.c
+index ba775276b..71d5365f2 100644
+--- a/src/joystick/hidapi/SDL_hidapi_ps3.c
++++ b/src/joystick/hidapi/SDL_hidapi_ps3.c
+@@ -571,13 +571,9 @@ SDL_HIDAPI_DeviceDriver SDL_HIDAPI_DriverPS3 = {
+ 
+ static SDL_bool HIDAPI_DriverPS3ThirdParty_IsEnabled(void)
+ {
+-#if 1 /* Not enabled by default, we don't know what the L3/R3 buttons are */
+-    return SDL_GetHintBoolean(SDL_HINT_JOYSTICK_HIDAPI_PS3, SDL_FALSE);
+-#else
+     return SDL_GetHintBoolean(SDL_HINT_JOYSTICK_HIDAPI_PS3,
+                               SDL_GetHintBoolean(SDL_HINT_JOYSTICK_HIDAPI,
+                                                  SDL_HIDAPI_DEFAULT));
+-#endif
+ }
+ 
+ static SDL_bool HIDAPI_DriverPS3ThirdParty_IsSupportedDevice(SDL_HIDAPI_Device *device, const char *name, SDL_GameControllerType type, Uint16 vendor_id, Uint16 product_id, Uint16 version, int interface_number, int interface_class, int interface_subclass, int interface_protocol)
+@@ -586,7 +582,7 @@ static SDL_bool HIDAPI_DriverPS3ThirdParty_IsSupportedDevice(SDL_HIDAPI_Device *
+     int size;
+ 
+     if (SONY_THIRDPARTY_VENDOR(vendor_id)) {
+-        if (device) {
++        if (device && device->dev) {
+             if ((size = ReadFeatureReport(device->dev, 0x03, data, sizeof(data))) == 8 &&
+                 data[2] == 0x26) {
+                 /* Supported third party controller */
+@@ -690,6 +686,8 @@ static void HIDAPI_DriverPS3ThirdParty_HandleStatePacket(SDL_Joystick *joystick,
+     if (ctx->last_state[1] != data[1]) {
+         SDL_PrivateJoystickButton(joystick, SDL_CONTROLLER_BUTTON_BACK, (data[1] & 0x01) ? SDL_PRESSED : SDL_RELEASED);
+         SDL_PrivateJoystickButton(joystick, SDL_CONTROLLER_BUTTON_START, (data[1] & 0x02) ? SDL_PRESSED : SDL_RELEASED);
++        SDL_PrivateJoystickButton(joystick, SDL_CONTROLLER_BUTTON_LEFTSTICK, (data[1] & 0x04) ? SDL_PRESSED : SDL_RELEASED);
++        SDL_PrivateJoystickButton(joystick, SDL_CONTROLLER_BUTTON_RIGHTSTICK, (data[1] & 0x08) ? SDL_PRESSED : SDL_RELEASED);
+         SDL_PrivateJoystickButton(joystick, SDL_CONTROLLER_BUTTON_GUIDE, (data[1] & 0x10) ? SDL_PRESSED : SDL_RELEASED);
+     }
+ 
+-- 
+2.17.1
+

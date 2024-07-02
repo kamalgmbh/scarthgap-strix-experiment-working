@@ -1,0 +1,68 @@
+From 03697629bc1d05742098038bf3e93f519b0a7711 Mon Sep 17 00:00:00 2001
+From: Julien Grall <jgrall@amazon.com>
+Date: Fri, 23 Dec 2022 09:26:36 +0000
+Subject: [PATCH 164/221] xen/common: page_alloc: Re-order includes
+
+Order the includes with the xen headers first, then asm headers and
+last public headers. Within each category, they are sorted alphabetically.
+
+Note that the includes in protected by CONFIG_X86 hasn't been sorted
+to avoid adding multiple #ifdef.
+
+Signed-off-by: Julien Grall <jgrall@amazon.com>
+Acked-by: Jan Beulich <jbeulich@suse.com>
+---
+ xen/common/page_alloc.c | 29 ++++++++++++++++-------------
+ 1 file changed, 16 insertions(+), 13 deletions(-)
+
+diff --git a/xen/common/page_alloc.c b/xen/common/page_alloc.c
+index 2b39a2a42f..e40473f71e 100644
+--- a/xen/common/page_alloc.c
++++ b/xen/common/page_alloc.c
+@@ -120,27 +120,30 @@
+  *   regions within it.
+  */
+ 
++#include <xen/domain_page.h>
++#include <xen/event.h>
+ #include <xen/init.h>
+-#include <xen/types.h>
++#include <xen/irq.h>
++#include <xen/keyhandler.h>
+ #include <xen/lib.h>
+-#include <xen/sched.h>
+-#include <xen/spinlock.h>
+ #include <xen/mm.h>
++#include <xen/nodemask.h>
++#include <xen/numa.h>
+ #include <xen/param.h>
+-#include <xen/irq.h>
+-#include <xen/softirq.h>
+-#include <xen/domain_page.h>
+-#include <xen/keyhandler.h>
+ #include <xen/perfc.h>
+ #include <xen/pfn.h>
+-#include <xen/numa.h>
+-#include <xen/nodemask.h>
+-#include <xen/event.h>
++#include <xen/types.h>
++#include <xen/sched.h>
++#include <xen/softirq.h>
++#include <xen/spinlock.h>
++
++#include <asm/flushtlb.h>
++#include <asm/numa.h>
++#include <asm/page.h>
++
+ #include <public/sysctl.h>
+ #include <public/sched.h>
+-#include <asm/page.h>
+-#include <asm/numa.h>
+-#include <asm/flushtlb.h>
++
+ #ifdef CONFIG_X86
+ #include <asm/guest.h>
+ #include <asm/p2m.h>
+-- 
+2.17.1
+

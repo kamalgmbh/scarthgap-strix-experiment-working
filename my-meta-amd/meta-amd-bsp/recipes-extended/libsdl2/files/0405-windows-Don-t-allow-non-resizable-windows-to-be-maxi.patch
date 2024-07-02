@@ -1,0 +1,40 @@
+From d275851dfbd586910ddf1fbed8ef54714afbe6c4 Mon Sep 17 00:00:00 2001
+From: "Ryan C. Gordon" <icculus@icculus.org>
+Date: Mon, 29 May 2023 14:46:58 -0400
+Subject: [PATCH 405/458] windows: Don't allow non-resizable windows to be
+ maximized.
+
+Fixes #6346.
+---
+ src/video/windows/SDL_windowswindow.c | 15 ++++++++++-----
+ 1 file changed, 10 insertions(+), 5 deletions(-)
+
+diff --git a/src/video/windows/SDL_windowswindow.c b/src/video/windows/SDL_windowswindow.c
+index 874418bae..1d128f7dd 100644
+--- a/src/video/windows/SDL_windowswindow.c
++++ b/src/video/windows/SDL_windowswindow.c
+@@ -847,11 +847,16 @@ void WIN_RaiseWindow(_THIS, SDL_Window *window)
+ 
+ void WIN_MaximizeWindow(_THIS, SDL_Window *window)
+ {
+-    SDL_WindowData *data = (SDL_WindowData *)window->driverdata;
+-    HWND hwnd = data->hwnd;
+-    data->expected_resize = SDL_TRUE;
+-    ShowWindow(hwnd, SW_MAXIMIZE);
+-    data->expected_resize = SDL_FALSE;
++    /* Other platforms refuse to maximize a non-resizable window, and with win32,
++       the OS resizes the window weirdly (covering the taskbar) if you don't have
++       the STYLE_RESIZABLE flag set. So just forbid it for now. */
++    if (window->flags & SDL_WINDOW_RESIZABLE) {
++        SDL_WindowData *data = (SDL_WindowData *)window->driverdata;
++        HWND hwnd = data->hwnd;
++        data->expected_resize = SDL_TRUE;
++        ShowWindow(hwnd, SW_MAXIMIZE);
++        data->expected_resize = SDL_FALSE;
++    }
+ }
+ 
+ void WIN_MinimizeWindow(_THIS, SDL_Window *window)
+-- 
+2.17.1
+

@@ -1,0 +1,50 @@
+From 5ae465e7c6626fccdacaa4a85680f3ca1442c888 Mon Sep 17 00:00:00 2001
+From: Raghavendra Prasad Mallela <raghavendraprasad.mallela@amd.com>
+Date: Mon, 6 May 2024 11:28:44 +0530
+Subject: [PATCH 3/4] Rounding to get no of bytes sent by I2S
+
+Alsa Core will calculate the audio timestamp based
+on no of bytes sent by the I2S controller at that
+instance. Snd back end driver will read the audio
+timestamp and calculate back the no bytes that are
+rendered on the I2S Bus. As time stamp evaluates
+to float value, some bytes are getting missed while
+sending to DOMU as it is converted to fixed point.
+This patch fixes this issue by performing a round
+operation and helps to send DOMU the exact no of
+bytes what HW is returning.
+
+Signed-off-by: Raghavendra Prasad Mallela <raghavendraprasad.mallela@amd.com>
+Change-Id: I9a909cb5392286a9b0bd56e0a8abbdf6938ec42d
+---
+ snd_be/src/AlsaPcm.cpp | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/snd_be/src/AlsaPcm.cpp b/snd_be/src/AlsaPcm.cpp
+index 5150194..d665bd1 100644
+--- a/snd_be/src/AlsaPcm.cpp
++++ b/snd_be/src/AlsaPcm.cpp
+@@ -18,6 +18,8 @@
+  * Copyright (C) 2016 EPAM Systems Inc.
+  */
+ 
++#include <string>
++
+ #include "AlsaPcm.hpp"
+ 
+ #include <xen/io/sndif.h>
+@@ -517,9 +519,8 @@ void AlsaPcm::getTimeStamp()
+ 
+ 	snd_pcm_status_get_audio_htstamp(status, &audioTimeStamp);
+ 
+-	uint64_t frame = ((audioTimeStamp.tv_sec * 1000000000 +
+-					 audioTimeStamp.tv_nsec) * mParams.rate) / 1000000000;
+-
++	uint64_t frame = llround((float)((audioTimeStamp.tv_sec * 1000000000 +
++		audioTimeStamp.tv_nsec) * mParams.rate) / 1000000000);
+ 
+ 	uint64_t bytes;
+ 
+-- 
+2.17.1
+

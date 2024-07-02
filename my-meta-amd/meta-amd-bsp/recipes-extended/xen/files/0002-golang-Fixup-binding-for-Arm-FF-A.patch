@@ -1,0 +1,30 @@
+From 51b8bbe580bcce770a3f6cf726cea133d46aeb6a Mon Sep 17 00:00:00 2001
+From: Jason Andryuk <jandryuk@gmail.com>
+Date: Fri, 3 Nov 2023 15:45:50 -0400
+Subject: [PATCH 002/106] golang: Fixup binding for Arm FF-A
+
+The new FF-A TEE type changed the go bindings.  Update them.
+
+Fixes: 8abdd8d52862 ("tools: add Arm FF-A mediator")
+Signed-off-by: Jason Andryuk <jandryuk@gmail.com>
+Acked-by: George Dunlap <george.dunlap@cloud.com>
+(cherry picked from commit 1429f9c5486d94296ada441f14d1b7934885da06)
+---
+ tools/golang/xenlight/types.gen.go | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/tools/golang/xenlight/types.gen.go b/tools/golang/xenlight/types.gen.go
+index 4f40aac28c..6a9ebb3fec 100644
+--- a/tools/golang/xenlight/types.gen.go
++++ b/tools/golang/xenlight/types.gen.go
+@@ -488,6 +488,7 @@ type TeeType int
+ const(
+ TeeTypeNone TeeType = 0
+ TeeTypeOptee TeeType = 1
++TeeTypeFfa TeeType = 2
+ )
+ 
+ type SveType int
+-- 
+2.25.1
+

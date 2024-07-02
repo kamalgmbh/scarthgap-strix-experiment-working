@@ -1,0 +1,35 @@
+From 0bf63175aba4371b914021a214d1b6ae97375d76 Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Tue, 28 Mar 2023 14:44:28 -0700
+Subject: [PATCH 338/458] Fixed gyro values for the Armor-X Pro controller
+
+(cherry picked from commit 8df7b4d8539338121b1e34e29f331b28f1f4ff05)
+---
+ src/joystick/hidapi/SDL_hidapi_ps4.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/joystick/hidapi/SDL_hidapi_ps4.c b/src/joystick/hidapi/SDL_hidapi_ps4.c
+index ab50a85a5..f304e3e4b 100644
+--- a/src/joystick/hidapi/SDL_hidapi_ps4.c
++++ b/src/joystick/hidapi/SDL_hidapi_ps4.c
+@@ -605,13 +605,15 @@ static void HIDAPI_DriverPS4_LoadCalibrationData(SDL_HIDAPI_Device *device)
+ 
+             if (device->vendor_id == USB_VENDOR_SONY &&
+                 device->product_id == USB_PRODUCT_SONY_DS4_STRIKEPAD) {
+-                /* The Armor-X Pro seems to rotate in the opposite direction on the Z axis */
++                /* The Armor-X Pro seems to only deliver half the rotation it should,
++                 * and in the opposite direction on the Z axis */
+                 switch (i) {
+                 case 0:
+                 case 1:
++                    scale *= 2.0;
+                     break;
+                 case 2:
+-                    scale *= -1.0;
++                    scale *= -2.0;
+                     break;
+                 default:
+                     break;
+-- 
+2.17.1
+

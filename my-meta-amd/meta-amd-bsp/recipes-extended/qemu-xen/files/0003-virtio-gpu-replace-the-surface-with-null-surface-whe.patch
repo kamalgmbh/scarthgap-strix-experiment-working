@@ -1,0 +1,94 @@
+From 5f3a2e4d8626eb1c8c6f134ae267bb4761296482 Mon Sep 17 00:00:00 2001
+From: Dongwon Kim <dongwon.kim@intel.com>
+Date: Tue, 27 Jun 2023 15:44:51 -0700
+Subject: [PATCH 03/70] virtio-gpu: replace the surface with null surface when
+ resetting
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The primary guest scanout shows the booting screen right after reboot
+but additional guest displays (i.e. max_ouptuts > 1) will keep displaying
+the old frames until the guest virtio gpu driver gets initialized, which
+could cause some confusion. A better way is to to replace the surface with
+a place holder that tells the display is not active during the reset of
+virtio-gpu device.
+
+And to immediately update the surface with the place holder image after
+the switch, displaychangelistener_gfx_switch needs to be called with
+'update == TRUE' in dpy_gfx_replace_surface when the new surface is NULL.
+
+Cc: Gerd Hoffmann <kraxel@redhat.com>
+Cc: Marc-André Lureau <marcandre.lureau@redhat.com>
+Cc: Vivek Kasireddy <vivek.kasireddy@intel.com>
+Signed-off-by: Dongwon Kim <dongwon.kim@intel.com>
+Acked-by: Marc-André Lureau <marcandre.lureau@redhat.com>
+Message-ID: <20230627224451.11739-1-dongwon.kim@intel.com>
+---
+ hw/display/virtio-gpu.c |  5 +++++
+ ui/console.c            | 11 ++++++-----
+ 2 files changed, 11 insertions(+), 5 deletions(-)
+
+diff --git a/hw/display/virtio-gpu.c b/hw/display/virtio-gpu.c
+index ac0288d81f..9f3deb221d 100644
+--- a/hw/display/virtio-gpu.c
++++ b/hw/display/virtio-gpu.c
+@@ -1350,6 +1350,7 @@ void virtio_gpu_reset(VirtIODevice *vdev)
+     VirtIOGPU *g = VIRTIO_GPU(vdev);
+     struct virtio_gpu_simple_resource *res, *tmp;
+     struct virtio_gpu_ctrl_command *cmd;
++    int i = 0;
+ 
+     QTAILQ_FOREACH_SAFE(res, &g->reslist, next, tmp) {
+         virtio_gpu_resource_destroy(g, res);
+@@ -1368,6 +1369,10 @@ void virtio_gpu_reset(VirtIODevice *vdev)
+         g_free(cmd);
+     }
+ 
++    for (i = 0; i < g->parent_obj.conf.max_outputs; i++) {
++        dpy_gfx_replace_surface(g->parent_obj.scanout[i].con, NULL);
++    }
++
+     virtio_gpu_base_reset(VIRTIO_GPU_BASE(vdev));
+ }
+ 
+diff --git a/ui/console.c b/ui/console.c
+index 7461446e71..fbc3e7b8f2 100644
+--- a/ui/console.c
++++ b/ui/console.c
+@@ -1787,6 +1787,7 @@ void dpy_gfx_replace_surface(QemuConsole *con,
+     static const char placeholder_msg[] = "Display output is not active.";
+     DisplayState *s = con->ds;
+     DisplaySurface *old_surface = con->surface;
++    DisplaySurface *new_surface = surface;
+     DisplayChangeListener *dcl;
+     int width;
+     int height;
+@@ -1800,19 +1801,19 @@ void dpy_gfx_replace_surface(QemuConsole *con,
+             height = 480;
+         }
+ 
+-        surface = qemu_create_placeholder_surface(width, height, placeholder_msg);
++        new_surface = qemu_create_placeholder_surface(width, height, placeholder_msg);
+     }
+ 
+-    assert(old_surface != surface);
++    assert(old_surface != new_surface);
+ 
+     con->scanout.kind = SCANOUT_SURFACE;
+-    con->surface = surface;
+-    dpy_gfx_create_texture(con, surface);
++    con->surface = new_surface;
++    dpy_gfx_create_texture(con, new_surface);
+     QLIST_FOREACH(dcl, &s->listeners, next) {
+         if (con != (dcl->con ? dcl->con : active_console)) {
+             continue;
+         }
+-        displaychangelistener_gfx_switch(dcl, surface, FALSE);
++        displaychangelistener_gfx_switch(dcl, new_surface, surface ? FALSE : TRUE);
+     }
+     dpy_gfx_destroy_texture(con, old_surface);
+     qemu_free_displaysurface(old_surface);
+-- 
+2.17.1
+

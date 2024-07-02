@@ -1,0 +1,36 @@
+From 2df39e64ab481bebb97378a50c97e37a52da6bc8 Mon Sep 17 00:00:00 2001
+From: Joshua Root <jmr@macports.org>
+Date: Sun, 27 Nov 2022 11:27:19 +1100
+Subject: [PATCH 029/458] Fix build with Xcode < 7
+
+The _Nullable attribute is not available in older versions.
+
+(cherry picked from commit 9a64aa6f95298bf459f8b9dca583df7064956cd9)
+---
+ src/video/cocoa/SDL_cocoaopengl.m | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
+
+diff --git a/src/video/cocoa/SDL_cocoaopengl.m b/src/video/cocoa/SDL_cocoaopengl.m
+index 2cdbc17e9..58df449a3 100644
+--- a/src/video/cocoa/SDL_cocoaopengl.m
++++ b/src/video/cocoa/SDL_cocoaopengl.m
+@@ -44,6 +44,16 @@
+ #pragma clang diagnostic ignored "-Wdeprecated-declarations"
+ #endif
+ 
++/* _Nullable is available starting Xcode 7 */
++#ifdef __has_feature
++#if __has_feature(nullability)
++#define HAS_FEATURE_NULLABLE
++#endif
++#endif
++#ifndef HAS_FEATURE_NULLABLE
++#define _Nullable
++#endif
++
+ static SDL_bool SDL_opengl_async_dispatch = SDL_FALSE;
+ 
+ static void SDLCALL
+-- 
+2.17.1
+

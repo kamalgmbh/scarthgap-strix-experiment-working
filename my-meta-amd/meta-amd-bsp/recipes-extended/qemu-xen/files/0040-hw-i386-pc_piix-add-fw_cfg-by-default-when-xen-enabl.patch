@@ -1,0 +1,41 @@
+From 715a6abf0afad8b1d77cf41b7308f06272337f90 Mon Sep 17 00:00:00 2001
+From: Xenia Ragiadakou <xenia.ragiadakou@amd.com>
+Date: Wed, 12 Jul 2023 12:27:45 +0300
+Subject: [PATCH 40/70] hw/i386/pc_piix: add fw_cfg by default when xen enabled
+
+OVMF requires fw_cfg to be present in order to retrieve suspend states
+for S3 suspend/resume to be supported.
+
+Signed-off-by: Xenia Ragiadakou <xenia.ragiadakou@amd.com>
+Change-Id: I90f3acbb8c63d751228608ed4faf52278b75d963
+---
+ hw/i386/pc_piix.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/hw/i386/pc_piix.c b/hw/i386/pc_piix.c
+index 30eedd62a3..743189bca0 100644
+--- a/hw/i386/pc_piix.c
++++ b/hw/i386/pc_piix.c
+@@ -66,6 +66,7 @@
+ #include "hw/hyperv/vmbus-bridge.h"
+ #include "hw/mem/nvdimm.h"
+ #include "hw/i386/acpi-build.h"
++#include "hw/i386/fw_cfg.h"
+ #include "kvm/kvm-cpu.h"
+ 
+ #define MAX_IDE_BUS 2
+@@ -214,6 +215,11 @@ static void pc_init1(MachineState *machine,
+             /* For xen HVM direct kernel boot, load linux here */
+             xen_load_linux(pcms);
+         }
++        else {
++            FWCfgState *fw_cfg;
++            fw_cfg = fw_cfg_init_io(FW_CFG_IO_BASE);
++            rom_set_fw(fw_cfg);
++        }
+     }
+ 
+     gsi_state = pc_gsi_create(&x86ms->gsi, pcmc->pci_enabled);
+-- 
+2.17.1
+

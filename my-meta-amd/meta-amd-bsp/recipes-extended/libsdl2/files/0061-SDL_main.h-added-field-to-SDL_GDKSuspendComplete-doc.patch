@@ -1,0 +1,25 @@
+From e57554ea65e6bffa8b491344c7f619ab29376e60 Mon Sep 17 00:00:00 2001
+From: Ozkan Sezer <sezeroz@gmail.com>
+Date: Thu, 1 Dec 2022 20:37:00 +0300
+Subject: [PATCH 061/458] SDL_main.h: added  field to SDL_GDKSuspendComplete
+ documentation.
+
+---
+ include/SDL_main.h | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/include/SDL_main.h b/include/SDL_main.h
+index 31eade117..fe978d9e7 100644
+--- a/include/SDL_main.h
++++ b/include/SDL_main.h
+@@ -266,6 +266,7 @@ extern DECLSPEC int SDLCALL SDL_GDKRunApp(SDL_main_func mainFunction, void *rese
+ /**
+  * Callback from the application to let the suspend continue.
+  *
++ * \since This function is available since SDL 2.28.0.
+  */
+ extern DECLSPEC void SDLCALL SDL_GDKSuspendComplete(void);
+ 
+-- 
+2.17.1
+

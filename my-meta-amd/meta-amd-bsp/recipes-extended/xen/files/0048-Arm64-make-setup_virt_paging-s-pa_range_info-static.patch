@@ -1,0 +1,39 @@
+From a51a244b9df58a9a8e1431f13a80349caac1ca00 Mon Sep 17 00:00:00 2001
+From: Jan Beulich <jbeulich@suse.com>
+Date: Tue, 29 Nov 2022 15:39:05 +0100
+Subject: [PATCH 048/221] Arm64: make setup_virt_paging()'s pa_range_info[]
+ static
+
+While not as inefficient as it would be on x86 (due to suitable constant
+loading and register pair storing instructions being available to fill
+some of the fields), having the compiler construct an array of constants
+on the stack still looks odd to me.
+
+Signed-off-by: Jan Beulich <jbeulich@suse.com>
+Acked-by: Julien Grall <jgrall@amazon.com>
+---
+ xen/arch/arm/p2m.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/xen/arch/arm/p2m.c b/xen/arch/arm/p2m.c
+index 9bc5443d9e..fee830192a 100644
+--- a/xen/arch/arm/p2m.c
++++ b/xen/arch/arm/p2m.c
+@@ -2281,12 +2281,12 @@ void __init setup_virt_paging(void)
+     val |= VTCR_T0SZ(0x18); /* 40 bit IPA */
+     val |= VTCR_SL0(0x1); /* P2M starts at first level */
+ #else /* CONFIG_ARM_64 */
+-    const struct {
++    static const struct {
+         unsigned int pabits; /* Physical Address Size */
+         unsigned int t0sz;   /* Desired T0SZ, minimum in comment */
+         unsigned int root_order; /* Page order of the root of the p2m */
+         unsigned int sl0;    /* Desired SL0, maximum in comment */
+-    } pa_range_info[] = {
++    } pa_range_info[] __initconst = {
+         /* T0SZ minimum and SL0 maximum from ARM DDI 0487H.a Table D5-6 */
+         /*      PA size, t0sz(min), root-order, sl0(max) */
+         [0] = { 32,      32/*32*/,  0,          1 },
+-- 
+2.17.1
+

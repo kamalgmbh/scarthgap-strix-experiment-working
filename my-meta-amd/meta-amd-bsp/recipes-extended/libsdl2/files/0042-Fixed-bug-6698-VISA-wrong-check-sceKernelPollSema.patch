@@ -1,0 +1,36 @@
+From b7cc4dce70883490e653c9e74ee2a07adb99352b Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Tue, 29 Nov 2022 08:50:51 -0800
+Subject: [PATCH 042/458] Fixed bug #6698 - VISA: wrong check sceKernelPollSema
+
+(cherry picked from commit f077c691930f70a2e826eb40cbd0e35a7465a4af)
+---
+ src/thread/vita/SDL_syssem.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/thread/vita/SDL_syssem.c b/src/thread/vita/SDL_syssem.c
+index 1067d4a3a..8f5b4f82b 100644
+--- a/src/thread/vita/SDL_syssem.c
++++ b/src/thread/vita/SDL_syssem.c
+@@ -80,15 +80,15 @@ void SDL_DestroySemaphore(SDL_sem *sem)
+ int SDL_SemWaitTimeout(SDL_sem *sem, Uint32 timeout)
+ {
+     Uint32 *pTimeout;
+-    unsigned int res;
++    int res;
+ 
+     if (sem == NULL) {
+         return SDL_InvalidParamError("sem");
+     }
+ 
+     if (timeout == 0) {
+-        int res2 = sceKernelPollSema(sem->semid, 1);
+-        if (res2 < 0) {
++        res = sceKernelPollSema(sem->semid, 1);
++        if (res < 0) {
+             return SDL_MUTEX_TIMEDOUT;
+         }
+         return 0;
+-- 
+2.17.1
+

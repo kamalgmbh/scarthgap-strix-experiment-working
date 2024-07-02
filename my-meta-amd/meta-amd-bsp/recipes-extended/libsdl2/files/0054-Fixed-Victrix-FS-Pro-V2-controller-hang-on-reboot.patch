@@ -1,0 +1,32 @@
+From 9e997cc787856d101656109e296c7fb481b1d934 Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Wed, 30 Nov 2022 15:39:10 -0800
+Subject: [PATCH 054/458] Fixed Victrix FS Pro V2 controller hang on reboot
+
+---
+ src/joystick/hidapi/SDL_hidapi_ps4.c | 9 +++++++++
+ 1 file changed, 9 insertions(+)
+
+diff --git a/src/joystick/hidapi/SDL_hidapi_ps4.c b/src/joystick/hidapi/SDL_hidapi_ps4.c
+index e17e5002f..647822a18 100644
+--- a/src/joystick/hidapi/SDL_hidapi_ps4.c
++++ b/src/joystick/hidapi/SDL_hidapi_ps4.c
+@@ -374,6 +374,15 @@ static SDL_bool HIDAPI_DriverPS4_InitDevice(SDL_HIDAPI_Device *device)
+     }
+     ctx->effects_supported = (ctx->lightbar_supported || ctx->vibration_supported);
+ 
++    if (device->vendor_id == USB_VENDOR_PDP &&
++        device->product_id == USB_PRODUCT_VICTRIX_FS_PRO_V2) {
++        /* The Victrix FS Pro V2 reports that it has lightbar support,
++         * but it doesn't respond to the effects packet, and will hang
++         * on reboot if we send it.
++         */
++        ctx->effects_supported = SDL_FALSE;
++    }
++
+     device->joystick_type = joystick_type;
+     device->type = SDL_CONTROLLER_TYPE_PS4;
+     if (device->vendor_id == USB_VENDOR_SONY) {
+-- 
+2.17.1
+

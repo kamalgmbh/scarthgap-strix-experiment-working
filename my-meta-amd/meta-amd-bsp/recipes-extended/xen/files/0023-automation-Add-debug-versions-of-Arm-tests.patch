@@ -1,0 +1,186 @@
+From 673f21c6ca9074f4bef12b80a038888dc1874e10 Mon Sep 17 00:00:00 2001
+From: Michal Orzel <michal.orzel@amd.com>
+Date: Tue, 27 Sep 2022 11:47:21 +0200
+Subject: [PATCH 023/221] automation: Add debug versions of Arm tests
+
+At the moment, all the tests are executed on non-debug Xen builds.
+To improve the coverage (e.g. we might catch some asserts), add new
+test jobs using debug Xen builds.
+
+Signed-off-by: Michal Orzel <michal.orzel@amd.com>
+Reviewed-by: Stefano Stabellini <sstabellini@kernel.org>
+Reviewed-by: Luca Fancellu <luca.fancellu@arm.com>
+---
+ automation/gitlab-ci/build.yaml | 16 ++++++
+ automation/gitlab-ci/test.yaml  | 93 +++++++++++++++++++++++++++++++++
+ 2 files changed, 109 insertions(+)
+
+diff --git a/automation/gitlab-ci/build.yaml b/automation/gitlab-ci/build.yaml
+index 14328c1895..93d9ff69a9 100644
+--- a/automation/gitlab-ci/build.yaml
++++ b/automation/gitlab-ci/build.yaml
+@@ -589,6 +589,15 @@ alpine-3.12-gcc-arm64-staticmem:
+       CONFIG_UNSUPPORTED=y
+       CONFIG_STATIC_MEMORY=y
+ 
++alpine-3.12-gcc-debug-arm64-staticmem:
++  extends: .gcc-arm64-build-debug
++  variables:
++    CONTAINER: alpine:3.12-arm64v8
++    EXTRA_XEN_CONFIG: |
++      CONFIG_EXPERT=y
++      CONFIG_UNSUPPORTED=y
++      CONFIG_STATIC_MEMORY=y
++
+ alpine-3.12-gcc-arm64-boot-cpupools:
+   extends: .gcc-arm64-build
+   variables:
+@@ -599,6 +608,13 @@ alpine-3.12-gcc-arm64-boot-cpupools:
+       CONFIG_SCHED_NULL=y
+       CONFIG_BOOT_TIME_CPUPOOLS=y
+ 
++alpine-3.12-gcc-debug-arm64-boot-cpupools:
++  extends: .gcc-arm64-build-debug
++  variables:
++    CONTAINER: alpine:3.12-arm64v8
++    EXTRA_XEN_CONFIG: |
++      CONFIG_BOOT_TIME_CPUPOOLS=y
++
+ ## Test artifacts common
+ 
+ .test-jobs-artifact-common:
+diff --git a/automation/gitlab-ci/test.yaml b/automation/gitlab-ci/test.yaml
+index 4f96e6e322..1b51030c61 100644
+--- a/automation/gitlab-ci/test.yaml
++++ b/automation/gitlab-ci/test.yaml
+@@ -44,6 +44,25 @@ qemu-alpine-arm64-gcc:
+   tags:
+     - arm64
+ 
++qemu-alpine-arm64-gcc-debug:
++  extends: .test-jobs-common
++  variables:
++    CONTAINER: debian:unstable-arm64v8
++  script:
++    - ./automation/scripts/qemu-alpine-arm64.sh 2>&1 | tee qemu-smoke-arm64.log
++  needs:
++    - alpine-3.12-gcc-debug-arm64
++    - alpine-3.12-arm64-rootfs-export
++    - kernel-5.19-arm64-export
++    - qemu-system-aarch64-6.0.0-arm64-export
++  artifacts:
++    paths:
++      - smoke.serial
++      - '*.log'
++    when: always
++  tags:
++    - arm64
++
+ qemu-alpine-x86_64-gcc:
+   extends: .test-jobs-common
+   variables:
+@@ -81,6 +100,25 @@ qemu-smoke-arm64-gcc:
+   tags:
+     - arm64
+ 
++qemu-smoke-arm64-gcc-debug:
++  extends: .test-jobs-common
++  variables:
++    CONTAINER: debian:unstable-arm64v8
++  script:
++    - ./automation/scripts/qemu-smoke-arm64.sh 2>&1 | tee qemu-smoke-arm64.log
++  needs:
++    - alpine-3.12-gcc-debug-arm64
++    - alpine-3.12-arm64-rootfs-export
++    - kernel-5.19-arm64-export
++    - qemu-system-aarch64-6.0.0-arm64-export
++  artifacts:
++    paths:
++      - smoke.serial
++      - '*.log'
++    when: always
++  tags:
++    - arm64
++
+ qemu-smoke-arm64-gcc-staticmem:
+   extends: .test-jobs-common
+   variables:
+@@ -100,6 +138,25 @@ qemu-smoke-arm64-gcc-staticmem:
+   tags:
+     - arm64
+ 
++qemu-smoke-arm64-gcc-debug-staticmem:
++  extends: .test-jobs-common
++  variables:
++    CONTAINER: debian:unstable-arm64v8
++  script:
++    - ./automation/scripts/qemu-smoke-arm64.sh static-mem 2>&1 | tee qemu-smoke-arm64.log
++  needs:
++    - alpine-3.12-gcc-debug-arm64-staticmem
++    - alpine-3.12-arm64-rootfs-export
++    - kernel-5.19-arm64-export
++    - qemu-system-aarch64-6.0.0-arm64-export
++  artifacts:
++    paths:
++      - smoke.serial
++      - '*.log'
++    when: always
++  tags:
++    - arm64
++
+ qemu-smoke-arm64-gcc-boot-cpupools:
+   extends: .test-jobs-common
+   variables:
+@@ -119,6 +176,25 @@ qemu-smoke-arm64-gcc-boot-cpupools:
+   tags:
+     - arm64
+ 
++qemu-smoke-arm64-gcc-debug-boot-cpupools:
++  extends: .test-jobs-common
++  variables:
++    CONTAINER: debian:unstable-arm64v8
++  script:
++    - ./automation/scripts/qemu-smoke-arm64.sh boot-cpupools 2>&1 | tee qemu-smoke-arm64.log
++  needs:
++    - alpine-3.12-gcc-debug-arm64-boot-cpupools
++    - alpine-3.12-arm64-rootfs-export
++    - kernel-5.19-arm64-export
++    - qemu-system-aarch64-6.0.0-arm64-export
++  artifacts:
++    paths:
++      - smoke.serial
++      - '*.log'
++    when: always
++  tags:
++    - arm64
++
+ qemu-smoke-arm32-gcc:
+   extends: .test-jobs-common
+   variables:
+@@ -136,6 +212,23 @@ qemu-smoke-arm32-gcc:
+   tags:
+     - arm64
+ 
++qemu-smoke-arm32-gcc-debug:
++  extends: .test-jobs-common
++  variables:
++    CONTAINER: debian:unstable-arm64v8
++  script:
++    - ./automation/scripts/qemu-smoke-arm32.sh 2>&1 | tee qemu-smoke-arm32.log
++  needs:
++    - debian-unstable-gcc-arm32-debug
++    - qemu-system-aarch64-6.0.0-arm32-export
++  artifacts:
++    paths:
++      - smoke.serial
++      - '*.log'
++    when: always
++  tags:
++    - arm64
++
+ qemu-smoke-x86-64-gcc:
+   extends: .test-jobs-common
+   variables:
+-- 
+2.17.1
+

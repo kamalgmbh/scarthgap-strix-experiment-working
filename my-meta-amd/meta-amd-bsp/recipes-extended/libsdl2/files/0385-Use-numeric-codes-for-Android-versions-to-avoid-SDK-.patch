@@ -1,0 +1,139 @@
+From 0ad0347acb0b6adc1a002642ca7ab4a2780a92b4 Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Mon, 22 May 2023 11:51:09 -0700
+Subject: [PATCH 385/458] Use numeric codes for Android versions, to avoid SDK
+ dependencies
+
+(cherry picked from commit 3f6b2d1a61d0c0dcd6af7cc951c1d8c267ed1526)
+---
+ .../main/java/org/libsdl/app/SDLActivity.java |  6 +++---
+ .../java/org/libsdl/app/SDLAudioManager.java  | 20 +++++++++----------
+ 2 files changed, 13 insertions(+), 13 deletions(-)
+
+diff --git a/android-project/app/src/main/java/org/libsdl/app/SDLActivity.java b/android-project/app/src/main/java/org/libsdl/app/SDLActivity.java
+index fde9b0a3e..e9d23d3dd 100644
+--- a/android-project/app/src/main/java/org/libsdl/app/SDLActivity.java
++++ b/android-project/app/src/main/java/org/libsdl/app/SDLActivity.java
+@@ -93,7 +93,7 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
+ 
+         s2 = s_copy & InputDevice.SOURCE_ANY; // keep source only, no class;
+ 
+-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
++        if (Build.VERSION.SDK_INT >= 23) {
+             tst = InputDevice.SOURCE_BLUETOOTH_STYLUS;
+             if ((s & tst) == tst) src += " BLUETOOTH_STYLUS";
+             s2 &= ~tst;
+@@ -107,7 +107,7 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
+         if ((s & tst) == tst) src += " GAMEPAD";
+         s2 &= ~tst;
+ 
+-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
++        if (Build.VERSION.SDK_INT >= 21) {
+             tst = InputDevice.SOURCE_HDMI;
+             if ((s & tst) == tst) src += " HDMI";
+             s2 &= ~tst;
+@@ -146,7 +146,7 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
+         if ((s & tst) == tst) src += " TOUCHSCREEN";
+         s2 &= ~tst;
+ 
+-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2) {
++        if (Build.VERSION.SDK_INT >= 18) {
+             tst = InputDevice.SOURCE_TOUCH_NAVIGATION;
+             if ((s & tst) == tst) src += " TOUCH_NAVIGATION";
+             s2 &= ~tst;
+diff --git a/android-project/app/src/main/java/org/libsdl/app/SDLAudioManager.java b/android-project/app/src/main/java/org/libsdl/app/SDLAudioManager.java
+index 2a74fb026..c8b9ff0da 100644
+--- a/android-project/app/src/main/java/org/libsdl/app/SDLAudioManager.java
++++ b/android-project/app/src/main/java/org/libsdl/app/SDLAudioManager.java
+@@ -29,7 +29,7 @@ public class SDLAudioManager {
+         mAudioRecord = null;
+         mAudioDeviceCallback = null;
+ 
+-        if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.N)
++        if(Build.VERSION.SDK_INT >= 24)
+         {
+             mAudioDeviceCallback = new AudioDeviceCallback() {
+                 @Override
+@@ -237,7 +237,7 @@ public class SDLAudioManager {
+                     return null;
+                 }
+ 
+-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && deviceId != 0) {
++                if (Build.VERSION.SDK_INT >= 24 && deviceId != 0) {
+                     mAudioRecord.setPreferredDevice(getOutputAudioDeviceInfo(deviceId));
+                 }
+ 
+@@ -264,7 +264,7 @@ public class SDLAudioManager {
+                     return null;
+                 }
+ 
+-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && deviceId != 0) {
++                if (Build.VERSION.SDK_INT >= 24 && deviceId != 0) {
+                     mAudioTrack.setPreferredDevice(getInputAudioDeviceInfo(deviceId));
+                 }
+ 
+@@ -283,7 +283,7 @@ public class SDLAudioManager {
+     }
+ 
+     private static AudioDeviceInfo getInputAudioDeviceInfo(int deviceId) {
+-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
++        if (Build.VERSION.SDK_INT >= 24) {
+             AudioManager audioManager = (AudioManager) mContext.getSystemService(Context.AUDIO_SERVICE);
+             return Arrays.stream(audioManager.getDevices(AudioManager.GET_DEVICES_INPUTS))
+                     .filter(deviceInfo -> deviceInfo.getId() == deviceId)
+@@ -295,7 +295,7 @@ public class SDLAudioManager {
+     }
+ 
+     private static AudioDeviceInfo getOutputAudioDeviceInfo(int deviceId) {
+-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
++        if (Build.VERSION.SDK_INT >= 24) {
+             AudioManager audioManager = (AudioManager) mContext.getSystemService(Context.AUDIO_SERVICE);
+             return Arrays.stream(audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS))
+                     .filter(deviceInfo -> deviceInfo.getId() == deviceId)
+@@ -307,14 +307,14 @@ public class SDLAudioManager {
+     }
+ 
+     private static void registerAudioDeviceCallback() {
+-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
++        if (Build.VERSION.SDK_INT >= 24) {
+             AudioManager audioManager = (AudioManager) mContext.getSystemService(Context.AUDIO_SERVICE);
+             audioManager.registerAudioDeviceCallback(mAudioDeviceCallback, null);
+         }
+     }
+ 
+     private static void unregisterAudioDeviceCallback(Context context) {
+-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
++        if (Build.VERSION.SDK_INT >= 24) {
+             AudioManager audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
+             audioManager.unregisterAudioDeviceCallback(mAudioDeviceCallback);
+         }
+@@ -324,7 +324,7 @@ public class SDLAudioManager {
+      * This method is called by SDL using JNI.
+      */
+     public static int[] getAudioOutputDevices() {
+-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
++        if (Build.VERSION.SDK_INT >= 24) {
+             AudioManager audioManager = (AudioManager) mContext.getSystemService(Context.AUDIO_SERVICE);
+             return Arrays.stream(audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)).mapToInt(AudioDeviceInfo::getId).toArray();
+         } else {
+@@ -336,7 +336,7 @@ public class SDLAudioManager {
+      * This method is called by SDL using JNI.
+      */
+     public static int[] getAudioInputDevices() {
+-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
++        if (Build.VERSION.SDK_INT >= 24) {
+             AudioManager audioManager = (AudioManager) mContext.getSystemService(Context.AUDIO_SERVICE);
+             return Arrays.stream(audioManager.getDevices(AudioManager.GET_DEVICES_INPUTS)).mapToInt(AudioDeviceInfo::getId).toArray();
+         } else {
+@@ -360,7 +360,7 @@ public class SDLAudioManager {
+             return;
+         }
+ 
+-        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.LOLLIPOP) {
++        if (android.os.Build.VERSION.SDK_INT < 21) {
+             Log.e(TAG, "Attempted to make an incompatible audio call with uninitialized audio! (floating-point output is supported since Android 5.0 Lollipop)");
+             return;
+         }
+-- 
+2.17.1
+

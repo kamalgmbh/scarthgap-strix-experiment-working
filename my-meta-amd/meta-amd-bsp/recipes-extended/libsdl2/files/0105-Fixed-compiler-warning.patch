@@ -1,0 +1,41 @@
+From 187708e5428dac8cc06f920e21c86326bd6c6ad0 Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Sat, 17 Dec 2022 06:58:02 -0800
+Subject: [PATCH 105/458] Fixed compiler warning
+
+```
+ ./src/thread/pthread/SDL_syssem.c:140:12: warning: variable 'retval' is used uninitialized whenever 'while' loop exits because its condition is false [-Wsometimes-uninitialized]
+    while (sem_trywait(&sem->sem) != 0) {
+           ^~~~~~~~~~~~~~~~~~~~~~~~~~~
+./src/thread/pthread/SDL_syssem.c:149:12: note: uninitialized use occurs here
+    return retval;
+           ^~~~~~
+./src/thread/pthread/SDL_syssem.c:140:12: note: remove the condition if it is always true
+    while (sem_trywait(&sem->sem) != 0) {
+```
+
+This was a legitimate bug, thank you clang!
+
+Fixes https://github.com/libsdl-org/SDL/issues/6830
+
+(cherry picked from commit b678a9802435152324e0603055e4bb190d0ae526)
+---
+ src/thread/pthread/SDL_syssem.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/thread/pthread/SDL_syssem.c b/src/thread/pthread/SDL_syssem.c
+index c933acbd0..3a5a5a2ad 100644
+--- a/src/thread/pthread/SDL_syssem.c
++++ b/src/thread/pthread/SDL_syssem.c
+@@ -100,7 +100,7 @@ int SDL_SemWait(SDL_sem *sem)
+ 
+ int SDL_SemWaitTimeout(SDL_sem *sem, Uint32 timeout)
+ {
+-    int retval;
++    int retval = 0;
+ #ifdef HAVE_SEM_TIMEDWAIT
+ #ifndef HAVE_CLOCK_GETTIME
+     struct timeval now;
+-- 
+2.17.1
+

@@ -1,0 +1,95 @@
+From 86f4afd1d333e66968212dadd87e76b4e705fed8 Mon Sep 17 00:00:00 2001
+From: David Stevens <stevensd@chromium.org>
+Date: Wed, 21 Feb 2024 16:25:23 +0900
+Subject: [PATCH 04/49] KVM: Migrate kvm_vcpu_map to __kvm_follow_pfn
+
+Migrate kvm_vcpu_map to __kvm_follow_pfn. Track is_refcounted_page so
+that kvm_vcpu_unmap know whether or not it needs to release the page.
+
+Signed-off-by: David Stevens <stevensd@chromium.org>
+---
+ include/linux/kvm_host.h |  2 +-
+ virt/kvm/kvm_main.c      | 24 ++++++++++++++----------
+ 2 files changed, 15 insertions(+), 11 deletions(-)
+
+diff --git a/include/linux/kvm_host.h b/include/linux/kvm_host.h
+index c41628521e44..e3b7ea45cff7 100644
+--- a/include/linux/kvm_host.h
++++ b/include/linux/kvm_host.h
+@@ -295,6 +295,7 @@ struct kvm_host_map {
+ 	void *hva;
+ 	kvm_pfn_t pfn;
+ 	kvm_pfn_t gfn;
++	bool is_refcounted_page;
+ };
+ 
+ /*
+@@ -1265,7 +1266,6 @@ void kvm_release_pfn_dirty(kvm_pfn_t pfn);
+ void kvm_set_pfn_dirty(kvm_pfn_t pfn);
+ void kvm_set_pfn_accessed(kvm_pfn_t pfn);
+ 
+-void kvm_release_pfn(kvm_pfn_t pfn, bool dirty);
+ int kvm_read_guest_page(struct kvm *kvm, gfn_t gfn, void *data, int offset,
+ 			int len);
+ int kvm_read_guest(struct kvm *kvm, gpa_t gpa, void *data, unsigned long len);
+diff --git a/virt/kvm/kvm_main.c b/virt/kvm/kvm_main.c
+index 26b95cc41b2e..862d38c4c8a3 100644
+--- a/virt/kvm/kvm_main.c
++++ b/virt/kvm/kvm_main.c
+@@ -3194,24 +3194,22 @@ struct page *gfn_to_page(struct kvm *kvm, gfn_t gfn)
+ }
+ EXPORT_SYMBOL_GPL(gfn_to_page);
+ 
+-void kvm_release_pfn(kvm_pfn_t pfn, bool dirty)
+-{
+-	if (dirty)
+-		kvm_release_pfn_dirty(pfn);
+-	else
+-		kvm_release_pfn_clean(pfn);
+-}
+-
+ int kvm_vcpu_map(struct kvm_vcpu *vcpu, gfn_t gfn, struct kvm_host_map *map)
+ {
+ 	kvm_pfn_t pfn;
+ 	void *hva = NULL;
+ 	struct page *page = KVM_UNMAPPED_PAGE;
++	struct kvm_follow_pfn kfp = {
++		.slot = gfn_to_memslot(vcpu->kvm, gfn),
++		.gfn = gfn,
++		.flags = FOLL_GET | FOLL_WRITE,
++		.allow_non_refcounted_struct_page = true,
++	};
+ 
+ 	if (!map)
+ 		return -EINVAL;
+ 
+-	pfn = gfn_to_pfn(vcpu->kvm, gfn);
++	pfn = kvm_follow_pfn(&kfp);
+ 	if (is_error_noslot_pfn(pfn))
+ 		return -EINVAL;
+ 
+@@ -3231,6 +3229,7 @@ int kvm_vcpu_map(struct kvm_vcpu *vcpu, gfn_t gfn, struct kvm_host_map *map)
+ 	map->hva = hva;
+ 	map->pfn = pfn;
+ 	map->gfn = gfn;
++	map->is_refcounted_page = !!kfp.refcounted_page;
+ 
+ 	return 0;
+ }
+@@ -3254,7 +3253,12 @@ void kvm_vcpu_unmap(struct kvm_vcpu *vcpu, struct kvm_host_map *map, bool dirty)
+ 	if (dirty)
+ 		kvm_vcpu_mark_page_dirty(vcpu, map->gfn);
+ 
+-	kvm_release_pfn(map->pfn, dirty);
++	if (map->is_refcounted_page) {
++		if (dirty)
++			kvm_release_page_dirty(map->page);
++		else
++			kvm_release_page_clean(map->page);
++	}
+ 
+ 	map->hva = NULL;
+ 	map->page = NULL;
+-- 
+2.17.1
+

@@ -1,0 +1,60 @@
+From b990e9145bbaa2c38568544d4281ca3d22f449bd Mon Sep 17 00:00:00 2001
+From: Ozkan Sezer <sezeroz@gmail.com>
+Date: Fri, 2 Dec 2022 02:13:59 +0300
+Subject: [PATCH 067/458] build fixes after
+ d0bbfdbfb881e5407911d84c12899bd5b442a130
+
+---
+ src/haptic/linux/SDL_syshaptic.c    | 2 +-
+ src/video/cocoa/SDL_cocoaevents.m   | 2 +-
+ src/video/cocoa/SDL_cocoakeyboard.m | 8 +++-----
+ 3 files changed, 5 insertions(+), 7 deletions(-)
+
+diff --git a/src/haptic/linux/SDL_syshaptic.c b/src/haptic/linux/SDL_syshaptic.c
+index bc409159d..1a333ec7f 100644
+--- a/src/haptic/linux/SDL_syshaptic.c
++++ b/src/haptic/linux/SDL_syshaptic.c
+@@ -676,7 +676,7 @@ static int SDL_SYS_ToDirection(Uint16 *dest, SDL_HapticDirection *src)
+             *dest = (src->dir[0] >= 0 ? 0x4000 : 0xC000);
+         } else if (!src->dir[0]) {
+             *dest = (src->dir[1] >= 0 ? 0x8000 : 0);
+-        else {
++        } else {
+             float f = SDL_atan2(src->dir[1], src->dir[0]);    /* Ideally we'd use fixed point math instead of floats... */
+                     /*
+                       SDL_atan2 takes the parameters: Y-axis-value and X-axis-value (in that order)
+diff --git a/src/video/cocoa/SDL_cocoaevents.m b/src/video/cocoa/SDL_cocoaevents.m
+index 9cdd01d76..6745248b3 100644
+--- a/src/video/cocoa/SDL_cocoaevents.m
++++ b/src/video/cocoa/SDL_cocoaevents.m
+@@ -46,7 +46,7 @@ static SDL_Window *FindSDLWindowForNSWindow(NSWindow *win)
+     if (device && device->windows) {
+         for (sdlwindow = device->windows; sdlwindow; sdlwindow = sdlwindow->next) {
+             NSWindow *nswindow = ((__bridge SDL_WindowData *) sdlwindow->driverdata).nswindow;
+-            if (win == nswindow)
++            if (win == nswindow) {
+                 return sdlwindow;
+             }
+         }
+diff --git a/src/video/cocoa/SDL_cocoakeyboard.m b/src/video/cocoa/SDL_cocoakeyboard.m
+index 34add44b5..ffae8bbd3 100644
+--- a/src/video/cocoa/SDL_cocoakeyboard.m
++++ b/src/video/cocoa/SDL_cocoakeyboard.m
+@@ -215,11 +215,9 @@ HandleModifiers(_THIS, unsigned short scancode, unsigned int modifierFlags)
+         NX_ALTERNATEMASK,
+         NX_COMMANDMASK };
+ 
+-    for (int i = 0; i < 12; i++)
+-    {
+-        if (code == codes[i])
+-        {
+-            if (modifierFlags & modifiers[i])
++    for (int i = 0; i < 12; i++) {
++        if (code == codes[i]) {
++            if (modifierFlags & modifiers[i]) {
+                 SDL_SendKeyboardKey(SDL_PRESSED, code);
+             } else {
+                 SDL_SendKeyboardKey(SDL_RELEASED, code);
+-- 
+2.17.1
+

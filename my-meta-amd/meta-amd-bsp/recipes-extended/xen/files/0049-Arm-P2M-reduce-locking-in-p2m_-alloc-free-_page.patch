@@ -1,0 +1,73 @@
+From 68f551ec5fa9ad96397a62cd463a7ff7e4db72d0 Mon Sep 17 00:00:00 2001
+From: Jan Beulich <jbeulich@suse.com>
+Date: Tue, 29 Nov 2022 15:39:57 +0100
+Subject: [PATCH 049/221] Arm/P2M: reduce locking in p2m_{alloc,free}_page()
+
+It is generally preferable to not hold locks around allocation
+functions. And indeed in the hwdom case there's no point at all to hold
+the paging lock. Reduce the locked regions to the non-hwdom case, while
+at the same time arranging for p2m_alloc_page() to have just a single
+return point.
+
+Signed-off-by: Jan Beulich <jbeulich@suse.com>
+Reviewed-by: Julien Grall <jgrall@amazon.com>
+---
+ xen/arch/arm/p2m.c | 19 ++++++-------------
+ 1 file changed, 6 insertions(+), 13 deletions(-)
+
+diff --git a/xen/arch/arm/p2m.c b/xen/arch/arm/p2m.c
+index fee830192a..08e5ac3def 100644
+--- a/xen/arch/arm/p2m.c
++++ b/xen/arch/arm/p2m.c
+@@ -48,7 +48,6 @@ static struct page_info *p2m_alloc_page(struct domain *d)
+ {
+     struct page_info *pg;
+ 
+-    spin_lock(&d->arch.paging.lock);
+     /*
+      * For hardware domain, there should be no limit in the number of pages that
+      * can be allocated, so that the kernel may take advantage of the extended
+@@ -58,34 +57,28 @@ static struct page_info *p2m_alloc_page(struct domain *d)
+     {
+         pg = alloc_domheap_page(NULL, 0);
+         if ( pg == NULL )
+-        {
+             printk(XENLOG_G_ERR "Failed to allocate P2M pages for hwdom.\n");
+-            spin_unlock(&d->arch.paging.lock);
+-            return NULL;
+-        }
+     }
+     else
+     {
++        spin_lock(&d->arch.paging.lock);
+         pg = page_list_remove_head(&d->arch.paging.p2m_freelist);
+-        if ( unlikely(!pg) )
+-        {
+-            spin_unlock(&d->arch.paging.lock);
+-            return NULL;
+-        }
++        spin_unlock(&d->arch.paging.lock);
+     }
+-    spin_unlock(&d->arch.paging.lock);
+ 
+     return pg;
+ }
+ 
+ static void p2m_free_page(struct domain *d, struct page_info *pg)
+ {
+-    spin_lock(&d->arch.paging.lock);
+     if ( is_hardware_domain(d) )
+         free_domheap_page(pg);
+     else
++    {
++        spin_lock(&d->arch.paging.lock);
+         page_list_add_tail(pg, &d->arch.paging.p2m_freelist);
+-    spin_unlock(&d->arch.paging.lock);
++        spin_unlock(&d->arch.paging.lock);
++    }
+ }
+ 
+ /* Return the size of the pool, in bytes. */
+-- 
+2.17.1
+

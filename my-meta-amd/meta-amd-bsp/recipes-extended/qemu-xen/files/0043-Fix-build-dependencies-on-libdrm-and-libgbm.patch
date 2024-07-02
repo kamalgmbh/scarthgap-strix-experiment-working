@@ -1,0 +1,119 @@
+From a5ff48d4d8bb55d99d093ae619c43d52644ea986 Mon Sep 17 00:00:00 2001
+From: Slava Grigorev <slava.grigorev@amd.com>
+Date: Fri, 22 Mar 2024 16:15:31 +0000
+Subject: [PATCH 43/70] Fix build dependencies on libdrm and libgbm
+
+This allows to build qemu against libdrm and libgbm installed in a
+different prefix than the system one (/usr).
+
+Change-Id: I18685bdd1372642f5d50b9addfdad11854b2107b
+Signed-off-by: Slava Grigorev <slava.grigorev@amd.com>
+---
+ hw/display/meson.build | 1 +
+ linux-user/meson.build | 3 +++
+ meson.build            | 9 ++++++++-
+ ui/meson.build         | 6 +++++-
+ 4 files changed, 17 insertions(+), 2 deletions(-)
+
+diff --git a/hw/display/meson.build b/hw/display/meson.build
+index 4191694380..c2cbc386c0 100644
+--- a/hw/display/meson.build
++++ b/hw/display/meson.build
+@@ -53,6 +53,7 @@ if config_all_devices.has_key('CONFIG_QXL')
+                                            pixman, spice])
+   qxl_ss.add(when: 'CONFIG_ACPI', if_true: files('acpi-vga.c'),
+                                   if_false: files('acpi-vga-stub.c'))
++  qxl_ss.add(when: gbm, if_true: gbm)
+   hw_display_modules += {'qxl': qxl_ss}
+ endif
+ 
+diff --git a/linux-user/meson.build b/linux-user/meson.build
+index 7171dc60be..b56524edfe 100644
+--- a/linux-user/meson.build
++++ b/linux-user/meson.build
+@@ -27,6 +27,9 @@ linux_user_ss.add(libdw)
+ linux_user_ss.add(when: 'TARGET_HAS_BFLT', if_true: files('flatload.c'))
+ linux_user_ss.add(when: 'TARGET_I386', if_true: files('vm86.c'))
+ linux_user_ss.add(when: 'CONFIG_ARM_COMPATIBLE_SEMIHOSTING', if_true: files('semihost.c'))
++if drm.found()
++  linux_user_ss.add(drm)
++endif
+ 
+ 
+ syscall_nr_generators = {}
+diff --git a/meson.build b/meson.build
+index f734f75976..3a3d4955fa 100644
+--- a/meson.build
++++ b/meson.build
+@@ -1672,6 +1672,13 @@ if not get_option('libdw').auto() or \
+                        required: get_option('libdw'))
+ endif
+ 
++# libdrm
++drm_include = ''
++drm = dependency('libdrm', method: 'pkg-config', required: false)
++if drm.found()
++  drm_include = drm.get_variable(pkgconfig: 'includedir')
++endif
++
+ #################
+ # config-host.h #
+ #################
+@@ -1983,7 +1990,7 @@ config_host_data.set('CONFIG_EPOLL', cc.has_header('sys/epoll.h'))
+ config_host_data.set('CONFIG_LINUX_MAGIC_H', cc.has_header('linux/magic.h'))
+ config_host_data.set('CONFIG_VALGRIND_H', cc.has_header('valgrind/valgrind.h'))
+ config_host_data.set('HAVE_BTRFS_H', cc.has_header('linux/btrfs.h'))
+-config_host_data.set('HAVE_DRM_H', cc.has_header('libdrm/drm.h'))
++config_host_data.set('HAVE_DRM_H', cc.has_header('libdrm/drm.h', include_directories: include_directories(drm_include)))
+ config_host_data.set('HAVE_PTY_H', cc.has_header('pty.h'))
+ config_host_data.set('HAVE_SYS_DISK_H', cc.has_header('sys/disk.h'))
+ config_host_data.set('HAVE_SYS_IOCCOM_H', cc.has_header('sys/ioccom.h'))
+diff --git a/ui/meson.build b/ui/meson.build
+index 330369707d..bde303e2fb 100644
+--- a/ui/meson.build
++++ b/ui/meson.build
+@@ -59,9 +59,9 @@ endif
+ softmmu_ss.add(opengl)
+ if opengl.found()
+   opengl_ss = ss.source_set()
+-  opengl_ss.add(gbm)
+   opengl_ss.add(when: [opengl, pixman],
+                if_true: files('shader.c', 'console-gl.c', 'egl-helpers.c', 'egl-context.c'))
++  opengl_ss.add(when: gbm, if_true: gbm)
+   ui_modules += {'opengl' : opengl_ss}
+ endif
+ 
+@@ -108,6 +108,7 @@ if gtk.found()
+   gtk_ss.add(when: x11, if_true: files('x_keymap.c'))
+   gtk_ss.add(when: opengl, if_true: files('gtk-gl-area.c'))
+   gtk_ss.add(when: [x11, opengl], if_true: files('gtk-egl.c'))
++  gtk_ss.add(when: gbm, if_true: gbm)
+   ui_modules += {'gtk' : gtk_ss}
+ endif
+ 
+@@ -122,6 +123,7 @@ if sdl.found()
+   ))
+   sdl_ss.add(when: opengl, if_true: files('sdl2-gl.c'))
+   sdl_ss.add(when: x11, if_true: files('x_keymap.c'))
++  sdl_ss.add(when: gbm, if_true: gbm)
+   ui_modules += {'sdl' : sdl_ss}
+ endif
+ 
+@@ -132,12 +134,14 @@ if spice.found()
+     'spice-input.c',
+     'spice-display.c'
+   ))
++  spice_core_ss.add(when: gbm, if_true: gbm)
+   ui_modules += {'spice-core' : spice_core_ss}
+ endif
+ 
+ if spice.found() and gio.found()
+   spice_ss = ss.source_set()
+   spice_ss.add(spice, gio, pixman, files('spice-app.c'))
++  spice_ss.add(when: gbm, if_true: gbm)
+   ui_modules += {'spice-app': spice_ss}
+ endif
+ 
+-- 
+2.17.1
+

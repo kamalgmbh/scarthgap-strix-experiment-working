@@ -1,0 +1,60 @@
+From eb47953c55e4ace50de233d12e2a9a7f93423f20 Mon Sep 17 00:00:00 2001
+From: Jan Beulich <jbeulich@suse.com>
+Date: Mon, 9 Jan 2023 14:25:29 +0100
+Subject: [PATCH 179/221] x86/shadow: move bogus HVM checks in
+ sh_pagetable_dying()
+
+Perhaps these should have been dropped right in 2fb2dee1ac62 ("x86/mm:
+pagetable_dying() is HVM-only"). Convert both to assertions, noting that
+in particular the one in the 3-level variant of the function came too
+late anyway - first thing there we access the HVM part of a union.
+
+Signed-off-by: Jan Beulich <jbeulich@suse.com>
+Acked-by: Andrew Cooper <andrew.cooper3@citrix.com>
+---
+ xen/arch/x86/mm/shadow/multi.c | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/xen/arch/x86/mm/shadow/multi.c b/xen/arch/x86/mm/shadow/multi.c
+index e9e80cbaeb..5595f42162 100644
+--- a/xen/arch/x86/mm/shadow/multi.c
++++ b/xen/arch/x86/mm/shadow/multi.c
+@@ -3777,6 +3777,8 @@ static void cf_check sh_pagetable_dying(paddr_t gpa)
+     unsigned long l3gfn;
+     mfn_t l3mfn;
+ 
++    ASSERT(is_hvm_domain(d));
++
+     gcr3 = v->arch.hvm.guest_cr[3];
+     /* fast path: the pagetable belongs to the current context */
+     if ( gcr3 == gpa )
+@@ -3819,7 +3821,7 @@ static void cf_check sh_pagetable_dying(paddr_t gpa)
+                    : shadow_hash_lookup(d, mfn_x(gmfn), SH_type_l2_pae_shadow);
+         }
+ 
+-        if ( mfn_valid(smfn) && is_hvm_domain(d) )
++        if ( mfn_valid(smfn) )
+         {
+             gmfn = _mfn(mfn_to_page(smfn)->v.sh.back);
+             mfn_to_page(gmfn)->pagetable_dying = true;
+@@ -3851,6 +3853,8 @@ static void cf_check sh_pagetable_dying(paddr_t gpa)
+     mfn_t smfn, gmfn;
+     p2m_type_t p2mt;
+ 
++    ASSERT(is_hvm_domain(d));
++
+     gmfn = get_gfn_query(d, _gfn(gpa >> PAGE_SHIFT), &p2mt);
+     paging_lock(d);
+ 
+@@ -3860,7 +3864,7 @@ static void cf_check sh_pagetable_dying(paddr_t gpa)
+     smfn = shadow_hash_lookup(d, mfn_x(gmfn), SH_type_l4_64_shadow);
+ #endif
+ 
+-    if ( mfn_valid(smfn) && is_hvm_domain(d) )
++    if ( mfn_valid(smfn) )
+     {
+         mfn_to_page(gmfn)->pagetable_dying = true;
+         shadow_unhook_mappings(d, smfn, 1/* user pages only */);
+-- 
+2.17.1
+

@@ -1,0 +1,25 @@
+From 2cb422360cef4763d16fdd1f753de55ebe858b7a Mon Sep 17 00:00:00 2001
+From: happyharryh <happyharryh@sina.com>
+Date: Tue, 10 Jan 2023 20:36:13 +0800
+Subject: [PATCH 150/458] Fixed the hat_map to avoid segmentation fault
+
+(cherry picked from commit 57e78f4cf53b0fc84900a047120263c3c71e721c)
+---
+ src/joystick/windows/SDL_rawinputjoystick.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/src/joystick/windows/SDL_rawinputjoystick.c b/src/joystick/windows/SDL_rawinputjoystick.c
+index 174e3c863..59b16953b 100644
+--- a/src/joystick/windows/SDL_rawinputjoystick.c
++++ b/src/joystick/windows/SDL_rawinputjoystick.c
+@@ -1400,6 +1400,7 @@ static void RAWINPUT_HandleStatePacket(SDL_Joystick *joystick, Uint8 *data, int
+         (1 << SDL_CONTROLLER_BUTTON_DPAD_DOWN) | (1 << SDL_CONTROLLER_BUTTON_DPAD_LEFT),
+         (1 << SDL_CONTROLLER_BUTTON_DPAD_LEFT),
+         (1 << SDL_CONTROLLER_BUTTON_DPAD_UP) | (1 << SDL_CONTROLLER_BUTTON_DPAD_LEFT),
++        0,
+     };
+     Uint64 match_state = ctx->match_state;
+     /* Update match_state with button bit, then fall through */
+-- 
+2.17.1
+

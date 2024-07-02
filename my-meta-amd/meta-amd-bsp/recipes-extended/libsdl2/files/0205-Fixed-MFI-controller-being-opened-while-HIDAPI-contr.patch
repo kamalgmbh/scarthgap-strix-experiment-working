@@ -1,0 +1,63 @@
+From f71178a16f7069929607abe8a4f6716ab123653b Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Thu, 9 Feb 2023 12:05:46 -0800
+Subject: [PATCH 205/458] Fixed MFI controller being opened while HIDAPI
+ controller was being opened
+
+This was the callstack:
+    frame #3: 0x00000001004e1930 libSDL3.1.0.0.dylib`IOS_AddJoystickDevice(controller=0x0000600003b0c000, accelerometer=SDL_FALSE) at SDL_mfijoystick.m:528:14
+    frame #4: 0x00000001004e1a54 libSDL3.1.0.0.dylib`__IOS_JoystickInit_block_invoke(.block_descriptor=0x0000000100547760, note=@"GCControllerDidConnectNotification") at SDL_mfijoystick.m:673:45
+    frame #5: 0x000000018601e578 CoreFoundation`__CFNOTIFICATIONCENTER_IS_CALLING_OUT_TO_AN_OBSERVER__ + 128
+    frame #6: 0x00000001860bc074 CoreFoundation`___CFXRegistrationPost_block_invoke + 88
+    frame #7: 0x00000001860bbfbc CoreFoundation`_CFXRegistrationPost + 440
+    frame #8: 0x0000000185fefbac CoreFoundation`_CFXNotificationPost + 708
+    frame #9: 0x0000000186edc72c Foundation`-[NSNotificationCenter postNotificationName:object:userInfo:] + 88
+    frame #10: 0x000000019b054a18 GameController`__60-[_GCControllerManagerAppClient _onqueue_publishController:]_block_invoke + 156
+    frame #11: 0x0000000185dc19dc libdispatch.dylib`_dispatch_call_block_and_release + 32
+    frame #12: 0x0000000185dc3504 libdispatch.dylib`_dispatch_client_callout + 20
+    frame #13: 0x0000000185dd1d1c libdispatch.dylib`_dispatch_main_queue_drain + 928
+    frame #14: 0x0000000185dd196c libdispatch.dylib`_dispatch_main_queue_callback_4CF + 44
+    frame #15: 0x000000018606ad6c CoreFoundation`__CFRUNLOOP_IS_SERVICING_THE_MAIN_DISPATCH_QUEUE__ + 16
+    frame #16: 0x00000001860287ec CoreFoundation`__CFRunLoopRun + 2036
+    frame #17: 0x00000001860278a4 CoreFoundation`CFRunLoopRunSpecific + 612
+    frame #18: 0x00000001003b1194 libSDL3.1.0.0.dylib`process_pending_events at hid.c:509:9
+    frame #19: 0x00000001003aebe8 libSDL3.1.0.0.dylib`PLATFORM_hid_open_path(path="USB_054c_05c4_0x11a104290", bExclusive=0) at hid.c:823:2
+    frame #20: 0x00000001003b051c libSDL3.1.0.0.dylib`SDL_hid_open_path_REAL(path="USB_054c_05c4_0x11a104290", bExclusive=0) at SDL_hidapi.c:1419:19
+    frame #21: 0x00000001004dabdc libSDL3.1.0.0.dylib`HIDAPI_SetupDeviceDriver(device=0x0000600003518000, removed=0x000000016fdfee3c) at SDL_hidapijoystick.c:399:19
+    frame #22: 0x00000001004da890 libSDL3.1.0.0.dylib`HIDAPI_AddDevice(info=0x000060000212c2d0, num_children=0, children=0x0000000000000000) at SDL_hidapijoystick.c:843:5
+    frame #23: 0x00000001004d9148 libSDL3.1.0.0.dylib`HIDAPI_UpdateDeviceList at SDL_hidapijoystick.c:1000:21
+    frame #24: 0x00000001004d9940 libSDL3.1.0.0.dylib`HIDAPI_JoystickDetect at SDL_hidapijoystick.c:1205:13
+    frame #25: 0x00000001003bc6d8 libSDL3.1.0.0.dylib`SDL_UpdateJoysticks_REAL at SDL_joystick.c:1703:9
+    frame #26: 0x00000001003a13a8 libSDL3.1.0.0.dylib`SDL_PumpEventsInternal(push_sentinel=SDL_FALSE) at SDL_events.c:855:9
+    frame #27: 0x00000001003a1340 libSDL3.1.0.0.dylib`SDL_PumpEvents_REAL at SDL_events.c:879:5
+    frame #28: 0x000000010038b380 libSDL3.1.0.0.dylib`SDL_PumpEvents at SDL_dynapi_procs.h:572:1
+    frame #29: 0x0000000100004524 testgamepad`loop + 40
+    frame #30: 0x00000001000063d8 testgamepad`main + 2140
+
+(cherry picked from commit a9650d440a862b86dc5722a402b06bf2bbbec527)
+---
+ src/hidapi/mac/hid.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/hidapi/mac/hid.c b/src/hidapi/mac/hid.c
+index d5dfbc296..372a96731 100644
+--- a/src/hidapi/mac/hid.c
++++ b/src/hidapi/mac/hid.c
+@@ -819,10 +819,12 @@ hid_device * HID_API_EXPORT hid_open_path(const char *path, int bExclusive)
+ 	/* Set up the HID Manager if it hasn't been done */
+ 	if (hid_init() < 0)
+ 		return NULL;
+-	
++
++#if 0 /* We have a path because the IOHIDManager is already updated */
+ 	/* give the IOHIDManager a chance to update itself */
+ 	process_pending_events();
+-	
++#endif
++
+ 	device_set = IOHIDManagerCopyDevices(hid_mgr);
+ 	if (!device_set)
+ 		return NULL;
+-- 
+2.17.1
+

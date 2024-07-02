@@ -1,0 +1,29 @@
+From 9d0b167c907d77f6acb6b5b927472d2053f69f73 Mon Sep 17 00:00:00 2001
+From: Xenia Ragiadakou <xenia.ragiadakou@amd.com>
+Date: Mon, 4 Dec 2023 19:49:21 +0200
+Subject: [PATCH 220/221] x86/p2m: rangeset_overlaps_range() takes an inclusive
+ range as input
+
+Signed-off-by: Xenia Ragiadakou <xenia.ragiadakou@amd.com>
+Change-Id: I2a09986198683cc42a87f7bf1791cfd4cc7175ab
+Signed-off-by: Ramesh Babu Nalluri <rameshbabu.nalluri@amd.com>
+---
+ xen/arch/x86/mm/p2m-pt.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/xen/arch/x86/mm/p2m-pt.c b/xen/arch/x86/mm/p2m-pt.c
+index cd1af33b67..cf694a2e5a 100644
+--- a/xen/arch/x86/mm/p2m-pt.c
++++ b/xen/arch/x86/mm/p2m-pt.c
+@@ -564,7 +564,7 @@ static void check_entry(mfn_t mfn, p2m_type_t new, p2m_type_t old,
+     if ( new == p2m_mmio_direct )
+         ASSERT(!mfn_eq(mfn, INVALID_MFN) &&
+                !rangeset_overlaps_range(mmio_ro_ranges, mfn_x(mfn),
+-                                        mfn_x(mfn) + (1ul << order)));
++                                        mfn_x(mfn) | ((1UL << order) - 1)));
+     else if ( p2m_allows_invalid_mfn(new) || new == p2m_invalid ||
+               new == p2m_mmio_dm )
+         ASSERT(mfn_valid(mfn) || mfn_eq(mfn, INVALID_MFN));
+-- 
+2.17.1
+

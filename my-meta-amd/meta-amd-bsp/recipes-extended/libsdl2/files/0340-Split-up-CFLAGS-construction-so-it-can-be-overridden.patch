@@ -1,0 +1,38 @@
+From 6d01ffcd94a6fd38b647e8683b3d1e86131a5646 Mon Sep 17 00:00:00 2001
+From: Stephen Kitt <steve@sk2.org>
+Date: Sun, 19 Mar 2023 13:45:36 +0100
+Subject: [PATCH 340/458] Split up CFLAGS construction so it can be overridden
+
+CFLAGS currently takes care of two aspects of the build: optimisation
+and debug symbols on one hand, the include path on the other. The
+former should be overridable by users, the latter shouldn't.
+
+This patch moves the include path flag to CPPFLAGS, which is
+appropriate for pre-processor directives. This leaves CFLAGS with only
+overridable flags.
+
+Based on a patch by Roflcopter4:
+https://github.com/joncampbell123/dosbox-x/pull/3850
+
+Signed-off-by: Stephen Kitt <steve@sk2.org>
+---
+ Makefile.minimal | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/Makefile.minimal b/Makefile.minimal
+index 97ce201ea..f9c4b53cb 100644
+--- a/Makefile.minimal
++++ b/Makefile.minimal
+@@ -1,7 +1,7 @@
+ # Makefile to build the SDL library
+ 
+-INCLUDE = -I./include
+-CFLAGS  = -g -O2 $(INCLUDE)
++CPPFLAGS = -I./include
++CFLAGS  = -g -O2
+ AR	= ar
+ RANLIB	= ranlib
+ 
+-- 
+2.17.1
+

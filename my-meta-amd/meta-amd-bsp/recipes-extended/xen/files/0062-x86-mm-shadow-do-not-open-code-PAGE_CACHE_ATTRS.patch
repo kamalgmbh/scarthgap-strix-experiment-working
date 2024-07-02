@@ -1,0 +1,38 @@
+From a6da84524ceaf24ff997d03407b93f60c12857f3 Mon Sep 17 00:00:00 2001
+From: Demi Marie Obenour <demi@invisiblethingslab.com>
+Date: Tue, 6 Dec 2022 13:55:07 +0100
+Subject: [PATCH 062/221] x86/mm/shadow: do not open-code PAGE_CACHE_ATTRS
+
+This makes the code easier to understand.
+
+Signed-off-by: Demi Marie Obenour <demi@invisiblethingslab.com>
+Acked-by: Jan Beulich <jbeulich@suse.com>
+---
+ xen/arch/x86/mm/shadow/multi.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/xen/arch/x86/mm/shadow/multi.c b/xen/arch/x86/mm/shadow/multi.c
+index 4e94fec3d5..6bb564b014 100644
+--- a/xen/arch/x86/mm/shadow/multi.c
++++ b/xen/arch/x86/mm/shadow/multi.c
+@@ -535,7 +535,7 @@ _sh_propagate(struct vcpu *v,
+     if ( guest_nx_enabled(v) )
+         pass_thru_flags |= _PAGE_NX_BIT;
+     if ( level == 1 && !shadow_mode_refcounts(d) && mmio_mfn )
+-        pass_thru_flags |= _PAGE_PAT | _PAGE_PCD | _PAGE_PWT;
++        pass_thru_flags |= PAGE_CACHE_ATTRS;
+     sflags = gflags & pass_thru_flags;
+ 
+     /*
+@@ -548,7 +548,7 @@ _sh_propagate(struct vcpu *v,
+     {
+         int type;
+ 
+-        ASSERT(!(sflags & (_PAGE_PAT | _PAGE_PCD | _PAGE_PWT)));
++        ASSERT(!(sflags & PAGE_CACHE_ATTRS));
+ 
+         /* compute the PAT index for shadow page entry when VT-d is enabled
+          * and device assigned.
+-- 
+2.17.1
+

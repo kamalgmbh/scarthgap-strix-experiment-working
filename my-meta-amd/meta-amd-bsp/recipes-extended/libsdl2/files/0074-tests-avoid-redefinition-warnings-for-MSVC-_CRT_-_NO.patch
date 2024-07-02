@@ -1,0 +1,58 @@
+From bcccbbd8945ef4bc12e3d32363bc246e04730904 Mon Sep 17 00:00:00 2001
+From: Ozkan Sezer <sezeroz@gmail.com>
+Date: Mon, 5 Dec 2022 00:35:32 +0300
+Subject: [PATCH 074/458] tests: avoid redefinition warnings for MSVC
+ _CRT_???_NO_DEPRECATE macros
+
+---
+ test/testautomation_surface.c | 4 ++++
+ test/testfile.c               | 7 +++----
+ 2 files changed, 7 insertions(+), 4 deletions(-)
+
+diff --git a/test/testautomation_surface.c b/test/testautomation_surface.c
+index 6619d7a97..41aa24142 100644
+--- a/test/testautomation_surface.c
++++ b/test/testautomation_surface.c
+@@ -4,8 +4,12 @@
+  */
+ 
+ /* Supress C4996 VS compiler warnings for unlink() */
++#if defined(_MSC_VER) && !defined(_CRT_SECURE_NO_DEPRECATE)
+ #define _CRT_SECURE_NO_DEPRECATE
++#endif
++#if defined(_MSC_VER) && !defined(_CRT_NONSTDC_NO_DEPRECATE)
+ #define _CRT_NONSTDC_NO_DEPRECATE
++#endif
+ 
+ #include <stdio.h>
+ #ifndef _MSC_VER
+diff --git a/test/testfile.c b/test/testfile.c
+index 1a2f15af6..13bcb5a0f 100644
+--- a/test/testfile.c
++++ b/test/testfile.c
+@@ -13,19 +13,18 @@
+ /* sanity tests on SDL_rwops.c (usefull for alternative implementations of stdio rwops) */
+ 
+ /* quiet windows compiler warnings */
++#if defined(_MSC_VER) && !defined(_CRT_NONSTDC_NO_WARNINGS)
+ #define _CRT_NONSTDC_NO_WARNINGS
++#endif
+ 
++#include <stdio.h>
+ #include <stdlib.h>
+-
+ #ifndef _MSC_VER
+ #include <unistd.h>
+ #endif
+ 
+ #include "SDL.h"
+ 
+-
+-#include <stdio.h>
+-
+ /* WARNING ! those 2 files will be destroyed by this test program */
+ 
+ #ifdef __IPHONEOS__
+-- 
+2.17.1
+

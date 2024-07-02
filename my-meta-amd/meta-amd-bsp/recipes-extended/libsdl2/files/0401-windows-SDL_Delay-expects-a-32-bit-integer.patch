@@ -1,0 +1,25 @@
+From d6cd450624e6f0a2d06aeeafe85a8f1ec5019ed3 Mon Sep 17 00:00:00 2001
+From: Anonymous Maarten <anonymous.maarten@gmail.com>
+Date: Sat, 27 May 2023 02:34:41 +0200
+Subject: [PATCH 401/458] windows: SDL_Delay expects a 32-bit integer
+
+---
+ src/core/windows/SDL_immdevice.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/core/windows/SDL_immdevice.c b/src/core/windows/SDL_immdevice.c
+index 71c78c67b..d2900f9cc 100644
+--- a/src/core/windows/SDL_immdevice.c
++++ b/src/core/windows/SDL_immdevice.c
+@@ -379,7 +379,7 @@ int SDL_IMMDevice_Get(LPCWSTR devid, IMMDevice **device, SDL_bool iscapture)
+             const Uint64 now = SDL_GetTicks64();
+             if (timeout > now) {
+                 const Uint64 ticksleft = timeout - now;
+-                SDL_Delay(SDL_min(ticksleft, 300));   /* wait awhile and try again. */
++                SDL_Delay((Uint32)SDL_min(ticksleft, 300));   /* wait awhile and try again. */
+                 continue;
+             }
+         }
+-- 
+2.17.1
+

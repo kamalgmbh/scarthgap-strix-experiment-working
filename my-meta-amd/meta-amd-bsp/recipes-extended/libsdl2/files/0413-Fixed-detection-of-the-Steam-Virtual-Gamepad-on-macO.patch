@@ -1,0 +1,27 @@
+From 7aa28ce279045884653c8153a5cee99f4622af10 Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Fri, 2 Jun 2023 18:37:45 -0700
+Subject: [PATCH 413/458] Fixed detection of the Steam Virtual Gamepad on macOS
+
+(cherry picked from commit 5fcd70578bdde3eaaa51aa4ab6c24ed08bd49db3)
+---
+ src/joystick/hidapi/SDL_hidapi_xbox360.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/joystick/hidapi/SDL_hidapi_xbox360.c b/src/joystick/hidapi/SDL_hidapi_xbox360.c
+index 63e8f9191..d3f672296 100644
+--- a/src/joystick/hidapi/SDL_hidapi_xbox360.c
++++ b/src/joystick/hidapi/SDL_hidapi_xbox360.c
+@@ -85,7 +85,8 @@ static SDL_bool HIDAPI_DriverXbox360_IsSupportedDevice(SDL_HIDAPI_Device *device
+         return SDL_FALSE;
+     }
+ #if defined(__MACOSX__) || defined(__WIN32__)
+-    if (vendor_id == USB_VENDOR_MICROSOFT && product_id == 0x028e && version == 1) {
++    if (vendor_id == USB_VENDOR_MICROSOFT && product_id == 0x028e &&
++        (version == 0 || version == 1)) {
+         /* This is the Steam Virtual Gamepad, which isn't supported by this driver */
+         return SDL_FALSE;
+     }
+-- 
+2.17.1
+

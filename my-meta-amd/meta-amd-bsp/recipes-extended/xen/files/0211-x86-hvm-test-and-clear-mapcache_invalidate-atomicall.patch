@@ -1,0 +1,49 @@
+From 7fc405eae2b380ea83ada140386678b900049750 Mon Sep 17 00:00:00 2001
+From: Xenia Ragiadakou <xenia.ragiadakou@amd.com>
+Date: Fri, 13 Oct 2023 23:04:55 +0300
+Subject: [PATCH 211/221] x86/hvm: test and clear mapcache_invalidate
+ atomically
+
+Signed-off-by: Xenia Ragiadakou <xenia.ragiadakou@amd.com>
+Change-Id: Ica823acc5ad3fffd4d6fd377d15633fb57257a92
+Signed-off-by: Ramesh Babu Nalluri <rameshbabu.nalluri@amd.com>
+---
+ xen/arch/x86/hvm/hypercall.c | 5 +----
+ xen/common/ioreq.c           | 3 +--
+ 2 files changed, 2 insertions(+), 6 deletions(-)
+
+diff --git a/xen/arch/x86/hvm/hypercall.c b/xen/arch/x86/hvm/hypercall.c
+index 786f2a5000..f5ac25f687 100644
+--- a/xen/arch/x86/hvm/hypercall.c
++++ b/xen/arch/x86/hvm/hypercall.c
+@@ -193,11 +193,8 @@ int hvm_hypercall(struct cpu_user_regs *regs)
+ 
+     HVM_DBG_LOG(DBG_LEVEL_HCALL, "hcall%lu -> %lx", eax, regs->rax);
+ 
+-    if ( unlikely(curr->mapcache_invalidate) )
+-    {
+-        curr->mapcache_invalidate = false;
++    if ( unlikely(test_and_clear_bool(curr->mapcache_invalidate)) )
+         ioreq_signal_mapcache_invalidate();
+-    }
+ 
+     perfc_incra(hypercalls, eax);
+ 
+diff --git a/xen/common/ioreq.c b/xen/common/ioreq.c
+index ecb8f545e1..686fb1fab4 100644
+--- a/xen/common/ioreq.c
++++ b/xen/common/ioreq.c
+@@ -248,9 +248,8 @@ bool vcpu_ioreq_handle_completion(struct vcpu *v)
+         break;
+     }
+ 
+-    if ( res && unlikely(v->mapcache_invalidate) )
++    if ( res && unlikely(test_and_clear_bool(v->mapcache_invalidate)) )
+     {
+-        v->mapcache_invalidate = false;
+         ioreq_signal_mapcache_invalidate();
+         res = false;
+     }
+-- 
+2.17.1
+

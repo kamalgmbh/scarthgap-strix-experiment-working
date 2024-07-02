@@ -1,0 +1,43 @@
+From 3bbcba661b3b627a4f1336af5d5bd66d4c04131d Mon Sep 17 00:00:00 2001
+From: Huang Rui <ray.huang@amd.com>
+Date: Mon, 31 Oct 2022 13:57:23 +0800
+Subject: [PATCH 11/49] xen/grants: update initialization order of xen grant
+ table
+
+The xen grant table will be initialied before parsing the PCI resources,
+so xen_alloc_unpopulated_pages() ends up using a range from the PCI
+window because Linux hasn't parsed the PCI information yet.
+
+So modify the initialization order to make sure the real PCI resources
+are parsed before.
+
+Signed-off-by: Huang Rui <ray.huang@amd.com>
+---
+ arch/x86/xen/grant-table.c | 2 +-
+ drivers/xen/grant-table.c  | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/arch/x86/xen/grant-table.c b/arch/x86/xen/grant-table.c
+index 1e681bf62561..64a04d1e70f5 100644
+--- a/arch/x86/xen/grant-table.c
++++ b/arch/x86/xen/grant-table.c
+@@ -165,5 +165,5 @@ static int __init xen_pvh_gnttab_setup(void)
+ }
+ /* Call it _before_ __gnttab_init as we need to initialize the
+  * xen_auto_xlat_grant_frames first. */
+-core_initcall(xen_pvh_gnttab_setup);
++fs_initcall_sync(xen_pvh_gnttab_setup);
+ #endif
+diff --git a/drivers/xen/grant-table.c b/drivers/xen/grant-table.c
+index 04a6b470b15d..2274d867be5c 100644
+--- a/drivers/xen/grant-table.c
++++ b/drivers/xen/grant-table.c
+@@ -1696,4 +1696,4 @@ static int __gnttab_init(void)
+ }
+ /* Starts after core_initcall so that xen_pvh_gnttab_setup can be called
+  * beforehand to initialize xen_auto_xlat_grant_frames. */
+-core_initcall_sync(__gnttab_init);
++rootfs_initcall(__gnttab_init);
+-- 
+2.17.1
+

@@ -1,0 +1,161 @@
+From 143f36d59288a5b14dd1641ffbc3cfe706bea743 Mon Sep 17 00:00:00 2001
+From: Xenia Ragiadakou <xenia.ragiadakou@amd.com>
+Date: Mon, 29 Jan 2024 09:00:42 +0200
+Subject: [PATCH 094/106] x86/p2m: extend XENMAPSPACE_gmfn_foreign to mmio and
+ unmapping
+
+Extend XENMAPSPACE_gmfn_foreign so that it can be used also for mapping
+MMIO regions, as well as for unmapping.
+Unmapping is performed when the caller passes an invalid pfn (~0UL) as
+foreign pfn.
+
+Signed-off-by: Xenia Ragiadakou <xenia.ragiadakou@amd.com>
+Change-Id: I54e2e2d491c8599f0883fcb7c2acec36305696e9
+---
+ xen/arch/x86/mm/p2m.c | 108 +++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 106 insertions(+), 2 deletions(-)
+
+diff --git a/xen/arch/x86/mm/p2m.c b/xen/arch/x86/mm/p2m.c
+index aeb42d316c..dcf94d7f10 100644
+--- a/xen/arch/x86/mm/p2m.c
++++ b/xen/arch/x86/mm/p2m.c
+@@ -16,6 +16,7 @@
+ #include <xen/vm_event.h>
+ #include <xen/event.h>
+ #include <xen/grant_table.h>
++#include <xen/iocap.h>
+ #include <xen/ioreq.h>
+ #include <xen/param.h>
+ #include <public/vm_event.h>
+@@ -2386,6 +2387,55 @@ static int p2m_add_foreign(struct domain *tdom, unsigned long fgfn,
+         goto out;
+     }
+ 
++    if ( mfn_eq(_mfn(fgfn), INVALID_MFN) )
++    {
++        page = get_page_from_gfn(tdom, gpfn, &p2mt, P2M_ALLOC);
++        if ( p2mt == p2m_mmio_direct )
++        {
++            struct p2m_domain *p2m = p2m_get_hostp2m(tdom);
++            p2m_access_t p2ma;
++
++            p2m_read_lock(p2m);
++            mfn = p2m_get_gfn_type_access(p2m, _gfn(gpfn), &p2mt,
++                                          &p2ma, 0, NULL, 0);
++            p2m_read_unlock(p2m);
++
++            //printk("%s: unmap gfn=0x%lx IS MMIO (mfn=0x%lx)!!\n",
++            //       __func__, gpfn, mfn_x(mfn));
++            rc = unmap_mmio_regions(tdom, _gfn(gpfn), 1, mfn);
++            if ( rc )
++                printk("%s: unmap_mmio_regions failed (%d)\n", __func__, rc);
++            rc = iomem_deny_access(tdom, mfn_x(mfn), mfn_x(mfn));
++            if ( rc )
++                printk("%s: iomem_deny_access failed (%d)\n", __func__, rc);
++            goto out;
++        }
++
++        if ( !page )
++        {
++            //printk("%s: cannot get page gfn=0x%lx\n", __func__, gpfn);
++            rc = 0;
++            goto out;
++        }
++
++        mfn = page_to_mfn(page);
++        if ( p2m_is_foreign(p2mt) )
++        {
++            //printk("%s: unmap gfn=0x%lx IS FOREIGN (mfn=0x%lx)!!\n",
++            //       __func__, gpfn, mfn_x(mfn));
++            rc = p2m_remove_page(tdom, _gfn(gpfn), mfn, 0);
++            if ( rc )
++                printk("%s: dom%d gfn=0x%lx: p2m_remove_page failed (%d)\n",
++                       __func__, tdom->domain_id, gpfn, rc);
++        }
++        else
++        {
++            printk("%s: remove: gpfn=0x%lx not foreign!\n", __func__, gpfn);
++            rc = -EINVAL;
++        }
++        goto put_one;
++    }
++
+     /*
+      * Take a refcnt on the mfn. NB: following supported for foreign mapping:
+      *     ram_rw | ram_logdirty | ram_ro | paging_out.
+@@ -2394,6 +2444,42 @@ static int p2m_add_foreign(struct domain *tdom, unsigned long fgfn,
+     if ( !page )
+     {
+         rc = -EINVAL;
++        if ( p2mt == p2m_mmio_direct )
++        {
++            struct p2m_domain *p2m = p2m_get_hostp2m(fdom);
++            p2m_access_t p2ma;
++
++            p2m_read_lock(p2m);
++            mfn = p2m_get_gfn_type_access(p2m, _gfn(fgfn), &p2mt,
++                                          &p2ma, 0, NULL, 0);
++            p2m_read_unlock(p2m);
++
++            prev_mfn = get_gfn(tdom, gpfn, &p2mt_prev);
++            if ( mfn_valid(prev_mfn) )
++            {
++                if ( mfn_eq(mfn, prev_mfn) )
++                {
++                    printk("already mmio mapped gpfn=0x%lx\n", gpfn);
++                    rc = 0;
++                }
++                else
++                {
++                    printk("WARN %s: gpfn=%#lx prev mapped mfn=%#lx p2mt=%u\n",
++                           __func__, gpfn, mfn_x(prev_mfn), p2mt_prev);
++                }
++                put_gfn(tdom, gpfn);
++                goto out;
++            }
++            put_gfn(tdom, gpfn);
++
++            //printk("%s: map: fgfn=0x%lx IS MMIO (mfn=0x%lx)!!\n",
++            //       __func__, fgfn, mfn_x(mfn));
++            rc = iomem_permit_access(tdom, mfn_x(mfn), mfn_x(mfn));
++            if ( !rc )
++                rc = map_mmio_regions(tdom, _gfn(gpfn), 1, mfn);
++            if ( rc )
++                printk("%s: mmio map failed (%d)\n", __func__, rc);
++        }
+         goto out;
+     }
+ 
+@@ -2408,9 +2494,27 @@ static int p2m_add_foreign(struct domain *tdom, unsigned long fgfn,
+     prev_mfn = get_gfn(tdom, gpfn, &p2mt_prev);
+     if ( mfn_valid(prev_mfn) )
+     {
+-        if ( is_special_page(mfn_to_page(prev_mfn)) )
++        if ( mfn_eq(mfn, prev_mfn) ) {
++            printk("already mapped gpfn=0x%lx mfn=0x%lx p2mt=%u\n",
++                   gpfn, mfn_x(mfn), p2mt_prev);
++            rc = 0;
++            goto put_both;
++        }
++        if ( p2m_is_special(p2mt_prev) )
++        {
+             /* Special pages are simply unhooked from this phys slot */
+-            rc = p2m_remove_page(tdom, _gfn(gpfn), prev_mfn, 0);
++            if ( p2mt_prev == p2m_mmio_direct )
++            {
++                rc = unmap_mmio_regions(tdom, _gfn(gpfn), 1, prev_mfn);
++                if ( rc )
++                    printk("prev: unmap mmio failed (%d)\n", rc);
++                rc = iomem_deny_access(tdom, mfn_x(prev_mfn), mfn_x(prev_mfn));
++                if ( rc )
++                    printk("prev_mfn: mmio deny access failed (%d)\n", rc);
++            }
++            else
++                rc = p2m_remove_page(tdom, _gfn(gpfn), prev_mfn, 0);
++        }
+         else
+             /* Normal domain memory is freed, to avoid leaking memory. */
+             rc = guest_remove_page(tdom, gpfn);
+-- 
+2.25.1
+

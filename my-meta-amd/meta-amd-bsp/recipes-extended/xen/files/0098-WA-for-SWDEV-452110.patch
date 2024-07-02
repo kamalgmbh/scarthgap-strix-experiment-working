@@ -1,0 +1,28 @@
+From 06087922f3539f3c255b61e034c57d74dcadb479 Mon Sep 17 00:00:00 2001
+From: Pierre-Eric Pelloux-Prayer <pierre-eric.pelloux-prayer@amd.com>
+Date: Mon, 25 Mar 2024 17:47:22 +0100
+Subject: [PATCH 098/106] WA for SWDEV-452110
+
+If MTRR marks a region as UC, the guest kernel will use this cache
+type instead of WB which kills read performance.
+---
+ tools/firmware/hvmloader/cacheattr.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/tools/firmware/hvmloader/cacheattr.c b/tools/firmware/hvmloader/cacheattr.c
+index b7215fba2e..569a69900e 100644
+--- a/tools/firmware/hvmloader/cacheattr.c
++++ b/tools/firmware/hvmloader/cacheattr.c
+@@ -122,6 +122,9 @@ void cacheattr_init(void)
+         for ( base = pci_hi_mem_start;
+               (base != pci_hi_mem_end) && (i < nr_var_ranges); i++ )
+         {
++            /* Workaround for SWDEV-452110 */
++            break;
++
+             size = PAGE_SIZE;
+             while ( !(base & size) )
+                 size <<= 1;
+-- 
+2.25.1
+

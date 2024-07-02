@@ -1,0 +1,67 @@
+From b3e52ffe34f702744a14b7ab7d51658799bc470e Mon Sep 17 00:00:00 2001
+From: Ayan Kumar Halder <ayan.kumar.halder@amd.com>
+Date: Mon, 5 Dec 2022 13:26:34 +0000
+Subject: [PATCH 122/221] xen/Arm: GICv3: Define ICH_AP0R<n> and ICH_AP1R<n>
+ for AArch32
+
+Adapt save_aprn_regs()/restore_aprn_regs() for AArch32.
+
+For which we have defined the following registers:-
+1. Interrupt Controller Hyp Active Priorities Group0 Registers 0-3
+2. Interrupt Controller Hyp Active Priorities Group1 Registers 0-3
+
+Signed-off-by: Ayan Kumar Halder <ayan.kumar.halder@amd.com>
+Acked-by: Julien Grall <jgrall@amazon.com>
+---
+ xen/arch/arm/include/asm/cpregs.h | 28 ++++++++++++++++++++++++++++
+ 1 file changed, 28 insertions(+)
+
+diff --git a/xen/arch/arm/include/asm/cpregs.h b/xen/arch/arm/include/asm/cpregs.h
+index 7550fb25f5..4476c9f11b 100644
+--- a/xen/arch/arm/include/asm/cpregs.h
++++ b/xen/arch/arm/include/asm/cpregs.h
+@@ -259,6 +259,26 @@
+ #define VBAR            p15,0,c12,c0,0  /* Vector Base Address Register */
+ #define HVBAR           p15,4,c12,c0,0  /* Hyp. Vector Base Address Register */
+ 
++/*
++ * CP15 CR12: Interrupt Controller Hyp Active Priorities Group 0 Registers,
++ * n = 0 - 3
++ */
++#define __AP0Rx(x)      p15, 4, c12, c8, x
++#define ICH_AP0R0       __AP0Rx(0)
++#define ICH_AP0R1       __AP0Rx(1)
++#define ICH_AP0R2       __AP0Rx(2)
++#define ICH_AP0R3       __AP0Rx(3)
++
++/*
++ * CP15 CR12: Interrupt Controller Hyp Active Priorities Group 1 Registers,
++ * n = 0 - 3
++ */
++#define __AP1Rx(x)      p15, 4, c12, c9, x
++#define ICH_AP1R0       __AP1Rx(0)
++#define ICH_AP1R1       __AP1Rx(1)
++#define ICH_AP1R2       __AP1Rx(2)
++#define ICH_AP1R3       __AP1Rx(3)
++
+ /* CP15 CR12: Interrupt Controller List Registers, n = 0 - 15 */
+ #define __LR0(x)        p15, 4, c12, c12, x
+ #define __LR8(x)        p15, 4, c12, c13, x
+@@ -359,6 +379,14 @@
+ #define HCR_EL2                 HCR
+ #define HPFAR_EL2               HPFAR
+ #define HSTR_EL2                HSTR
++#define ICH_AP0R0_EL2           ICH_AP0R0
++#define ICH_AP0R1_EL2           ICH_AP0R1
++#define ICH_AP0R2_EL2           ICH_AP0R2
++#define ICH_AP0R3_EL2           ICH_AP0R3
++#define ICH_AP1R0_EL2           ICH_AP1R0
++#define ICH_AP1R1_EL2           ICH_AP1R1
++#define ICH_AP1R2_EL2           ICH_AP1R2
++#define ICH_AP1R3_EL2           ICH_AP1R3
+ #define ICH_LR0_EL2             ICH_LR0
+ #define ICH_LR1_EL2             ICH_LR1
+ #define ICH_LR2_EL2             ICH_LR2
+-- 
+2.17.1
+

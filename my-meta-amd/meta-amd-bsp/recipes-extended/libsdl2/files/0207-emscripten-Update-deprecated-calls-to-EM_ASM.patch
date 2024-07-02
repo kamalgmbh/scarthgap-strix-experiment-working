@@ -1,0 +1,48 @@
+From 7d2012af87bbe45a332769039a7d75bb98c6e5eb Mon Sep 17 00:00:00 2001
+From: Bruce Mitchener <bruce.mitchener@gmail.com>
+Date: Fri, 10 Feb 2023 13:51:16 +0700
+Subject: [PATCH 207/458] emscripten: Update deprecated calls to EM_ASM*.
+
+`EM_ASM_` and `EM_ASM_INT_V` are calls that have been deprecated
+for a long time.
+
+Since the return value isn't used for the call to `EM_ASM_`, it
+can be replaced with `EM_ASM`.
+
+`EM_ASM_INT_V` is now (for the last few years) `EM_ASM_INT`.
+
+(cherry picked from commit a8e89f2567b9069c919f9b21996e0a46cd4bb679)
+---
+ src/audio/emscripten/SDL_emscriptenaudio.c | 2 +-
+ src/video/SDL_video.c                      | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/audio/emscripten/SDL_emscriptenaudio.c b/src/audio/emscripten/SDL_emscriptenaudio.c
+index dc01f2c7a..84fbb0f2c 100644
+--- a/src/audio/emscripten/SDL_emscriptenaudio.c
++++ b/src/audio/emscripten/SDL_emscriptenaudio.c
+@@ -264,7 +264,7 @@ static int EMSCRIPTENAUDIO_OpenDevice(_THIS, const char *devname)
+     this->hidden = (struct SDL_PrivateAudioData *)0x1;
+ 
+     /* limit to native freq */
+-    this->spec.freq = EM_ASM_INT_V({
++    this->spec.freq = EM_ASM_INT({
+       var SDL2 = Module['SDL2'];
+       return SDL2.audioContext.sampleRate;
+     });
+diff --git a/src/video/SDL_video.c b/src/video/SDL_video.c
+index c412a627b..f30811c65 100644
+--- a/src/video/SDL_video.c
++++ b/src/video/SDL_video.c
+@@ -4565,7 +4565,7 @@ int SDL_ShowSimpleMessageBox(Uint32 flags, const char *title, const char *messag
+     if (message == NULL) {
+         message = "";
+     }
+-    EM_ASM_({
++    EM_ASM({
+         alert(UTF8ToString($0) + "\n\n" + UTF8ToString($1));
+     },
+             title, message);
+-- 
+2.17.1
+

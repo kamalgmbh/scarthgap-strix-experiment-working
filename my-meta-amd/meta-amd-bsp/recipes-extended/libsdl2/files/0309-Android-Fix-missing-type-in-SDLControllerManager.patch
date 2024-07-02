@@ -1,0 +1,33 @@
+From 576df87240a9124acd866f2aba172e3794483051 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Bart=C5=82omiej=20Dach?= <dach.bartlomiej@gmail.com>
+Date: Sat, 25 Mar 2023 19:43:51 +0100
+Subject: [PATCH 309/458] Android: Fix missing type in SDLControllerManager
+
+The missing type in question is causing compilation failures.
+The error was introduced in dca3fd8307c2c9ebda8d8ea623bbbf19649f5e22,
+which was a backport of commit de3909a190f6e1a3f11776ce42927f99b0381675
+from SDL3 to SDL2.
+
+Because `int nballs` was removed as a parameter from the controller
+API in SDL3 in revision fcafe40948fe308cc9552df5a3d625ee2725de5a,
+this change is only applicable to the SDL2 branch.
+---
+ .../app/src/main/java/org/libsdl/app/SDLControllerManager.java  | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/android-project/app/src/main/java/org/libsdl/app/SDLControllerManager.java b/android-project/app/src/main/java/org/libsdl/app/SDLControllerManager.java
+index 583287cab..85ecbded4 100644
+--- a/android-project/app/src/main/java/org/libsdl/app/SDLControllerManager.java
++++ b/android-project/app/src/main/java/org/libsdl/app/SDLControllerManager.java
+@@ -24,7 +24,7 @@ public class SDLControllerManager
+     public static native int nativeAddJoystick(int device_id, String name, String desc,
+                                                int vendor_id, int product_id,
+                                                boolean is_accelerometer, int button_mask,
+-                                               int naxes, int axis_mask, int nhats, nballs);
++                                               int naxes, int axis_mask, int nhats, int nballs);
+     public static native int nativeRemoveJoystick(int device_id);
+     public static native int nativeAddHaptic(int device_id, String name);
+     public static native int nativeRemoveHaptic(int device_id);
+-- 
+2.17.1
+

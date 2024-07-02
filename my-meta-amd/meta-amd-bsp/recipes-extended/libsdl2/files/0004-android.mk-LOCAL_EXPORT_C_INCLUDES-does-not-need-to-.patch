@@ -1,0 +1,26 @@
+From 156bf7e6aab2535e06e6653e82251b98f32d5cfa Mon Sep 17 00:00:00 2001
+From: Anonymous Maarten <anonymous.maarten@gmail.com>
+Date: Tue, 22 Nov 2022 18:35:49 +0100
+Subject: [PATCH 004/458] android.mk: LOCAL_EXPORT_C_INCLUDES does not need to
+ add include subfolder
+
+---
+ Android.mk | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/Android.mk b/Android.mk
+index 06146cd40..facc54afb 100644
+--- a/Android.mk
++++ b/Android.mk
+@@ -12,7 +12,7 @@ LOCAL_MODULE := SDL2
+ 
+ LOCAL_C_INCLUDES := $(LOCAL_PATH)/include
+ 
+-LOCAL_EXPORT_C_INCLUDES := $(LOCAL_C_INCLUDES)/include
++LOCAL_EXPORT_C_INCLUDES := $(LOCAL_C_INCLUDES)
+ 
+ LOCAL_SRC_FILES := \
+ 	$(subst $(LOCAL_PATH)/,, \
+-- 
+2.17.1
+

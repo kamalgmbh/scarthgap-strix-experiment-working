@@ -1,0 +1,31 @@
+From f836b465aa475297583667a22771cc86b3417232 Mon Sep 17 00:00:00 2001
+From: Frank Praznik <frank.praznik@gmail.com>
+Date: Thu, 12 Jan 2023 20:44:16 -0500
+Subject: [PATCH 153/458] Revert "wayland: Don't try to restore non-resizable
+ windows"
+
+This reverts commit e35c3872dc6a8f7741baba8b786b202cef7503ac.
+
+(cherry picked from commit 180afcdf3998e5175b744d3f2d87147802809450)
+---
+ src/video/wayland/SDL_waylandwindow.c | 4 ----
+ 1 file changed, 4 deletions(-)
+
+diff --git a/src/video/wayland/SDL_waylandwindow.c b/src/video/wayland/SDL_waylandwindow.c
+index e2f0c611c..0307378b6 100644
+--- a/src/video/wayland/SDL_waylandwindow.c
++++ b/src/video/wayland/SDL_waylandwindow.c
+@@ -1760,10 +1760,6 @@ void Wayland_RestoreWindow(_THIS, SDL_Window *window)
+         return;
+     }
+ 
+-    if (!(window->flags & SDL_WINDOW_RESIZABLE)) {
+-            return;
+-    }
+-
+     /* Set this flag now even if we never actually maximized, eventually
+      * ShowWindow will take care of it along with the other window state.
+      */
+-- 
+2.17.1
+

@@ -1,0 +1,83 @@
+From 291c13af5511fb4f868fc8eebd0a8f6800d0a2f3 Mon Sep 17 00:00:00 2001
+From: Ayan Kumar Halder <ayan.kumar.halder@amd.com>
+Date: Mon, 5 Dec 2022 13:26:37 +0000
+Subject: [PATCH 125/221] xen/Arm: GICv3: Enable GICv3 for AArch32
+
+One can now use GICv3 on AArch32 systems. However, ITS is not supported.
+The reason being currently we are trying to validate GICv3 on an AArch32_v8R
+system. Refer ARM DDI 0568A.c ID110520, B1.3.1,
+"A Generic Interrupt Controller (GIC) implemented with an Armv8-R PE must not
+implement LPI support."
+
+By default GICv3 is disabled on AArch32 and enabled on AArch64.
+
+Updated SUPPORT.md to state that GICv3 on Arm32 is not security supported.
+
+Signed-off-by: Ayan Kumar Halder <ayan.kumar.halder@amd.com>
+Reviewed-by: Michal Orzel <michal.orzel@amd.com>
+Acked-by: Julien Grall <jgrall@amazon.com>
+---
+ SUPPORT.md                            | 7 +++++++
+ xen/arch/arm/Kconfig                  | 9 +++++----
+ xen/arch/arm/include/asm/cpufeature.h | 1 +
+ 3 files changed, 13 insertions(+), 4 deletions(-)
+
+diff --git a/SUPPORT.md b/SUPPORT.md
+index ab71464cf6..295369998e 100644
+--- a/SUPPORT.md
++++ b/SUPPORT.md
+@@ -76,6 +76,13 @@ For the Cortex A57 r0p0 - r1p1, see Errata 832075.
+     Status, ARM SMMUv3: Tech Preview
+     Status, Renesas IPMMU-VMSA: Supported, not security supported
+ 
++### ARM/GICv3
++
++GICv3 is an interrupt controller specification designed by Arm.
++
++    Status, Arm64: Security supported
++    Status, Arm32: Supported, not security supported
++
+ ### ARM/GICv3 ITS
+ 
+ Extension to the GICv3 interrupt controller to support MSI.
+diff --git a/xen/arch/arm/Kconfig b/xen/arch/arm/Kconfig
+index 52a05f704d..239d3aed3c 100644
+--- a/xen/arch/arm/Kconfig
++++ b/xen/arch/arm/Kconfig
+@@ -41,16 +41,17 @@ config ARM_EFI
+ 
+ config GICV3
+ 	bool "GICv3 driver"
+-	depends on ARM_64 && !NEW_VGIC
+-	default y
++	depends on !NEW_VGIC
++	default n if ARM_32
++	default y if ARM_64
+ 	---help---
+ 
+ 	  Driver for the ARM Generic Interrupt Controller v3.
+-	  If unsure, say Y
++	  If unsure, use the default setting.
+ 
+ config HAS_ITS
+         bool "GICv3 ITS MSI controller support (UNSUPPORTED)" if UNSUPPORTED
+-        depends on GICV3 && !NEW_VGIC
++        depends on GICV3 && !NEW_VGIC && !ARM_32
+ 
+ config HVM
+         def_bool y
+diff --git a/xen/arch/arm/include/asm/cpufeature.h b/xen/arch/arm/include/asm/cpufeature.h
+index c86a2e7f29..c62cf6293f 100644
+--- a/xen/arch/arm/include/asm/cpufeature.h
++++ b/xen/arch/arm/include/asm/cpufeature.h
+@@ -33,6 +33,7 @@
+ #define cpu_has_aarch32   (cpu_has_arm || cpu_has_thumb)
+ 
+ #ifdef CONFIG_ARM_32
++#define cpu_has_gicv3     (boot_cpu_feature32(gic) >= 1)
+ #define cpu_has_gentimer  (boot_cpu_feature32(gentimer) == 1)
+ /*
+  * On Armv7, the value 0 is used to indicate that PMUv2 is not
+-- 
+2.17.1
+

@@ -1,0 +1,93 @@
+From b579792f13ad448434fe134feba06234825865f6 Mon Sep 17 00:00:00 2001
+From: Xenia Ragiadakou <burzalodowa@gmail.com>
+Date: Mon, 20 Feb 2023 12:20:40 +0200
+Subject: [PATCH 17/49] xen/pvh: xen_pvh_destroy_contiguous_region
+
+Signed-off-by: Xenia Ragiadakou <burzalodowa@gmail.com>
+Signed-off-by: Huang Rui <ray.huang@amd.com>
+---
+ arch/x86/include/asm/xen/page.h |  6 ++++++
+ arch/x86/xen/enlighten_pvh.c    | 32 ++++++++++++++++++++++++++++++++
+ drivers/xen/phy-dma-ops.c       |  2 +-
+ 3 files changed, 39 insertions(+), 1 deletion(-)
+
+diff --git a/arch/x86/include/asm/xen/page.h b/arch/x86/include/asm/xen/page.h
+index 5e33fcb0a28f..2e5ff921e9f2 100644
+--- a/arch/x86/include/asm/xen/page.h
++++ b/arch/x86/include/asm/xen/page.h
+@@ -66,6 +66,7 @@ extern int xen_pvh_create_contiguous_region(phys_addr_t pstart,
+ 					    unsigned int order,
+ 					    unsigned int address_bits,
+ 					    dma_addr_t *dma_handle);
++void xen_pvh_destroy_contiguous_region(phys_addr_t pstart, unsigned int order);
+ #else
+ static inline int
+ xen_pvh_create_contiguous_region(phys_addr_t pstart, unsigned int order,
+@@ -74,6 +75,11 @@ xen_pvh_create_contiguous_region(phys_addr_t pstart, unsigned int order,
+ {
+ 	return 0;
+ }
++static inline void
++xen_pvh_destroy_contiguous_region(phys_addr_t pstart, unsigned int order)
++{
++	return;
++}
+ #endif
+ 
+ #ifdef CONFIG_XEN_PV
+diff --git a/arch/x86/xen/enlighten_pvh.c b/arch/x86/xen/enlighten_pvh.c
+index 3fe9301f3899..c16f0de4ca13 100644
+--- a/arch/x86/xen/enlighten_pvh.c
++++ b/arch/x86/xen/enlighten_pvh.c
+@@ -155,3 +155,35 @@ int xen_pvh_create_contiguous_region(phys_addr_t pstart, unsigned int order,
+ 	*dma_handle = out_frame << PAGE_SHIFT;
+ 	return success ? 0 : -ENOMEM;
+ }
++
++void xen_pvh_destroy_contiguous_region(phys_addr_t pstart, unsigned int order)
++{
++	unsigned long *out_frames = discontig_frames, in_frame;
++	unsigned long  flags;
++	int success;
++	unsigned long vstart;
++
++	if (unlikely(order > MAX_CONTIG_ORDER))
++		return;
++
++	vstart = (unsigned long)phys_to_virt(pstart);
++	memset((void *) vstart, 0, PAGE_SIZE << order);
++
++	spin_lock_irqsave(&xen_reservation_lock, flags);
++
++	/* 1. Find start MFN of contiguous extent. */
++	in_frame = virt_to_mfn(vstart);
++
++	if (out_frames) {
++		unsigned long vaddr = vstart;
++		int i;
++		for (i = 0; i < (1UL<<order); i++, vaddr += PAGE_SIZE)
++			out_frames[i] = virt_to_pfn(vaddr);
++	}
++
++	/* 3. Do the exchange for non-contiguous MFNs. */
++	success = xen_pvh_exchange_memory(1, order, &in_frame, 1UL << order, 0,
++					  out_frames, 0);
++
++	spin_unlock_irqrestore(&xen_reservation_lock, flags);
++}
+diff --git a/drivers/xen/phy-dma-ops.c b/drivers/xen/phy-dma-ops.c
+index b6427b491158..2ba247cfde9a 100644
+--- a/drivers/xen/phy-dma-ops.c
++++ b/drivers/xen/phy-dma-ops.c
+@@ -58,7 +58,7 @@ xen_phy_free_coherent(struct device *dev, size_t size, void *vaddr,
+ 	size = 1UL << (order + XEN_PAGE_SHIFT);
+ 
+ 	if (TestClearPageXenRemapped(virt_to_page(vaddr)))
+-		xen_destroy_contiguous_region(phys, order);
++		xen_pvh_destroy_contiguous_region(phys, order);
+ 	free_pages((unsigned long)vaddr, get_order(size));
+ }
+ 
+-- 
+2.17.1
+

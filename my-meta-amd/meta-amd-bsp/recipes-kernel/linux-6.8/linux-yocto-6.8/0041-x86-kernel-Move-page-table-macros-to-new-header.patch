@@ -1,0 +1,110 @@
+From 4f8b6e46f5dbb306c3a75b991f834d070ec4bd2a Mon Sep 17 00:00:00 2001
+From: Jason Andryuk <jason.andryuk@amd.com>
+Date: Tue, 9 Apr 2024 16:14:03 -0400
+Subject: [PATCH 41/49] x86/kernel: Move page table macros to new header
+
+The PVH entry point will need an additional set of prebuild page tables.
+Move the macros and defines to a new header so they can be re-used.
+
+Signed-off-by: Jason Andryuk <jason.andryuk@amd.com>
+---
+ arch/x86/kernel/head_64.S            | 22 ++--------------------
+ arch/x86/kernel/pgtable_64_helpers.h | 28 ++++++++++++++++++++++++++++
+ 2 files changed, 30 insertions(+), 20 deletions(-)
+ create mode 100644 arch/x86/kernel/pgtable_64_helpers.h
+
+diff --git a/arch/x86/kernel/head_64.S b/arch/x86/kernel/head_64.S
+index d4918d03efb4..4b036f3220f2 100644
+--- a/arch/x86/kernel/head_64.S
++++ b/arch/x86/kernel/head_64.S
+@@ -27,17 +27,12 @@
+ #include <asm/fixmap.h>
+ #include <asm/smp.h>
+ 
++#include "pgtable_64_helpers.h"
++
+ /*
+  * We are not able to switch in one step to the final KERNEL ADDRESS SPACE
+  * because we need identity-mapped pages.
+  */
+-#define l4_index(x)	(((x) >> 39) & 511)
+-#define pud_index(x)	(((x) >> PUD_SHIFT) & (PTRS_PER_PUD-1))
+-
+-L4_PAGE_OFFSET = l4_index(__PAGE_OFFSET_BASE_L4)
+-L4_START_KERNEL = l4_index(__START_KERNEL_map)
+-
+-L3_START_KERNEL = pud_index(__START_KERNEL_map)
+ 
+ 	.text
+ 	__HEAD
+@@ -619,9 +614,6 @@ SYM_CODE_START_NOALIGN(vc_no_ghcb)
+ SYM_CODE_END(vc_no_ghcb)
+ #endif
+ 
+-#define SYM_DATA_START_PAGE_ALIGNED(name)			\
+-	SYM_START(name, SYM_L_GLOBAL, .balign PAGE_SIZE)
+-
+ #ifdef CONFIG_PAGE_TABLE_ISOLATION
+ /*
+  * Each PGD needs to be 8k long and 8k aligned.  We do not
+@@ -643,14 +635,6 @@ SYM_CODE_END(vc_no_ghcb)
+ #define PTI_USER_PGD_FILL	0
+ #endif
+ 
+-/* Automate the creation of 1 to 1 mapping pmd entries */
+-#define PMDS(START, PERM, COUNT)			\
+-	i = 0 ;						\
+-	.rept (COUNT) ;					\
+-	.quad	(START) + (i << PMD_SHIFT) + (PERM) ;	\
+-	i = i + 1 ;					\
+-	.endr
+-
+ 	__INITDATA
+ 	.balign 4
+ 
+@@ -749,8 +733,6 @@ SYM_DATA_START_PAGE_ALIGNED(level1_fixmap_pgt)
+ 	.endr
+ SYM_DATA_END(level1_fixmap_pgt)
+ 
+-#undef PMDS
+-
+ 	.data
+ 	.align 16
+ 
+diff --git a/arch/x86/kernel/pgtable_64_helpers.h b/arch/x86/kernel/pgtable_64_helpers.h
+new file mode 100644
+index 000000000000..0ae87d768ce2
+--- /dev/null
++++ b/arch/x86/kernel/pgtable_64_helpers.h
+@@ -0,0 +1,28 @@
++/* SPDX-License-Identifier: GPL-2.0 */
++#ifndef __PGTABLES_64_H__
++#define __PGTABLES_64_H__
++
++#ifdef __ASSEMBLY__
++
++#define l4_index(x)	(((x) >> 39) & 511)
++#define pud_index(x)	(((x) >> PUD_SHIFT) & (PTRS_PER_PUD-1))
++
++L4_PAGE_OFFSET = l4_index(__PAGE_OFFSET_BASE_L4)
++L4_START_KERNEL = l4_index(__START_KERNEL_map)
++
++L3_START_KERNEL = pud_index(__START_KERNEL_map)
++
++#define SYM_DATA_START_PAGE_ALIGNED(name)			\
++	SYM_START(name, SYM_L_GLOBAL, .balign PAGE_SIZE)
++
++/* Automate the creation of 1 to 1 mapping pmd entries */
++#define PMDS(START, PERM, COUNT)			\
++	i = 0 ;						\
++	.rept (COUNT) ;					\
++	.quad	(START) + (i << PMD_SHIFT) + (PERM) ;	\
++	i = i + 1 ;					\
++	.endr
++
++#endif /* __ASSEMBLY__ */
++
++#endif /* __PGTABLES_64_H__ */
+-- 
+2.17.1
+

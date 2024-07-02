@@ -1,0 +1,27 @@
+From a23d1af0ac13f4ddd408a75b7e82b58ec307beb0 Mon Sep 17 00:00:00 2001
+From: Knightly <knightly.cavalier@gmail.com>
+Date: Fri, 10 Feb 2023 19:23:59 -1000
+Subject: [PATCH 211/458] Guard against _USE_MATH_DEFINES redefinition
+
+---
+ include/SDL_stdinc.h | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/include/SDL_stdinc.h b/include/SDL_stdinc.h
+index bbce3d06f..20997831a 100644
+--- a/include/SDL_stdinc.h
++++ b/include/SDL_stdinc.h
+@@ -85,7 +85,9 @@
+    Visual Studio.  See http://msdn.microsoft.com/en-us/library/4hwaceh6.aspx
+    for more information.
+ */
+-#  define _USE_MATH_DEFINES
++#  ifndef _USE_MATH_DEFINES
++#    define _USE_MATH_DEFINES
++#  endif
+ # endif
+ # include <math.h>
+ #endif
+-- 
+2.17.1
+

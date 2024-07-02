@@ -1,0 +1,33 @@
+From 94c606b94cc201f76b3154cdd8b4247246377292 Mon Sep 17 00:00:00 2001
+From: Soham Dandapat <Soham.Dandapat@amd.com>
+Date: Wed, 3 Apr 2024 09:46:25 +0530
+Subject: [PATCH 4/5] Add error handling
+
+Change-Id: Icef056e202c6fbb0ce8b0da0547bb8ca1118fc37
+---
+ drivers/gpu/drm/amd/amdgpu/amdgpu_device.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_device.c b/drivers/gpu/drm/amd/amdgpu/amdgpu_device.c
+index d2448e3766df..bbcb8c63afde 100644
+--- a/drivers/gpu/drm/amd/amdgpu/amdgpu_device.c
++++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_device.c
+@@ -3893,11 +3893,14 @@ static void update_cpu_l3_cache(void)
+ 
+  DRM_DEBUG("Trying to update CPU l3 cache size \n");
+  if(security_locked_down(LOCKDOWN_MSR))
++ {
+          DRM_ERROR("Fail to update security lock while updating L3 cache \n");
++	 return ;
++ }
+ 
+  add_taint(TAINT_CPU_OUT_OF_SPEC, LOCKDEP_STILL_OK);
+  err=wrmsr_safe_on_cpu(0,MSR_IA32_MSR_L3_MASK(0), lo , hi);
+- DRM_DEBUG("Updated L3 cache size %d \n",err);
++ DRM_DEBUG("Updated L3 cache size %d \n",err);//ignore return as its not required 
+ }
+ 
+ 
+-- 
+2.34.1
+

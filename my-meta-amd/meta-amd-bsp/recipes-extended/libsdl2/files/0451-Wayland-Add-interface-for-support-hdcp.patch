@@ -1,0 +1,592 @@
+From 57487c5fcc55f571b28b8830b918f330cbf12eda Mon Sep 17 00:00:00 2001
+From: Lei Huang <Lei.Huang@amd.com>
+Date: Wed, 6 Sep 2023 10:38:07 +0800
+Subject: [PATCH 451/458] Wayland:Add interface for support hdcp
+
+[Why]
+SDL2 does not support hdcp setting
+
+[How]
+Add interface, now only support wayland backend
+
+Jira ID: SWDEV-376845
+
+Change-Id: Ibb25e53c309c2994143048c27b41594546b5e87e
+Signed-off-by: Lei Huang <Lei.Huang@amd.com>
+---
+ include/SDL_video.h                           |  41 +++
+ src/dynapi/SDL_dynapi_overrides.h             |   2 +
+ src/dynapi/SDL_dynapi_procs.h                 |   2 +
+ src/video/SDL_sysvideo.h                      |   2 +
+ src/video/SDL_video.c                         |  18 ++
+ src/video/wayland/SDL_waylanddyn.h            |   1 +
+ src/video/wayland/SDL_waylandvideo.c          |   9 +
+ src/video/wayland/SDL_waylandvideo.h          |   1 +
+ src/video/wayland/SDL_waylandwindow.c         |  60 +++++
+ src/video/wayland/SDL_waylandwindow.h         |   6 +
+ .../weston-content-protection.xml             | 251 ++++++++++++++++++
+ 11 files changed, 393 insertions(+)
+ create mode 100644 wayland-protocols/weston-content-protection.xml
+
+diff --git a/include/SDL_video.h b/include/SDL_video.h
+index ab98df5cd..449de2965 100644
+--- a/include/SDL_video.h
++++ b/include/SDL_video.h
+@@ -287,6 +287,19 @@ typedef enum
+     SDL_GL_CONTEXT_RESET_LOSE_CONTEXT    = 0x0001
+ } SDL_GLContextResetNotification;
+ 
++typedef enum
++{
++    SDL_RELAXED,
++    SDL_ENFORCED
++} SDL_Protection_Mode;
++
++typedef enum
++{
++    SDL_HDCP_UNPROTECTED = -1,
++    SDL_HDCP_TYPE0 = 0,
++    SDL_HDCP_TYPE1 = 1
++} SDL_Protection_Type;
++
+ typedef enum
+ {
+     SDL_DPMS_ON,
+@@ -1075,6 +1088,34 @@ extern DECLSPEC int SDLCALL SDL_GetWindowBordersSize(SDL_Window * window,
+                                                      int *top, int *left,
+                                                      int *bottom, int *right);
+ 
++/**
++ * Set the window's client content-protection type.
++ *
++ * \param window the window to query
++ * \param type the type of the content-protection
++ *  type0, type1, unprotected
++ *
++ * \since This function is available since SDL 2.26.0.
++ *
++ * \sa SDL_SetWindowProtectedType
++ */
++extern DECLSPEC void SDLCALL SDL_SetWindowProtectedType(SDL_Window * window,
++                                                        int type);
++
++/**
++ * Set the window's client content-protection mode.
++ *
++ * \param window the window to query
++ * \param mode the mode of the content-protection
++ *  relaxed, enforce
++ *
++ * \since This function is available since SDL 2.26.0.
++ *
++ * \sa SDL_SetWindowProtectedMode
++ */
++extern DECLSPEC void SDLCALL SDL_SetWindowProtectedMode(SDL_Window * window,
++                                                        SDL_Protection_Mode b);
++
+ /**
+  * Get the size of a window in pixels.
+  *
+diff --git a/src/dynapi/SDL_dynapi_overrides.h b/src/dynapi/SDL_dynapi_overrides.h
+index 8556e3f56..7fc9c617a 100644
+--- a/src/dynapi/SDL_dynapi_overrides.h
++++ b/src/dynapi/SDL_dynapi_overrides.h
+@@ -898,3 +898,5 @@
+ #define SDL_GDKSuspendComplete SDL_GDKSuspendComplete_REAL
+ #define SDL_HasWindowSurface SDL_HasWindowSurface_REAL
+ #define SDL_DestroyWindowSurface SDL_DestroyWindowSurface_REAL
++#define SDL_SetWindowProtectedMode SDL_SetWindowProtectedMode_REAL
++#define SDL_SetWindowProtectedType SDL_SetWindowProtectedType_REAL
+diff --git a/src/dynapi/SDL_dynapi_procs.h b/src/dynapi/SDL_dynapi_procs.h
+index 2f915178c..b38aa6805 100644
+--- a/src/dynapi/SDL_dynapi_procs.h
++++ b/src/dynapi/SDL_dynapi_procs.h
+@@ -985,3 +985,5 @@ SDL_DYNAPI_PROC(void,SDL_GDKSuspendComplete,(void),(),)
+ #endif
+ SDL_DYNAPI_PROC(SDL_bool,SDL_HasWindowSurface,(SDL_Window *a),(a),return)
+ SDL_DYNAPI_PROC(int,SDL_DestroyWindowSurface,(SDL_Window *a),(a),return)
++SDL_DYNAPI_PROC(void,SDL_SetWindowProtectedType,(SDL_Window *a, int b),(a,b),)
++SDL_DYNAPI_PROC(void,SDL_SetWindowProtectedMode,(SDL_Window *a, SDL_Protection_Mode b),(a,b),)
+diff --git a/src/video/SDL_sysvideo.h b/src/video/SDL_sysvideo.h
+index c36d77843..24d6ec9d4 100644
+--- a/src/video/SDL_sysvideo.h
++++ b/src/video/SDL_sysvideo.h
+@@ -263,6 +263,8 @@ struct SDL_VideoDevice
+     void (*DestroyWindowFramebuffer) (_THIS, SDL_Window * window);
+     void (*OnWindowEnter) (_THIS, SDL_Window * window);
+     int (*FlashWindow) (_THIS, SDL_Window * window, SDL_FlashOperation operation);
++    void (*SetWindowProtectedType) (_THIS, SDL_Window * window, int type);
++    void (*SetWindowProtectedMode) (_THIS, SDL_Window * window, SDL_Protection_Mode mode);
+ 
+     /* * * */
+     /*
+diff --git a/src/video/SDL_video.c b/src/video/SDL_video.c
+index c92129e7e..ae7f6897b 100644
+--- a/src/video/SDL_video.c
++++ b/src/video/SDL_video.c
+@@ -4738,6 +4738,24 @@ void SDL_Vulkan_UnloadLibrary(void)
+     }
+ }
+ 
++void SDL_SetWindowProtectedMode(SDL_Window * window, SDL_Protection_Mode mode)
++{
++    CHECK_WINDOW_MAGIC(window,);
++
++    if (_this->SetWindowProtectedMode) {
++        _this->SetWindowProtectedMode(_this, window, mode);
++    }
++}
++
++void SDL_SetWindowProtectedType(SDL_Window * window, int type)
++{
++    CHECK_WINDOW_MAGIC(window,);
++
++    if (_this->SetWindowProtectedType) {
++        _this->SetWindowProtectedType(_this, window, type);
++    }
++}
++
+ SDL_bool SDL_Vulkan_GetInstanceExtensions(SDL_Window *window, unsigned *count, const char **names)
+ {
+     if (window) {
+diff --git a/src/video/wayland/SDL_waylanddyn.h b/src/video/wayland/SDL_waylanddyn.h
+index 36f4fde04..c2fb702d7 100644
+--- a/src/video/wayland/SDL_waylanddyn.h
++++ b/src/video/wayland/SDL_waylanddyn.h
+@@ -175,6 +175,7 @@ void SDL_WAYLAND_UnloadSymbols(void);
+  * pulls in the system Wayland protocol headers instead of ours.
+  */
+ #include "wayland-client-protocol.h"
++#include "weston-content-protection-client-protocol.h"
+ #include "wayland-egl.h"
+ 
+ #ifdef HAVE_LIBDECOR_H
+diff --git a/src/video/wayland/SDL_waylandvideo.c b/src/video/wayland/SDL_waylandvideo.c
+index 5bbaa6fd1..e1eaac93a 100644
+--- a/src/video/wayland/SDL_waylandvideo.c
++++ b/src/video/wayland/SDL_waylandvideo.c
+@@ -268,6 +268,9 @@ static SDL_VideoDevice *Wayland_CreateDevice(void)
+     device->StartTextInput = Wayland_StartTextInput;
+     device->StopTextInput = Wayland_StopTextInput;
+     device->SetTextInputRect = Wayland_SetTextInputRect;
++    device->SetWindowProtectedMode = Wayland_SetWindowProtectedMode;
++    device->SetWindowProtectedType = Wayland_SetWindowProtectedType;
++
+ 
+ #if SDL_VIDEO_VULKAN
+     device->Vulkan_LoadLibrary = Wayland_Vulkan_LoadLibrary;
+@@ -869,6 +872,8 @@ static void display_handle_global(void *data, struct wl_registry *registry, uint
+         d->secure_manager = wl_registry_bind(d->registry, id, &secure_display_manager_v1_interface, 1);
+     } else if (SDL_strcmp(interface, "wp_viewporter") == 0) {
+         d->viewporter = wl_registry_bind(d->registry, id, &wp_viewporter_interface, 1);
++    } else if (SDL_strcmp(interface, "weston_content_protection") == 0) {
++        d->protection = wl_registry_bind(d->registry, id, &weston_content_protection_interface, 1);
+     } else if (SDL_strcmp(interface, "wp_fractional_scale_manager_v1") == 0) {
+         d->fractional_scale_manager = wl_registry_bind(d->registry, id, &wp_fractional_scale_manager_v1_interface, 1);
+ #ifdef SDL_VIDEO_DRIVER_WAYLAND_QT_TOUCH
+@@ -1111,6 +1116,10 @@ static void Wayland_VideoCleanup(_THIS)
+         data->viewporter = NULL;
+     }
+ 
++    if (data->protection) {
++        weston_content_protection_destroy(data->protection);
++    }
++
+     if (data->primary_selection_device_manager) {
+         zwp_primary_selection_device_manager_v1_destroy(data->primary_selection_device_manager);
+         data->primary_selection_device_manager = NULL;
+diff --git a/src/video/wayland/SDL_waylandvideo.h b/src/video/wayland/SDL_waylandvideo.h
+index 751b1ffb7..60f16d784 100644
+--- a/src/video/wayland/SDL_waylandvideo.h
++++ b/src/video/wayland/SDL_waylandvideo.h
+@@ -79,6 +79,7 @@ typedef struct
+     struct zwp_text_input_manager_v3 *text_input_manager;
+     struct zxdg_output_manager_v1 *xdg_output_manager;
+     struct wp_viewporter *viewporter;
++    struct weston_content_protection *protection;
+     struct wp_fractional_scale_manager_v1 *fractional_scale_manager;
+     struct secure_display_manager_v1 *secure_manager;
+ 
+diff --git a/src/video/wayland/SDL_waylandwindow.c b/src/video/wayland/SDL_waylandwindow.c
+index ef9db9cc4..16094e148 100644
+--- a/src/video/wayland/SDL_waylandwindow.c
++++ b/src/video/wayland/SDL_waylandwindow.c
+@@ -1174,6 +1174,30 @@ static const struct wl_surface_listener surface_listener = {
+     handle_surface_leave
+ };
+ 
++static void
++handle_status_changed(void *data, struct weston_protected_surface *psurface,
++		      uint32_t status)
++{
++    SDL_WindowData *window = data;
++    enum weston_protected_surface_type event_status = status;
++
++    switch (event_status) {
++    case WESTON_PROTECTED_SURFACE_TYPE_HDCP_0:
++        window->protection_type = WESTON_PROTECTED_SURFACE_TYPE_HDCP_0;
++        break;
++    case WESTON_PROTECTED_SURFACE_TYPE_HDCP_1:
++        window->protection_type = WESTON_PROTECTED_SURFACE_TYPE_HDCP_1;
++        break;
++    case WESTON_PROTECTED_SURFACE_TYPE_UNPROTECTED:
++    default:
++        window->protection_type = WESTON_PROTECTED_SURFACE_TYPE_UNPROTECTED;
++    }
++}
++
++static const struct weston_protected_surface_listener psurface_listener = {
++    handle_status_changed,
++};
++
+ static void Wayland_FillEmptyShellInfo(SDL_SysWMinfo * info, const Uint32 version)
+ {
+     info->info.wl.xdg_surface = NULL;
+@@ -2076,6 +2100,11 @@ int Wayland_CreateWindow(_THIS, SDL_Window *window)
+ 
+     SDL_WAYLAND_register_surface(data->surface);
+ 
++    data->psurface = weston_content_protection_get_protection(c->protection, data->surface);
++    if (data->psurface)
++        weston_protected_surface_add_listener(data->psurface, &psurface_listener, data);
++    else
++        SDL_LogError(SDL_LOG_CATEGORY_VIDEO, "Get Protection surface Failed!");
+     /* Must be called before EGL configuration to set the drawable backbuffer size. */
+     ConfigureWindowGeometry(window);
+ 
+@@ -2326,6 +2355,36 @@ int Wayland_GetWindowDisplayIndex(_THIS, SDL_Window * window)
+        return -1;
+ }
+ 
++void Wayland_SetWindowProtectedMode(_THIS, SDL_Window * window, SDL_Protection_Mode mode)
++{
++    SDL_WindowData *wind = window->driverdata;
++
++    if (mode == SDL_RELAXED)
++        weston_protected_surface_relax(wind->psurface);
++    else if (mode == SDL_ENFORCED)
++        weston_protected_surface_enforce(wind->psurface);
++    else
++        SDL_LogError(SDL_LOG_CATEGORY_VIDEO, "Unsuspend Protection Mode!");
++
++    wl_surface_commit(wind->surface);
++}
++
++void Wayland_SetWindowProtectedType(_THIS, SDL_Window * window, int type)
++{
++    SDL_WindowData *wind = window->driverdata;
++
++    if (type == SDL_HDCP_TYPE0)
++        weston_protected_surface_set_type(wind->psurface, WESTON_PROTECTED_SURFACE_TYPE_HDCP_0);
++    else if (type == SDL_HDCP_TYPE1)
++        weston_protected_surface_set_type(wind->psurface, WESTON_PROTECTED_SURFACE_TYPE_HDCP_1);
++    else if (type == SDL_HDCP_UNPROTECTED)
++        weston_protected_surface_set_type(wind->psurface, WESTON_PROTECTED_SURFACE_TYPE_UNPROTECTED);
++    else
++        SDL_LogError(SDL_LOG_CATEGORY_VIDEO, "Unsuspend Protection type!");
++
++    wl_surface_commit(wind->surface);
++}
++
+ void Wayland_DestroyWindow(_THIS, SDL_Window *window)
+ {
+     SDL_VideoData *data = _this->driverdata;
+@@ -2376,6 +2435,7 @@ void Wayland_DestroyWindow(_THIS, SDL_Window *window)
+             qt_extended_surface_destroy(wind->extended_surface);
+         }
+ #endif /* SDL_VIDEO_DRIVER_WAYLAND_QT_TOUCH */
++        weston_protected_surface_destroy(wind->psurface);
+         wl_surface_destroy(wind->surface);
+ 
+         SDL_free(wind);
+diff --git a/src/video/wayland/SDL_waylandwindow.h b/src/video/wayland/SDL_waylandwindow.h
+index 9b2707ef2..f4ca67e70 100644
+--- a/src/video/wayland/SDL_waylandwindow.h
++++ b/src/video/wayland/SDL_waylandwindow.h
+@@ -29,6 +29,7 @@
+ #include "../../events/SDL_touch_c.h"
+ 
+ #include "SDL_waylandvideo.h"
++#include "weston-content-protection-client-protocol.h"
+ 
+ struct SDL_WaylandInput;
+ 
+@@ -41,6 +42,9 @@ typedef struct
+     struct wl_event_queue *gles_swap_frame_event_queue;
+     struct wl_surface *gles_swap_frame_surface_wrapper;
+     struct wl_callback *surface_damage_frame_callback;
++    struct weston_protected_surface *psurface;
++    enum weston_protected_surface_type protection_type;
++    SDL_Protection_Mode mode;
+ 
+     union
+     {
+@@ -148,6 +152,8 @@ extern SDL_bool
+ Wayland_GetWindowWMInfo(_THIS, SDL_Window * window, SDL_SysWMinfo * info);
+ extern int Wayland_SetWindowHitTest(SDL_Window *window, SDL_bool enabled);
+ extern int Wayland_FlashWindow(_THIS, SDL_Window *window, SDL_FlashOperation operation);
++extern void Wayland_SetWindowProtectedMode(_THIS, SDL_Window * window, SDL_Protection_Mode mode);
++extern void Wayland_SetWindowProtectedType(_THIS, SDL_Window * window, int type);
+ 
+ extern void Wayland_InitWin(SDL_VideoData *data);
+ extern void Wayland_QuitWin(SDL_VideoData *data);
+diff --git a/wayland-protocols/weston-content-protection.xml b/wayland-protocols/weston-content-protection.xml
+new file mode 100644
+index 000000000..6fdbb95b6
+--- /dev/null
++++ b/wayland-protocols/weston-content-protection.xml
+@@ -0,0 +1,251 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<protocol name="weston_content_protection">
++
++  <copyright>
++    Copyright 2016 The Chromium Authors.
++    Copyright 2018-2019 Collabora, Ltd.
++    Copyright © 2018-2019 Intel Corporation.
++
++    Permission is hereby granted, free of charge, to any person obtaining a
++    copy of this software and associated documentation files (the "Software"),
++    to deal in the Software without restriction, including without limitation
++    the rights to use, copy, modify, merge, publish, distribute, sublicense,
++    and/or sell copies of the Software, and to permit persons to whom the
++    Software is furnished to do so, subject to the following conditions:
++
++    The above copyright notice and this permission notice (including the next
++    paragraph) shall be included in all copies or substantial portions of the
++    Software.
++
++    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
++    THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
++    FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
++    DEALINGS IN THE SOFTWARE.
++  </copyright>
++
++  <description summary="Protocol for providing secure output">
++    This protocol specifies a set of interfaces used to provide
++    content-protection for e.g. HDCP, and protect surface contents on the
++    secured outputs and prevent from appearing in screenshots or from being
++    visible on non-secure outputs.
++
++    A secure-output is defined as an output that is secured by some
++    content-protection mechanism e.g. HDCP, and meets at least the minimum
++    required content-protection level requested by a client.
++    
++    The term content-protection is defined in terms of HDCP type 0 and
++    HDCP type 1, but this may be extended in future.
++
++    This protocol is not intended for implementing Digital Rights Management on
++    general (e.g. Desktop) systems, and would only be useful for closed systems.
++    As the server is the one responsible for implementing
++    the content-protection, the client can only trust the content-protection as
++    much they can trust the server.
++
++    In order to protect the content and prevent surface contents from appearing
++    in screenshots or from being visible on non-secure outputs, a client must
++    first bind the global interface "weston_content_protection" which, if a
++    compositor supports secure output, is exposed by the registry.
++    Using the bound global object, the client uses the "get_protection" request
++    to instantiate an interface extension for a wl_surface object.
++    This extended interface will then allow surfaces to request for
++    content-protection, and also to censor the visibility of the surface on
++    non-secure outputs. Client applications should not wait for the protection
++    to change, as it might never change in case the content-protection cannot be
++    achieved. Alternatively, clients can use a timeout and start showing the
++    content in lower quality.
++
++    Censored visibility is defined as the compositor censoring the protected
++    content on non-secure outputs. Censoring may include artificially reducing
++    image quality or replacing the protected content completely with
++    placeholder graphics.
++
++    Censored visibility is controlled by protection mode, set by the client.
++    In "relax" mode, the compositor may show protected content on non-secure
++    outputs. It will be up to the client to adapt to secure and non-secure
++    presentation. In "enforce" mode, the compositor will censor the parts of
++    protected content that would otherwise show on non-secure outputs.
++  </description>
++
++  <interface name="weston_content_protection" version="1">
++    <description summary="content protection global interface">
++      The global interface weston_content_protection is used for exposing the
++      content protection capabilities to a client. It provides a way for clients
++      to request their wl_surface contents to not be displayed on an output
++      below their required level of content-protection.
++      Using this interface clients can request for a weston_protected_surface
++      which is an extension to the wl_surface to provide content-protection, and
++      set the censored-visibility on the non-secured-outputs.
++    </description>
++
++    <request name="destroy" type="destructor">
++      <description summary="unbind from the content protection interface">
++        Informs the server that the client will not be using this
++        protocol object anymore. This does not affect any other objects,
++        protected_surface objects included.
++      </description>
++    </request>
++
++    <enum name="error">
++      <entry name="surface_exists" value="0"
++        summary="the surface already has a protected surface associated"/>
++    </enum>
++
++    <request name="get_protection">
++      <description summary="extend surface interface for protection">
++        Instantiate an interface extension for the given wl_surface to
++        provide surface protection. If the given wl_surface already has
++        a weston_protected_surface associated, the surface_exists protocol
++        error is raised.
++      </description>
++      <arg name="id" type="new_id" interface="weston_protected_surface"
++        summary="new object id for protected surface"/>
++      <arg name="surface" type="object" interface="wl_surface"
++        summary="the surface"/>
++    </request>
++  </interface>
++
++  <interface name="weston_protected_surface" version="1">
++    <description summary="content protection interface to a wl_surface">
++      An additional interface to a wl_surface object, which allows a client to
++      request the minimum level of content-protection, request to change the
++      visibility of their contents, and receive notifications about changes in
++      content-protection.
++
++      A protected surface has a 'status' associated with it, that indicates
++      what type of protection it is currently providing, specified by
++      content-type. Updates to this status are sent to the client
++      via the 'status' event. Before the first status event is sent, the client
++      should assume that the status is 'unprotected'.
++
++      A client can request a content protection level to be the minimum for an
++      output to be considered secure, using the 'set_type' request.
++      It is responsibility of the client to monitor the actual
++      content-protection level achieved via the 'status' event, and make
++      decisions as to what content to show based on this.
++
++      The server should make its best effort to achieve the desired
++      content-protection level on all of the outputs the client's contents are
++      being displayed on. Any changes to the content protection status should be
++      reported to the client, even if they are below the requested
++      content-protection level. If the client's contents are being displayed on
++      multiple outputs, the lowest content protection level achieved should be
++      reported.
++
++      A client can also request that its content only be displayed on outputs
++      that are considered secure. The 'enforce/relax' requests can achieve this.
++      In enforce mode, the content is censored for non-secure outputs.
++      The implementation of censored-visibility is compositor-defined.
++      In relax mode there are no such limitation. On an attempt to show the
++      client on unsecured output, compositor would keep on showing the content
++      and send the 'status' event to the client. Client can take a call to
++      downgrade the content.
++
++      If the wl_surface associated with the protected_surface is destroyed,
++      the protected_surface becomes inert.
++    </description>
++
++    <enum name="error">
++      <entry name="invalid_type" value="0"
++        summary="provided type was not valid"/>
++    </enum>
++
++    <enum name="type">
++      <description summary="content types">
++        Description of a particular type of content protection.
++
++        A server may not necessarily support all of these types.
++
++        Note that there is no ordering between enum members unless specified.
++        Over time, different types of content protection may be added, which
++        may be considered less secure than what is already here.
++      </description>
++      <entry name="unprotected" value="0" summary="no protection required"/>
++      <entry name="hdcp_0" value="1" summary="HDCP type 0"/>
++      <entry name="hdcp_1" value="2"
++             summary="HDCP type 1. This is a more secure than HDCP type 0."/>
++    </enum>
++
++    <request name="destroy" type="destructor">
++      <description summary="remove security from the surface">
++        If the protected_surface is destroyed, the wl_surface desired protection
++        level returns to unprotected, as if set_type request was sent with type
++        as 'unprotected'.
++      </description>
++    </request>
++
++    <request name="set_type">
++      <description summary="set the acceptable level of content protection">
++        Informs the server about the type of content. The level of
++        content-protection depends upon the content-type set by the client
++        through this request. Initially, this is set to 'unprotected'.
++
++        If the requested value is not a valid content_type enum value, the
++        'invalid_type' protocol error is raised. It is not an error to request
++        a valid protection type the compositor does not implement or cannot
++        achieve.
++
++        The requested content protection is double-buffered, see
++        wl_surface.commit.
++      </description>
++      <arg name="type" type="uint" enum="type"
++        summary="the desired type of content protection"/>
++    </request>
++
++    <request name="enforce">
++      <description summary="enforce censored-visibility constrain">
++        Censor the visibility of the wl_surface contents on non-secure outputs.
++        See weston_protected_surface for the description.
++
++        The force constrain mode is double-buffered, see wl_surface.commit
++      </description>
++    </request>
++
++    <request name="relax">
++      <description summary="relax the censored-visibility constrain">
++        Do not enforce censored-visibility of the wl_surface contents on
++        non-secure-outputs. See weston_protected_surface for the description.
++
++        The relax mode is selected by default, if no explicit request is made
++        for enforcing the censored-visibility.
++
++        The relax mode is double-buffered, see wl_surface.commit
++      </description>
++    </request>
++
++    <event name="status">
++      <description summary="security status changed">
++        This event is sent to the client to inform about the actual protection
++        level for its surface in the relax mode.
++
++        The 'type' argument indicates what that current level of content
++        protection that the server has currently established.
++
++        The 'status' event is first sent, when a weston_protected_surface is
++        created.
++
++        Until this event is sent for the first time, the client should assume
++        that its contents are not secure, and the type is 'unprotected'.
++
++        Possible reasons the content protection status can change is due to
++        change in censored-visibility mode from enforced to relaxed, a new
++        connector being added, movement of window to another output, or,
++        the client attaching a buffer too large for what the server may secure.
++        However, it is not limited to these reasons.
++
++        A client may want to listen to this event and lower the resolution of
++        their content until it can successfully be shown securely.
++
++        In case of "enforce" mode, the client will not get any status event.
++        If the mode is then changed to "relax", the client will receive the
++        status event.
++      </description>
++      <arg name="type" type="uint" enum="type"
++        summary="the current content protection level"/>
++    </event>
++  </interface>
++
++</protocol>
+-- 
+2.17.1
+

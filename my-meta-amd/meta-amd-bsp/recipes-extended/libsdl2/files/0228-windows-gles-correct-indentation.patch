@@ -1,0 +1,36 @@
+From 479bc2d5ed4d49c500a57a098c3d22ee143367b7 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Marc-Andr=C3=A9=20Lureau?= <marcandre.lureau@redhat.com>
+Date: Thu, 16 Feb 2023 18:47:16 +0400
+Subject: [PATCH 228/458] windows/gles: correct indentation
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: Marc-André Lureau <marcandre.lureau@redhat.com>
+(cherry picked from commit 654965a6286ccb3ef861310d0cff578788641091)
+---
+ src/video/windows/SDL_windowsopengles.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/video/windows/SDL_windowsopengles.c b/src/video/windows/SDL_windowsopengles.c
+index 78fae1788..7b8f753be 100644
+--- a/src/video/windows/SDL_windowsopengles.c
++++ b/src/video/windows/SDL_windowsopengles.c
+@@ -96,10 +96,12 @@ void WIN_GLES_DeleteContext(_THIS, SDL_GLContext context)
+     WIN_GLES_UnloadLibrary(_this);
+ }
+ 
++/* *INDENT-OFF* */ /* clang-format off */
+ SDL_EGL_SwapWindow_impl(WIN)
+-    SDL_EGL_MakeCurrent_impl(WIN)
++SDL_EGL_MakeCurrent_impl(WIN)
++/* *INDENT-ON* */ /* clang-format on */
+ 
+-        int WIN_GLES_SetupWindow(_THIS, SDL_Window *window)
++int WIN_GLES_SetupWindow(_THIS, SDL_Window *window)
+ {
+     /* The current context is lost in here; save it and reset it. */
+     SDL_WindowData *windowdata = (SDL_WindowData *)window->driverdata;
+-- 
+2.17.1
+

@@ -1,0 +1,140 @@
+From 4c7156c1e67ed6ecdea4633e0763f4155e80c2c5 Mon Sep 17 00:00:00 2001
+From: Sam James <sam@gentoo.org>
+Date: Thu, 24 Nov 2022 05:21:21 +0000
+Subject: [PATCH 017/458] Avoid use of deprecated egrep/fgrep
+
+GNU grep 3.8 emits a deprecation warning on use of egrep/fgrep.
+
+Signed-off-by: Sam James <sam@gentoo.org>
+(cherry picked from commit 3e7952ce8a0affd325c802755cae5fd843b86d99)
+---
+ Makefile.in                         | 2 +-
+ android-project/gradlew             | 4 ++--
+ configure.ac                        | 5 +++--
+ src/events/SDL_keysym_to_scancode.c | 4 ++--
+ src/events/scancodes_linux.h        | 8 ++++----
+ src/joystick/check_8bitdo.sh        | 6 +++---
+ 6 files changed, 15 insertions(+), 14 deletions(-)
+
+diff --git a/Makefile.in b/Makefile.in
+index d4eeee402..30bd52cdf 100644
+--- a/Makefile.in
++++ b/Makefile.in
+@@ -130,7 +130,7 @@ HDRS = \
+ 	begin_code.h \
+ 	close_code.h
+ 
+-SDLTEST_HDRS = $(shell ls $(srcdir)/include | fgrep SDL_test)
++SDLTEST_HDRS = $(shell ls $(srcdir)/include | $(FGREP) SDL_test)
+ 
+ LT_AGE      = @LT_AGE@
+ LT_CURRENT  = @LT_CURRENT@
+diff --git a/android-project/gradlew b/android-project/gradlew
+index 9d82f7891..3427607f4 100755
+--- a/android-project/gradlew
++++ b/android-project/gradlew
+@@ -126,8 +126,8 @@ if $cygwin ; then
+     # Now convert the arguments - kludge to limit ourselves to /bin/sh
+     i=0
+     for arg in "$@" ; do
+-        CHECK=`echo "$arg"|egrep -c "$OURCYGPATTERN" -`
+-        CHECK2=`echo "$arg"|egrep -c "^-"`                                 ### Determine if an option
++        CHECK=`echo "$arg"|grep -E -c "$OURCYGPATTERN" -`
++        CHECK2=`echo "$arg"|grep -E -c "^-"`                                 ### Determine if an option
+ 
+         if [ $CHECK -ne 0 ] && [ $CHECK2 -eq 0 ] ; then                    ### Added a condition
+             eval `echo args$i`=`cygpath --path --ignore --mixed "$arg"`
+diff --git a/configure.ac b/configure.ac
+index 1cb1060f4..635cbb111 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -62,6 +62,7 @@ AC_PROG_AWK
+ AC_PROG_CC
+ AC_PROG_CXX
+ AC_PROG_EGREP
++AC_PROG_FGREP
+ AC_PROG_INSTALL
+ AC_PROG_MAKE_SET
+ PKG_PROG_PKG_CONFIG
+@@ -180,8 +181,8 @@ base_libdir=`echo \${libdir} | sed 's/.*\/\(.*\)/\1/; q'`
+ dnl Function to find a library in the compiler search path
+ find_lib()
+ {
+-    gcc_bin_path=[`$CC -print-search-dirs 2>/dev/null | fgrep programs: | sed 's/[^=]*=\(.*\)/\1/' | sed 's/:/ /g'`]
+-    gcc_lib_path=[`$CC -print-search-dirs 2>/dev/null | fgrep libraries: | sed 's/[^=]*=\(.*\)/\1/' | sed 's/:/ /g'`]
++    gcc_bin_path=[`$CC -print-search-dirs 2>/dev/null | $(FGREP) programs: | sed 's/[^=]*=\(.*\)/\1/' | sed 's/:/ /g'`]
++    gcc_lib_path=[`$CC -print-search-dirs 2>/dev/null | $(FGREP) libraries: | sed 's/[^=]*=\(.*\)/\1/' | sed 's/:/ /g'`]
+     env_lib_path=[`echo $LIBS $LDFLAGS $* | sed 's/-L[ ]*//g'`]
+     if test "$cross_compiling" = yes; then
+         host_lib_path=""
+diff --git a/src/events/SDL_keysym_to_scancode.c b/src/events/SDL_keysym_to_scancode.c
+index c1c1ba626..3df4fd056 100644
+--- a/src/events/SDL_keysym_to_scancode.c
++++ b/src/events/SDL_keysym_to_scancode.c
+@@ -316,11 +316,11 @@ function process_line
+ {
+     sym=$(echo "$1" | awk '{print $3}')
+     code=$(echo "$1" | sed 's,.*_EVDEVK(\(0x[0-9A-Fa-f]*\)).*,\1,')
+-    value=$(egrep "#define ${sym}\s" -R /usr/include/X11 | awk '{print $3}')
++    value=$(grep -E "#define ${sym}\s" -R /usr/include/X11 | awk '{print $3}')
+     printf "    { 0x%.8X, 0x%.3x },    /* $sym */\n" $value $code
+ }
+ 
+-fgrep "/* Use: " /usr/include/xkbcommon/xkbcommon-keysyms.h | fgrep _EVDEVK | while read line; do
++grep -F "/* Use: " /usr/include/xkbcommon/xkbcommon-keysyms.h | grep -F _EVDEVK | while read line; do
+     process_line "$line"
+ done
+ #endif
+diff --git a/src/events/scancodes_linux.h b/src/events/scancodes_linux.h
+index 325737746..5770d9a79 100644
+--- a/src/events/scancodes_linux.h
++++ b/src/events/scancodes_linux.h
+@@ -804,7 +804,7 @@ static SDL_Scancode const linux_scancode_table[] = {
+ function get_keyname
+ {
+     value=$(echo "$1" | awk '{print $3}')
+-    fgrep KEY_ /usr/include/linux/input-event-codes.h | while read line; do
++    grep -F KEY_ /usr/include/linux/input-event-codes.h | while read line; do
+         read -ra fields <<<"$line"
+         if [ "${fields[2]}" = "$value" ]; then
+             echo "${fields[1]}"
+@@ -813,7 +813,7 @@ function get_keyname
+     done
+ }
+ 
+-fgrep SDL_SCANCODE scancodes_linux.h | while read line; do
++grep -F SDL_SCANCODE scancodes_linux.h | while read line; do
+     if [ $(echo "$line" | awk '{print NF}') -eq 5 ]; then
+         name=$(get_keyname "$line")
+         if [ "$name" != "" ]; then
+@@ -832,11 +832,11 @@ function get_comment
+ {   
+     name=$(echo "$1" | awk '{print $7}')
+     if [ "$name" != "" ]; then
+-        egrep "$name\s" /usr/include/linux/input-event-codes.h | fgrep "/*" | sed 's,[^/]*/,/,'
++        grep -E "$name\s" /usr/include/linux/input-event-codes.h | grep -F "/*" | sed 's,[^/]*/,/,'
+     fi
+ }
+ 
+-fgrep SDL_SCANCODE scancodes_linux.h | while read line; do
++grep -F SDL_SCANCODE scancodes_linux.h | while read line; do
+     comment=$(get_comment "$line")
+     if [ "$comment" != "" ]; then
+         echo "    $line $comment"
+diff --git a/src/joystick/check_8bitdo.sh b/src/joystick/check_8bitdo.sh
+index d65b972a8..5e172dbfa 100755
+--- a/src/joystick/check_8bitdo.sh
++++ b/src/joystick/check_8bitdo.sh
+@@ -10,6 +10,6 @@ cat <<__EOF__
+ __EOF__
+ 
+ echo "Actual output:"
+-fgrep 8BitDo SDL_gamecontrollerdb.h | fgrep -v hint
+-egrep "hint:SDL_GAMECONTROLLER_USE_BUTTON_LABELS:=1" SDL_gamecontrollerdb.h  | fgrep -i 8bit | fgrep -v x:b2,y:b3 | fgrep -v x:b3,y:b4
+-egrep "hint:.SDL_GAMECONTROLLER_USE_BUTTON_LABELS:=1" SDL_gamecontrollerdb.h  | fgrep -i 8bit | fgrep -v x:b3,y:b2 | fgrep -v x:b4,y:b3
++${FGREP:-grep -F} 8BitDo SDL_gamecontrollerdb.h | ${FGREP:-grep -F} -v hint
++${EGREP:-grep -E} "hint:SDL_GAMECONTROLLER_USE_BUTTON_LABELS:=1" SDL_gamecontrollerdb.h  | ${FGREP:-grep -F} -i 8bit | ${FGREP:-grep -F} -v x:b2,y:b3 | ${FGREP:-grep -F} -v x:b3,y:b4
++${EGREP:-grep -E} "hint:.SDL_GAMECONTROLLER_USE_BUTTON_LABELS:=1" SDL_gamecontrollerdb.h  | ${FGREP:-grep -F} -i 8bit | ${FGREP:-grep -F} -v x:b3,y:b2 | ${FGREP:-grep -F} -v x:b4,y:b3
+-- 
+2.17.1
+

@@ -1,0 +1,34 @@
+From b51304420d3bb2a60fd1f19b978f6a19320d4166 Mon Sep 17 00:00:00 2001
+From: Pierre-Eric Pelloux-Prayer <pierre-eric.pelloux-prayer@amd.com>
+Date: Wed, 10 May 2023 15:34:44 +0200
+Subject: [PATCH 19/49] hack: don't fail privcmd_ioctl_map_hva_to_gpfns when
+ not needed
+
+This should be fixed correctly but right now this avoids
+random failures in this function and doesn't seem to cause major
+issues.
+---
+ drivers/xen/privcmd.c | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/drivers/xen/privcmd.c b/drivers/xen/privcmd.c
+index ebe11b945ae3..a8b613304c99 100644
+--- a/drivers/xen/privcmd.c
++++ b/drivers/xen/privcmd.c
+@@ -1563,8 +1563,13 @@ static long privcmd_ioctl_map_hva_to_gpfns(struct file *file, void __user *udata
+ 		if (ret) {
+ 			bool unlocked = false;
+ 			ret = fixup_user_fault(mm, start, 0, &unlocked);
++			/*
++			TODO: returning -EAGAIN isn't correct here.
++			      The right thing to do would be to retry as hva_to_pfn
++			      is doing.
+ 			if (unlocked)
+ 				ret = -EAGAIN;
++			*/
+ 			if (ret) {
+ 				printk(KERN_WARNING "@@@ fixup_user_fault failed\n");
+ 				break;;
+-- 
+2.17.1
+

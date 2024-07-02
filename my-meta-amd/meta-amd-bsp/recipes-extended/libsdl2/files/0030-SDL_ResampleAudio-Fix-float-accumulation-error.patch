@@ -1,0 +1,35 @@
+From 8145212103264b04c20cdb50b430f3c99b44e9b4 Mon Sep 17 00:00:00 2001
+From: Markus Mittendrein <maxmitti@maxmitti.tk>
+Date: Sun, 27 Nov 2022 22:46:54 +0100
+Subject: [PATCH 030/458] SDL_ResampleAudio: Fix float accumulation error
+
+While 78f97108f9dad22db6708f28322561eb9828fc36 reduced the accumulation error, it was still big enough to cause distortions.
+Fixes #6196.
+---
+ src/audio/SDL_audiocvt.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/audio/SDL_audiocvt.c b/src/audio/SDL_audiocvt.c
+index 196013e11..69427c5ef 100644
+--- a/src/audio/SDL_audiocvt.c
++++ b/src/audio/SDL_audiocvt.c
+@@ -202,7 +202,6 @@ SDL_ResampleAudio(const int chans, const int inrate, const int outrate,
+     typedef float ResampleFloatType;
+ 
+     const ResampleFloatType finrate = (ResampleFloatType) inrate;
+-    const ResampleFloatType outtimeincr = ((ResampleFloatType) 1.0f) / ((ResampleFloatType) outrate);
+     const ResampleFloatType ratio = ((float) outrate) / ((float) inrate);
+     const int paddinglen = ResamplerPadding(inrate, outrate);
+     const int framelen = chans * (int)sizeof (float);
+@@ -247,7 +246,7 @@ SDL_ResampleAudio(const int chans, const int inrate, const int outrate,
+             *(dst++) = outsample;
+         }
+ 
+-        outtime = outtimeincr * i;
++        outtime = ((ResampleFloatType) i) / ((ResampleFloatType) outrate);
+     }
+ 
+     return outframes * chans * sizeof (float);
+-- 
+2.17.1
+

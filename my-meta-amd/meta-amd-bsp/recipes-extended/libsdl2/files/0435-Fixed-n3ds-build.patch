@@ -1,0 +1,29 @@
+From c77aaa5d996e4c396641135128e620d294528a84 Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Mon, 12 Jun 2023 15:39:57 -0700
+Subject: [PATCH 435/458] Fixed n3ds build
+
+(cherry picked from commit d95dbe78bb7a5087ecfb8d301417b1108d868738)
+---
+ src/joystick/SDL_joystick.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/joystick/SDL_joystick.c b/src/joystick/SDL_joystick.c
+index 02d7eddab..8bdf952b0 100644
+--- a/src/joystick/SDL_joystick.c
++++ b/src/joystick/SDL_joystick.c
+@@ -144,9 +144,9 @@ SDL_bool SDL_JoysticksQuitting(void)
+ 
+ void SDL_LockJoysticks(void)
+ {
+-    SDL_AtomicIncRef(&SDL_joystick_lock_pending);
++    (void)SDL_AtomicIncRef(&SDL_joystick_lock_pending);
+     SDL_LockMutex(SDL_joystick_lock);
+-    SDL_AtomicDecRef(&SDL_joystick_lock_pending);
++    (void)SDL_AtomicDecRef(&SDL_joystick_lock_pending);
+ 
+     ++SDL_joysticks_locked;
+ }
+-- 
+2.17.1
+

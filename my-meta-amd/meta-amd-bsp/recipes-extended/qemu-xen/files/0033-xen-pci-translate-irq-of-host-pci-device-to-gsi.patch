@@ -1,0 +1,34 @@
+From 1872aebcb9badeee0733d87dfb0ca059960f8203 Mon Sep 17 00:00:00 2001
+From: jiqichen <Jiqian.Chen@amd.com>
+Date: Mon, 30 Jan 2023 14:19:39 +0800
+Subject: [PATCH 33/70] xen: pci: translate irq of host pci device to gsi
+
+Signed-off-by: Chen Jiqian <Jiqian.Chen@amd.com>
+---
+ hw/xen/xen-host-pci-device.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/hw/xen/xen-host-pci-device.c b/hw/xen/xen-host-pci-device.c
+index 8c6e9a1716..79f42153e0 100644
+--- a/hw/xen/xen-host-pci-device.c
++++ b/hw/xen/xen-host-pci-device.c
+@@ -9,6 +9,7 @@
+ #include "qemu/osdep.h"
+ #include "qapi/error.h"
+ #include "qemu/cutils.h"
++#include "hw/xen/xen_native.h"
+ #include "xen-host-pci-device.h"
+ 
+ #define XEN_HOST_PCI_MAX_EXT_CAP \
+@@ -368,7 +369,7 @@ void xen_host_pci_device_get(XenHostPCIDevice *d, uint16_t domain,
+     if (*errp) {
+         goto error;
+     }
+-    d->irq = v;
++    d->irq = xc_physdev_gsi_from_irq(xen_xc, v);
+ 
+     xen_host_pci_get_hex_value(d, "class", &v, errp);
+     if (*errp) {
+-- 
+2.17.1
+

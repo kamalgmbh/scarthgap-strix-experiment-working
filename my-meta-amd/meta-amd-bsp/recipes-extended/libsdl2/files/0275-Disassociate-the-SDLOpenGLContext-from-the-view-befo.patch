@@ -1,0 +1,85 @@
+From f5c0760c6bf465ffd9fcbb48ca0bcffa748c5d66 Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Wed, 8 Mar 2023 01:15:21 -0800
+Subject: [PATCH 275/458] Disassociate the SDLOpenGLContext from the view
+ before deleting it
+
+If we don't do this, the view will be blanked even if another context is current and rendering from that context won't be visible.
+
+Fixes https://github.com/libsdl-org/SDL/issues/4986
+---
+ src/video/cocoa/SDL_cocoaopengl.h |  2 +-
+ src/video/cocoa/SDL_cocoaopengl.m | 19 ++++++++++++-------
+ 2 files changed, 13 insertions(+), 8 deletions(-)
+
+diff --git a/src/video/cocoa/SDL_cocoaopengl.h b/src/video/cocoa/SDL_cocoaopengl.h
+index d846d4675..0bd549fc9 100644
+--- a/src/video/cocoa/SDL_cocoaopengl.h
++++ b/src/video/cocoa/SDL_cocoaopengl.h
+@@ -58,7 +58,7 @@ struct SDL_GLDriverData
+ - (void)setWindow:(SDL_Window *)window;
+ - (SDL_Window*)window;
+ - (void)explicitUpdate;
+-- (void)dealloc;
++- (void)cleanup;
+ 
+ @property (retain, nonatomic) NSOpenGLPixelFormat* openglPixelFormat;  // macOS 10.10 has -[NSOpenGLContext pixelFormat] but this handles older OS releases.
+ 
+diff --git a/src/video/cocoa/SDL_cocoaopengl.m b/src/video/cocoa/SDL_cocoaopengl.m
+index b65d9b0e6..46a973a73 100644
+--- a/src/video/cocoa/SDL_cocoaopengl.m
++++ b/src/video/cocoa/SDL_cocoaopengl.m
+@@ -176,11 +176,10 @@ DisplayLinkCallback(CVDisplayLinkRef displayLink, const CVTimeStamp* now, const
+             }
+         }
+     } else {
+-        [self clearDrawable];
+-        if (self == [NSOpenGLContext currentContext]) {
+-            [self explicitUpdate];
++        if ([NSThread isMainThread]) {
++            [self setView:nil];
+         } else {
+-            [self scheduleUpdate];
++            dispatch_sync(dispatch_get_main_queue(), ^{ [self setView:nil]; });
+         }
+     }
+ }
+@@ -203,17 +202,22 @@ DisplayLinkCallback(CVDisplayLinkRef displayLink, const CVTimeStamp* now, const
+     }
+ }
+ 
+-- (void)dealloc
++- (void)cleanup
+ {
++    [self setWindow:NULL];
++
+     SDL_DelHintCallback(SDL_HINT_MAC_OPENGL_ASYNC_DISPATCH, SDL_OpenGLAsyncDispatchChanged, NULL);
+     if (self->displayLink) {
+         CVDisplayLinkRelease(self->displayLink);
++        self->displayLink = nil;
+     }
+     if (self->swapIntervalCond) {
+         SDL_DestroyCond(self->swapIntervalCond);
++        self->swapIntervalCond = NULL;
+     }
+     if (self->swapIntervalMutex) {
+         SDL_DestroyMutex(self->swapIntervalMutex);
++        self->swapIntervalMutex = NULL;
+     }
+ }
+ 
+@@ -516,8 +520,9 @@ void
+ Cocoa_GL_DeleteContext(_THIS, SDL_GLContext context)
+ { @autoreleasepool
+ {
+-    SDLOpenGLContext *nscontext = (SDLOpenGLContext *)CFBridgingRelease(context);
+-    [nscontext setWindow:NULL];
++    SDLOpenGLContext *nscontext = (__bridge SDLOpenGLContext *)context;
++    [nscontext cleanup];
++    CFRelease(context);
+ }}
+ 
+ /* We still support OpenGL as long as Apple offers it, deprecated or not, so disable deprecation warnings about it. */
+-- 
+2.17.1
+

@@ -1,0 +1,81 @@
+From 7d26ba754a2defbbe5d575884802f6228fdc16a6 Mon Sep 17 00:00:00 2001
+From: Sylvain <sylvain.becker@gmail.com>
+Date: Thu, 16 Mar 2023 09:46:44 +0100
+Subject: [PATCH 300/458] Simplify SDL_BLENDMODE_MUL
+
+---
+ include/SDL_blendmode.h            | 2 +-
+ src/render/software/SDL_draw.h     | 5 +----
+ src/render/software/SDL_triangle.c | 4 ----
+ src/video/SDL_blit_slow.c          | 4 ----
+ 4 files changed, 2 insertions(+), 13 deletions(-)
+
+diff --git a/include/SDL_blendmode.h b/include/SDL_blendmode.h
+index b8621165d..4ecbe5078 100644
+--- a/include/SDL_blendmode.h
++++ b/include/SDL_blendmode.h
+@@ -52,7 +52,7 @@ typedef enum
+                                               dstA = dstA */
+     SDL_BLENDMODE_MUL = 0x00000008,      /**< color multiply
+                                               dstRGB = (srcRGB * dstRGB) + (dstRGB * (1-srcA))
+-                                              dstA = (srcA * dstA) + (dstA * (1-srcA)) */
++                                              dstA = dstA */
+     SDL_BLENDMODE_INVALID = 0x7FFFFFFF
+ 
+     /* Additional custom blend modes can be returned by SDL_ComposeCustomBlendMode() */
+diff --git a/src/render/software/SDL_draw.h b/src/render/software/SDL_draw.h
+index 1492286a4..db593f4d3 100644
+--- a/src/render/software/SDL_draw.h
++++ b/src/render/software/SDL_draw.h
+@@ -91,7 +91,7 @@
+ #define DRAW_SETPIXEL_MUL(getpixel, setpixel)      \
+     do {                                           \
+         unsigned sr, sg, sb, sa;                   \
+-        sa = 0xFF;                                 \
++        (void)sa;                                  \
+         getpixel;                                  \
+         sr = DRAW_MUL(sr, r) + DRAW_MUL(inva, sr); \
+         if (sr > 0xff)                             \
+@@ -102,9 +102,6 @@
+         sb = DRAW_MUL(sb, b) + DRAW_MUL(inva, sb); \
+         if (sb > 0xff)                             \
+             sb = 0xff;                             \
+-        sa = DRAW_MUL(sa, a) + DRAW_MUL(inva, sa); \
+-        if (sa > 0xff)                             \
+-            sa = 0xff;                             \
+         setpixel;                                  \
+     } while (0)
+ 
+diff --git a/src/render/software/SDL_triangle.c b/src/render/software/SDL_triangle.c
+index 77ae3ac4d..fc429db6e 100644
+--- a/src/render/software/SDL_triangle.c
++++ b/src/render/software/SDL_triangle.c
+@@ -869,10 +869,6 @@ static void SDL_BlitTriangle_Slow(SDL_BlitInfo *info,
+             if (dstB > 255) {
+                 dstB = 255;
+             }
+-            dstA = ((srcA * dstA) + (dstA * (255 - srcA))) / 255;
+-            if (dstA > 255) {
+-                dstA = 255;
+-            }
+             break;
+         }
+         if (FORMAT_HAS_ALPHA(dstfmt_val)) {
+diff --git a/src/video/SDL_blit_slow.c b/src/video/SDL_blit_slow.c
+index bbdfb1dd6..9ea5c384d 100644
+--- a/src/video/SDL_blit_slow.c
++++ b/src/video/SDL_blit_slow.c
+@@ -178,10 +178,6 @@ void SDL_Blit_Slow(SDL_BlitInfo *info)
+                 if (dstB > 255) {
+                     dstB = 255;
+                 }
+-                dstA = ((srcA * dstA) + (dstA * (255 - srcA))) / 255;
+-                if (dstA > 255) {
+-                    dstA = 255;
+-                }
+                 break;
+             }
+             if (FORMAT_HAS_ALPHA(dstfmt_val)) {
+-- 
+2.17.1
+

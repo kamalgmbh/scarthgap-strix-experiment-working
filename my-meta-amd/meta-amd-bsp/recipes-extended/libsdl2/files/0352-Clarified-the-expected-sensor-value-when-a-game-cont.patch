@@ -1,0 +1,27 @@
+From 6d7269815b0c79ce831d25ea26e7c8234408417d Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Thu, 6 Apr 2023 09:54:39 -0700
+Subject: [PATCH 352/458] Clarified the expected sensor value when a game
+ controller is at rest
+
+(cherry picked from commit 1a20ccb2897fc9b12ad5242f9128cb6bb60368b1)
+---
+ include/SDL_sensor.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/include/SDL_sensor.h b/include/SDL_sensor.h
+index 3010e497e..9ecce44b1 100644
+--- a/include/SDL_sensor.h
++++ b/include/SDL_sensor.h
+@@ -84,7 +84,7 @@ typedef enum
+  * The accelerometer returns the current acceleration in SI meters per
+  * second squared. This measurement includes the force of gravity, so
+  * a device at rest will have an value of SDL_STANDARD_GRAVITY away
+- * from the center of the earth.
++ * from the center of the earth, which is a positive Y value.
+  *
+  * values[0]: Acceleration on the x axis
+  * values[1]: Acceleration on the y axis
+-- 
+2.17.1
+

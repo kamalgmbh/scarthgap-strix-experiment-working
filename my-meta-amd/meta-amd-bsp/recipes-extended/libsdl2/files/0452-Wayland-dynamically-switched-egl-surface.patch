@@ -1,0 +1,180 @@
+From 1d5e37cd06d7a926ea00be0b7fbc4160efab7db2 Mon Sep 17 00:00:00 2001
+From: Lei Huang <Lei.Huang@amd.com>
+Date: Wed, 29 Nov 2023 16:17:45 +0800
+Subject: [PATCH 452/458] Wayland:dynamically switched egl surface
+
+[Why]
+We need to use protected egl surfaces without
+destroying sdl context
+
+[How]
+If dmabuf state change, We need to update
+the egl surface to the desired state
+this is a workaround to fix the TMZ enabling
+
+Jira ID: SWDEV-433918
+
+Change-Id: I44cf672a8e7cf4ea5e89265266ca4a43ebaa9fb6
+Signed-off-by: LeiHuang <Lei.Huang@amd.com>
+---
+ include/SDL_video.h                     |  8 ++++++++
+ src/video/SDL_egl.c                     |  7 +++++--
+ src/video/SDL_sysvideo.h                |  1 +
+ src/video/wayland/SDL_waylandopengles.c | 27 +++++++++++++++++++++++++
+ src/video/wayland/SDL_waylandwindow.c   | 13 ++++++++++++
+ 5 files changed, 54 insertions(+), 2 deletions(-)
+
+diff --git a/include/SDL_video.h b/include/SDL_video.h
+index 449de2965..a8f67a188 100644
+--- a/include/SDL_video.h
++++ b/include/SDL_video.h
+@@ -308,6 +308,14 @@ typedef enum
+     SDL_DPMS_OFF
+ } SDL_Dpms;
+ 
++#define SDL_WINDOWEGLSURFACEDATA "_SDL_WindowEglSurfaceData"
++
++typedef struct SDL_WindowEglSurfaceData
++{
++    SDL_bool frame_need_protected;
++    SDL_bool current_frame_state;
++} SDL_WindowEglSurfaceData;
++
+ /* Function prototypes */
+ 
+ /**
+diff --git a/src/video/SDL_egl.c b/src/video/SDL_egl.c
+index 8e5f165b5..11a39546e 100644
+--- a/src/video/SDL_egl.c
++++ b/src/video/SDL_egl.c
+@@ -1183,8 +1183,8 @@ EGLSurface *SDL_EGL_CreateSurface(_THIS, NativeWindowType nw)
+     EGLint format_wanted;
+     EGLint format_got;
+ #endif
+-    /* max 2 key+value pairs, plus terminator. */
+-    EGLint attribs[5];
++    /* max 4 key+value pairs, plus terminator. */
++    EGLint attribs[7];
+     int attr = 0;
+ 
+     EGLSurface *surface;
+@@ -1204,6 +1204,9 @@ EGLSurface *SDL_EGL_CreateSurface(_THIS, NativeWindowType nw)
+     ANativeWindow_setBuffersGeometry(nw, 0, 0, format_wanted);
+ #endif
+ 
++    attribs[attr++] = EGL_PROTECTED_CONTENT_EXT;
++    attribs[attr++] = _this->gl_config.need_protected;
++
+     if (_this->gl_config.framebuffer_srgb_capable) {
+ #ifdef EGL_KHR_gl_colorspace
+         if (SDL_EGL_HasExtension(_this, SDL_EGL_DISPLAY_EXTENSION, "EGL_KHR_gl_colorspace")) {
+diff --git a/src/video/SDL_sysvideo.h b/src/video/SDL_sysvideo.h
+index 24d6ec9d4..b3edb1c3c 100644
+--- a/src/video/SDL_sysvideo.h
++++ b/src/video/SDL_sysvideo.h
+@@ -406,6 +406,7 @@ struct SDL_VideoDevice
+         int retained_backing;
+         int driver_loaded;
+         char driver_path[256];
++        SDL_bool need_protected;
+         void *dll_handle;
+     } gl_config;
+ 
+diff --git a/src/video/wayland/SDL_waylandopengles.c b/src/video/wayland/SDL_waylandopengles.c
+index b63ff9013..7754d9741 100644
+--- a/src/video/wayland/SDL_waylandopengles.c
++++ b/src/video/wayland/SDL_waylandopengles.c
+@@ -195,11 +195,38 @@ void Wayland_GLES_SetROI(_THIS, SDL_Window *window, SDL_bool enable,
+         }
+ }
+ 
++static int Wayland_GLES_ReCreateEglSurface(_THIS, SDL_Window *window)
++{
++
++    SDL_WindowData *wind = window->driverdata;
++    SDL_WindowEglSurfaceData *data = SDL_GetWindowData(window, SDL_WINDOWEGLSURFACEDATA);
++    if (data->frame_need_protected != data->current_frame_state) {
++        SDL_EGL_MakeCurrent(_this, NULL, NULL);
++        data->current_frame_state = data->frame_need_protected;
++        if (wind->egl_surface) {
++            SDL_EGL_DestroySurface(_this, wind->egl_surface);
++            if (wind->egl_window) {
++                WAYLAND_wl_egl_window_destroy(wind->egl_window);
++            }
++            wind->egl_window = WAYLAND_wl_egl_window_create(wind->surface, wind->drawable_width, wind->drawable_height);
++            _this->gl_config.need_protected = data->frame_need_protected;
++            wind->egl_surface = SDL_EGL_CreateSurface(_this, (NativeWindowType)wind->egl_window);
++        }
++        if (wind->egl_surface == EGL_NO_SURFACE) {
++            SDL_SetError("SDL_EGL_CreateSurface Error");
++            return -1; /* SDL_EGL_CreateSurface should have set error */
++        }
++    }
++    return 0;
++}
++
+ int Wayland_GLES_MakeCurrent(_THIS, SDL_Window *window, SDL_GLContext context)
+ {
+     int ret;
+ 
+     if (window && context) {
++        /*if surface type need change*/
++        Wayland_GLES_ReCreateEglSurface(_this, window);
+         ret = SDL_EGL_MakeCurrent(_this, ((SDL_WindowData *)window->driverdata)->egl_surface, context);
+     } else {
+         ret = SDL_EGL_MakeCurrent(_this, NULL, NULL);
+diff --git a/src/video/wayland/SDL_waylandwindow.c b/src/video/wayland/SDL_waylandwindow.c
+index 16094e148..df55ad278 100644
+--- a/src/video/wayland/SDL_waylandwindow.c
++++ b/src/video/wayland/SDL_waylandwindow.c
+@@ -2052,6 +2052,7 @@ int Wayland_CreateWindow(_THIS, SDL_Window *window)
+ {
+     SDL_WindowData *data;
+     SDL_VideoData *c;
++    SDL_WindowEglSurfaceData *egl_data;
+ 
+     data = SDL_calloc(1, sizeof(*data));
+     if (data == NULL) {
+@@ -2140,6 +2141,7 @@ int Wayland_CreateWindow(_THIS, SDL_Window *window)
+ 
+ #if SDL_VIDEO_OPENGL_EGL
+         /* Create the GLES window surface */
++        _this->gl_config.need_protected = false;
+         data->egl_surface = SDL_EGL_CreateSurface(_this, (NativeWindowType)data->egl_window);
+ 
+         if (data->egl_surface == EGL_NO_SURFACE) {
+@@ -2172,6 +2174,14 @@ int Wayland_CreateWindow(_THIS, SDL_Window *window)
+     /* We may need to create an idle inhibitor for this new window */
+     Wayland_SuspendScreenSaver(_this);
+ 
++    egl_data = (SDL_WindowEglSurfaceData *)SDL_calloc(1, sizeof(*egl_data));
++    if (egl_data == NULL) {
++        return SDL_OutOfMemory();
++    }
++    egl_data->frame_need_protected = false;
++    egl_data->current_frame_state = false;
++    SDL_SetWindowData(window, SDL_WINDOWEGLSURFACEDATA, egl_data);
++
+ #define IS_POPUP(window) \
+     (window->flags & (SDL_WINDOW_TOOLTIP | SDL_WINDOW_POPUP_MENU))
+ #ifdef HAVE_LIBDECOR_H
+@@ -2389,6 +2399,7 @@ void Wayland_DestroyWindow(_THIS, SDL_Window *window)
+ {
+     SDL_VideoData *data = _this->driverdata;
+     SDL_WindowData *wind = window->driverdata;
++    SDL_WindowEglSurfaceData *egl_data;
+ 
+     if (data) {
+ #if SDL_VIDEO_OPENGL_EGL
+@@ -2441,6 +2452,8 @@ void Wayland_DestroyWindow(_THIS, SDL_Window *window)
+         SDL_free(wind);
+         WAYLAND_wl_display_flush(data->display);
+     }
++    egl_data = SDL_SetWindowData(window, SDL_WINDOWEGLSURFACEDATA, NULL);
++    SDL_FreeSurface(egl_data);
+     window->driverdata = NULL;
+ }
+ 
+-- 
+2.17.1
+

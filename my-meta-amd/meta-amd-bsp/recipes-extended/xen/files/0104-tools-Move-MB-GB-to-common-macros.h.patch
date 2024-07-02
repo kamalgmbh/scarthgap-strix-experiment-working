@@ -1,0 +1,78 @@
+From b86b3dbb3ad67295d6237ae88ecb18d9935747b8 Mon Sep 17 00:00:00 2001
+From: Jason Andryuk <jason.andryuk@amd.com>
+Date: Wed, 20 Mar 2024 14:17:16 -0400
+Subject: [PATCH 104/106] tools: Move MB/GB() to common-macros.h
+
+Consolidate to a single set of common macros for tools.
+
+MB() will gain another use in libelf, so this movement makes it
+available.
+
+Requested-by: Jan Beulich <jbeulich@suse.com>
+Signed-off-by: Jason Andryuk <jason.andryuk@amd.com>
+Reviewed-by: Jan Beulich <jbeulich@suse.com>
+Acked-by: Anthony PERARD <anthony.perard@citrix.com>
+---
+ tools/firmware/hvmloader/util.h         | 3 ---
+ tools/helpers/init-xenstore-domain.c    | 1 -
+ tools/include/xen-tools/common-macros.h | 4 ++++
+ tools/libs/light/libxl_internal.h       | 4 ----
+ 4 files changed, 4 insertions(+), 8 deletions(-)
+
+diff --git a/tools/firmware/hvmloader/util.h b/tools/firmware/hvmloader/util.h
+index 87be213dec..14078bde1e 100644
+--- a/tools/firmware/hvmloader/util.h
++++ b/tools/firmware/hvmloader/util.h
+@@ -38,9 +38,6 @@ void __bug(const char *file, int line) __attribute__((noreturn));
+ #define BUG() __bug(__FILE__, __LINE__)
+ #define BUG_ON(p) do { if (p) BUG(); } while (0)
+ 
+-#define MB(mb) (mb##ULL << 20)
+-#define GB(gb) (gb##ULL << 30)
+-
+ static inline int test_bit(unsigned int b, const void *p)
+ {
+     return !!(((const uint8_t *)p)[b>>3] & (1u<<(b&7)));
+diff --git a/tools/helpers/init-xenstore-domain.c b/tools/helpers/init-xenstore-domain.c
+index b209a78f6b..4a6ea20eb2 100644
+--- a/tools/helpers/init-xenstore-domain.c
++++ b/tools/helpers/init-xenstore-domain.c
+@@ -20,7 +20,6 @@
+ #include "init-dom-json.h"
+ 
+ #define LAPIC_BASE_ADDRESS  0xfee00000UL
+-#define GB(x)               ((uint64_t)x << 30)
+ 
+ static uint32_t domid = ~0;
+ static char *kernel;
+diff --git a/tools/include/xen-tools/common-macros.h b/tools/include/xen-tools/common-macros.h
+index e5ed603904..120c281cbb 100644
+--- a/tools/include/xen-tools/common-macros.h
++++ b/tools/include/xen-tools/common-macros.h
+@@ -87,4 +87,8 @@
+ #define __AC(X, Y)   (X ## Y)
+ #define _AC(X, Y)    __AC(X, Y)
+ 
++/* Size macros. */
++#define MB(_mb)     (_AC(_mb, ULL) << 20)
++#define GB(_gb)     (_AC(_gb, ULL) << 30)
++
+ #endif	/* __XEN_TOOLS_COMMON_MACROS__ */
+diff --git a/tools/libs/light/libxl_internal.h b/tools/libs/light/libxl_internal.h
+index d5732d1c37..394d65d3e5 100644
+--- a/tools/libs/light/libxl_internal.h
++++ b/tools/libs/light/libxl_internal.h
+@@ -125,10 +125,6 @@
+ #define PVSHIM_BASENAME "xen-shim"
+ #define PVSHIM_CMDLINE "pv-shim console=xen,pv"
+ 
+-/* Size macros. */
+-#define MB(_mb)     (_AC(_mb, ULL) << 20)
+-#define GB(_gb)     (_AC(_gb, ULL) << 30)
+-
+ #define DIV_ROUNDUP(n, d) (((n) + (d) - 1) / (d))
+ 
+ #define LIBXL__LOGGING_ENABLED
+-- 
+2.25.1
+

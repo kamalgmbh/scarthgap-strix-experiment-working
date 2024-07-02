@@ -1,0 +1,26 @@
+From 3e64fec9f4cffb597c56e05f5e532fe569cd4a8f Mon Sep 17 00:00:00 2001
+From: "Loc(Elliot)" <81547855+LocOlli@users.noreply.github.com>
+Date: Thu, 4 May 2023 19:26:50 +0700
+Subject: [PATCH 363/458] Fix bug memory acess
+
+Bitmap is not initialized before use, that cause segmentation fault on function use it. Fix by allocate memory before use.
+---
+ src/video/directfb/SDL_DirectFB_shape.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/video/directfb/SDL_DirectFB_shape.c b/src/video/directfb/SDL_DirectFB_shape.c
+index a9e578c41..aef6bfd6d 100644
+--- a/src/video/directfb/SDL_DirectFB_shape.c
++++ b/src/video/directfb/SDL_DirectFB_shape.c
+@@ -103,7 +103,7 @@ DirectFB_SetWindowShape(SDL_WindowShaper *shaper,SDL_Surface *shape,SDL_WindowSh
+         dsc.pixelformat = DSPF_ARGB;
+ 
+         SDL_DFB_CHECKERR(devdata->dfb->CreateSurface(devdata->dfb, &dsc, &data->surface));
+-
++        SDL_DFB_CALLOC(bitmap, shape->w * shape->h, 1);
+         /* Assume that shaper->alphacutoff already has a value, because SDL_SetWindowShape() should have given it one. */
+         SDL_CalculateShapeBitmap(shaper->mode, shape, bitmap, 1);
+ 
+-- 
+2.17.1
+

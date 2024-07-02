@@ -1,0 +1,92 @@
+From 3f1d7c36b127bd5241d02cde0c62fe00943c9ed6 Mon Sep 17 00:00:00 2001
+From: Collabora's Gfx CI Team
+ <gfx-ci-bot-collabora@contact.daniels.if.required.fdo.invalid>
+Date: Wed, 3 Jan 2024 00:04:31 +0000
+Subject: [PATCH 01/16] Uprev Mesa to 33b77ec774a10f052a2814d9ff3668cc0aa13083
+
+https://gitlab.freedesktop.org/mesa/mesa/-/compare/2e46dd062470b07d1c297275ab5a7a2040e1ab80...33b77ec774a10f052a2814d9ff3668cc0aa13083
+
+Part-of: <https://gitlab.freedesktop.org/virgl/virglrenderer/-/merge_requests/1321>
+---
+ .gitlab-ci.yml                                   | 10 +++++-----
+ .gitlab-ci/expectations/host/virgl-gl-fails.txt  |  4 ++++
+ .gitlab-ci/expectations/virt/virgl-gl-flakes.txt |  5 +++++
+ 3 files changed, 14 insertions(+), 5 deletions(-)
+
+diff --git a/.gitlab-ci.yml b/.gitlab-ci.yml
+index eacbc2f3..d3a0afc9 100644
+--- a/.gitlab-ci.yml
++++ b/.gitlab-ci.yml
+@@ -17,7 +17,7 @@ variables:
+   #
+   # Pick a pipeline on https://gitlab.freedesktop.org/mesa/mesa/-/pipelines/
+   #
+-  MESA_PIPELINE_ID: 1068128
++  MESA_PIPELINE_ID: 1077875
+   MESA_PROJECT_PATH: mesa/mesa
+   STORAGE_HOST: s3.freedesktop.org
+   CI_REGISTRY_IMAGE: "registry.freedesktop.org/${MESA_PROJECT_PATH}"
+@@ -43,7 +43,7 @@ include:
+     # IMPORTANT: Use a recent Mesa Git revision
+     # The commit ref must be in sync with the pipeline picked above
+     # It can be found on the pipeline page below the commit message
+-    ref: 2e46dd062470b07d1c297275ab5a7a2040e1ab80
++    ref: 33b77ec774a10f052a2814d9ff3668cc0aa13083
+     file:
+       - '/.gitlab-ci/image-tags.yml'
+ 
+@@ -89,7 +89,7 @@ stages:
+   variables:
+     MESA_IMAGE_PATH: ${DEBIAN_X86_64_BUILD_IMAGE_PATH}
+     MESA_IMAGE_TAG: ${DEBIAN_BUILD_TAG}
+-    MESA_BASE_TAG: ${DEBIAN_BASE_TAG}
++    MESA_BASE_TAG: "${DEBIAN_BASE_TAG}--${PKG_REPO_REV}"
+ 
+ debian/x86_64_build:
+   stage: build
+@@ -297,7 +297,7 @@ make check venus:
+     CI_JOB_JWT_FILE: /minio_jwt
+     MESA_IMAGE_PATH: ${DEBIAN_X86_64_TEST_IMAGE_GL_PATH}
+     MESA_IMAGE_TAG: ${DEBIAN_X86_64_TEST_GL_TAG}
+-    MESA_BASE_TAG: "${DEBIAN_BASE_TAG}--${KERNEL_TAG}"
++    MESA_BASE_TAG: "${DEBIAN_BASE_TAG}--${PKG_REPO_REV}--${KERNEL_TAG}"
+   script:
+     - export DEQP_RESULTS_DIR="results/${CI_JOB_NAME_SANITIZED}"
+     - export PIGLIT_RESULTS_DIR="results/${CI_JOB_NAME_SANITIZED}"
+@@ -329,7 +329,7 @@ make check venus:
+     CI_JOB_JWT_FILE: /minio_jwt
+     MESA_IMAGE_PATH: ${DEBIAN_X86_64_TEST_IMAGE_VK_PATH}
+     MESA_IMAGE_TAG: ${DEBIAN_X86_64_TEST_VK_TAG}
+-    MESA_BASE_TAG: "${DEBIAN_BASE_TAG}--${KERNEL_TAG}"
++    MESA_BASE_TAG: "${DEBIAN_BASE_TAG}--${PKG_REPO_REV}--${KERNEL_TAG}"
+   script:
+     - export DEQP_RESULTS_DIR="results/${CI_JOB_NAME_SANITIZED}"
+     - export PIGLIT_RESULTS_DIR="results/${CI_JOB_NAME_SANITIZED}"
+diff --git a/.gitlab-ci/expectations/host/virgl-gl-fails.txt b/.gitlab-ci/expectations/host/virgl-gl-fails.txt
+index 771d8025..101a161c 100644
+--- a/.gitlab-ci/expectations/host/virgl-gl-fails.txt
++++ b/.gitlab-ci/expectations/host/virgl-gl-fails.txt
+@@ -488,3 +488,7 @@ spec@arb_texture_float@texwrap formats bordercolor@GL_LUMINANCE16F_ARB- border c
+ spec@arb_texture_float@texwrap formats bordercolor-swizzled@GL_RGB16F- swizzled- border color only,Fail
+ spec@arb_texture_float@texwrap formats bordercolor@GL_RGB32F- border color only,Fail
+ spec@arb_texture_float@texwrap formats bordercolor@GL_LUMINANCE_ALPHA16F_ARB- border color only,Fail
++
++# uprev Mesa in virglrenderer
++KHR-GL43.texture_view.view_sampling,Fail
++
+diff --git a/.gitlab-ci/expectations/virt/virgl-gl-flakes.txt b/.gitlab-ci/expectations/virt/virgl-gl-flakes.txt
+index 8a91340e..fae9bdd5 100644
+--- a/.gitlab-ci/expectations/virt/virgl-gl-flakes.txt
++++ b/.gitlab-ci/expectations/virt/virgl-gl-flakes.txt
+@@ -91,3 +91,8 @@ shaders@glsl-uniform-interstage-limits@subdivide 5- statechanges
+ spec@!opengl 3.0@gl30basic
+ shaders@glsl-uniform-interstage-limits@subdivide 5
+ spec@!opengl 1.0@gl-1.0-front-invalidate-back
++
++# uprev Mesa in Virglrenderer
++spec@arb_occlusion_query@occlusion_query_conform
++spec@arb_occlusion_query@occlusion_query_conform@GetObjivAval_multi1
++
+-- 
+2.17.1
+

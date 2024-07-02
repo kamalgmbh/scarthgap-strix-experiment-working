@@ -1,0 +1,52 @@
+From 3639424e8b95c8f5c9b433dab1805aecafdeb774 Mon Sep 17 00:00:00 2001
+From: Xenia Ragiadakou <xenia.ragiadakou@amd.com>
+Date: Tue, 11 Jul 2023 19:08:59 +0300
+Subject: [PATCH 087/106] x86/irq: do not insert emulated MSIs in emuirq
+ mappings
+
+Do not use emuirq mappings for emulated MSIs injected by DM emulated devices.
+This kind of emulated pirqs is not remapped and share the same emuirq value
+i.e IRQ_MSI_EMU.
+
+Signed-off-by: Xenia Ragiadakou <xenia.ragiadakou@amd.com>
+Change-Id: I5cff2c8d8b332e6d1cf99e5f981f082ff9e4b05e
+---
+ xen/arch/x86/irq.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/xen/arch/x86/irq.c b/xen/arch/x86/irq.c
+index 16d9fceba1..147d6a1f9f 100644
+--- a/xen/arch/x86/irq.c
++++ b/xen/arch/x86/irq.c
+@@ -2693,7 +2693,7 @@ int map_domain_emuirq_pirq(struct domain *d, int pirq, int emuirq)
+     }
+ 
+     old_emuirq = domain_pirq_to_emuirq(d, pirq);
+-    if ( emuirq != IRQ_PT )
++    if ( (emuirq != IRQ_PT) && (emuirq != IRQ_MSI_EMU) )
+         old_pirq = domain_emuirq_to_pirq(d, emuirq);
+ 
+     if ( (old_emuirq != IRQ_UNBOUND && (old_emuirq != emuirq) ) ||
+@@ -2708,8 +2708,8 @@ int map_domain_emuirq_pirq(struct domain *d, int pirq, int emuirq)
+     if ( !info )
+         return -ENOMEM;
+ 
+-    /* do not store emuirq mappings for pt devices */
+-    if ( emuirq != IRQ_PT )
++    /* do not store in emuirq mappings pt and emulated msi irqs */
++    if ( (emuirq != IRQ_PT) && (emuirq != IRQ_MSI_EMU) )
+     {
+         int err = radix_tree_insert(&d->arch.hvm.emuirq_pirq, emuirq,
+                                     radix_tree_int_to_ptr(pirq));
+@@ -2762,7 +2762,7 @@ int unmap_domain_pirq_emuirq(struct domain *d, int pirq)
+         info->arch.hvm.emuirq = IRQ_UNBOUND;
+         pirq_cleanup_check(info, d);
+     }
+-    if ( emuirq != IRQ_PT )
++    if ( (emuirq != IRQ_PT) && (emuirq != IRQ_MSI_EMU) )
+         radix_tree_delete(&d->arch.hvm.emuirq_pirq, emuirq);
+ 
+  done:
+-- 
+2.25.1
+

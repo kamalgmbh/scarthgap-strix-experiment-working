@@ -1,0 +1,190 @@
+From 522e1d37b0dcba0c2161ad1fca6f3fd7f6e90349 Mon Sep 17 00:00:00 2001
+From: Prike Liang <Prike.Liang@amd.com>
+Date: Tue, 11 Jul 2023 17:44:18 +0800
+Subject: [PATCH 203/221] vpci-pci: reinit passthru device bar address for the
+ PCIe reset event
+
+In the domU native AMDGPU driver will request the GPU reset for
+some cases, and then the GPU device pcie bar address will be clean
+up during the HW GPU reset processed underlying. So, for this
+passthru device reset case need reinit the GPU bar address.
+
+Change-Id: I5335ea44aed130b776d682814e9937c66e860f36
+Signed-off-by: Prike Liang <Prike.Liang@amd.com>
+---
+ xen/drivers/passthrough/pci.c | 108 +++++++++++++++++++++++++++++++++-
+ xen/drivers/vpci/vpci.c       |   3 +
+ xen/include/xen/pci.h         |   3 +
+ 3 files changed, 113 insertions(+), 1 deletion(-)
+
+diff --git a/xen/drivers/passthrough/pci.c b/xen/drivers/passthrough/pci.c
+index b42acb8d7c..c3acf61111 100644
+--- a/xen/drivers/passthrough/pci.c
++++ b/xen/drivers/passthrough/pci.c
+@@ -596,6 +596,55 @@ static void pci_enable_acs(struct pci_dev *pdev)
+ static int iommu_add_device(struct pci_dev *pdev);
+ static int iommu_enable_device(struct pci_dev *pdev);
+ static int iommu_remove_device(struct pci_dev *pdev);
++uint64_t bar_base[PCI_HEADER_NORMAL_NR_BARS];
++#define PCI_ROM_ADDRESS  0x30
++
++static int pci_bar_offset_to_index(uint32_t offset)
++{
++    int index = 0;
++
++    /* check Exp ROM BAR */
++    if (offset == PCI_ROM_ADDRESS) {
++        return PCI_HEADER_NORMAL_NR_BARS;
++    }
++
++    if (offset < PCI_BASE_ADDRESS_0 || offset > PCI_BASE_ADDRESS_5)
++	    return -1;
++
++    /* calculate BAR index */
++    index = (offset - PCI_BASE_ADDRESS_0) >> 2;
++    if (index >= PCI_HEADER_NORMAL_NR_BARS) {
++        return -1;
++    }
++
++    return index;
++}
++
++bool  pci_bar_reset_quirks(pci_sbdf_t sbdf)
++{
++    uint16_t vendor = pci_conf_read16(sbdf, PCI_VENDOR_ID);
++    uint16_t device = pci_conf_read16(sbdf, PCI_DEVICE_ID);
++    static const struct {
++        uint16_t vendor, device;
++    } update_bars[] = {
++        /*
++         * Device [0x1002:0x73ff]
++         * For the AMDGPU need handle the FLR reset request from native driver
++         * which is performming in the PM firmware and during FLR the AMDGPU PCIe
++         * bar base address will be lost, so for this case need re-set the AMDGPU
++         * PCIe bar address.
++         */
++        { 0x1002, 0x73ff },
++    };
++    unsigned int i;
++
++    for ( i = 0; i < ARRAY_SIZE(update_bars); i++)
++        if ( vendor == update_bars[i].vendor &&
++             device == update_bars[i].device )
++                return true;
++
++    return false;
++}
+ 
+ unsigned int pci_size_mem_bar(pci_sbdf_t sbdf, unsigned int pos,
+                               uint64_t *paddr, uint64_t *psize,
+@@ -607,7 +656,14 @@ unsigned int pci_size_mem_bar(pci_sbdf_t sbdf, unsigned int pos,
+         (bar & PCI_BASE_ADDRESS_MEM_TYPE_MASK) == PCI_BASE_ADDRESS_MEM_TYPE_64;
+     uint32_t mask = (flags & PCI_BAR_ROM) ? (uint32_t)PCI_ROM_ADDRESS_MASK
+                                           : (uint32_t)PCI_BASE_ADDRESS_MEM_MASK;
++    int index;
+ 
++    index = pci_bar_offset_to_index(pos);
++    if ( index == -1 ) {
++            printk(XENLOG_DEBUG
++              "%pp device bar offset is invalidate\n", &sbdf);
++            return -1;
++    }
+     ASSERT(!((flags & PCI_BAR_VF) && (flags & PCI_BAR_ROM)));
+     ASSERT((flags & PCI_BAR_ROM) ||
+            (bar & PCI_BASE_ADDRESS_SPACE) == PCI_BASE_ADDRESS_SPACE_MEMORY);
+@@ -637,13 +693,63 @@ unsigned int pci_size_mem_bar(pci_sbdf_t sbdf, unsigned int pos,
+     pci_conf_write32(sbdf, pos, bar);
+     size = -size;
+ 
+-    if ( paddr )
++    if ( paddr ) {
+         *paddr = (bar & mask) | ((uint64_t)hi << 32);
++        if ( pci_bar_reset_quirks(sbdf) ) {
++                bar_base[index] = *paddr;
++                printk(XENLOG_INFO
++                    "%pp device reg offset:0x%08x,pci bar[%d] :0x%08x, base address:0x%016lx\n", &sbdf, pos,
++                    index, bar, *paddr);
++        }
++    }
++
+     *psize = size;
+ 
+     return is64bits ? 2 : 1;
+ }
+ 
++int pci_update_bar_address(pci_sbdf_t sbdf, unsigned int pos,
++                                        unsigned int flags)
++{
++    uint32_t hi =0, bar = pci_conf_read32(sbdf, pos);
++    int index;
++    bool is64bits = !(flags & PCI_BAR_ROM) &&
++        (bar & PCI_BASE_ADDRESS_MEM_TYPE_MASK) == PCI_BASE_ADDRESS_MEM_TYPE_64;
++    uint32_t mask;
++    uint64_t curr_base;
++
++    index = pci_bar_offset_to_index(pos);
++    if (index == -1) {
++            printk(XENLOG_DEBUG
++                "%pp pos:0x%08x is invalidate\n", &sbdf, pos);
++            return -1;
++    }
++
++    flags = (index == PCI_HEADER_NORMAL_NR_BARS - 1) ? PCI_BAR_LAST : 0;
++    mask = (flags & PCI_BAR_ROM) ? (uint32_t)PCI_ROM_ADDRESS_MASK
++                                          : (uint32_t)PCI_BASE_ADDRESS_MEM_MASK;
++
++    if (is64bits) {
++        hi = pci_conf_read32(sbdf, pos + 4);
++    }
++    curr_base = (bar & mask) | ((uint64_t)hi << 32);
++
++    if ( curr_base != bar_base[index] && bar_base[index]) {
++             printk(XENLOG_INFO
++                    "%pp sbdf.seg=0x%08x will update the bar:%d curr_base:0x%016lx to init base:0x%016lx\n",
++                    &sbdf, sbdf.seg, index, curr_base,  bar_base[index]);
++        if(is64bits) {
++                pci_conf_write32(sbdf, pos, bar_base[index]);
++                pci_conf_write32(sbdf, pos + 4, bar_base[index] >>32);
++        } else {
++                pci_conf_write32(sbdf, pos, bar_base[index]);
++        }
++    }
++
++    return 0;
++
++}
++
+ int pci_add_device(u16 seg, u8 bus, u8 devfn,
+                    const struct pci_dev_info *info, nodeid_t node)
+ {
+diff --git a/xen/drivers/vpci/vpci.c b/xen/drivers/vpci/vpci.c
+index 6d48d496bb..35ca2efe8d 100644
+--- a/xen/drivers/vpci/vpci.c
++++ b/xen/drivers/vpci/vpci.c
+@@ -444,6 +444,9 @@ void vpci_write(pci_sbdf_t sbdf, unsigned int reg, unsigned int size,
+     if ( !pdev || !pdev->vpci )
+     {
+         vpci_write_hw(sbdf, reg, size, data);
++
++	if ( pci_bar_reset_quirks(sbdf) )
++		pci_update_bar_address(sbdf, reg, 0);
+         return;
+     }
+ 
+diff --git a/xen/include/xen/pci.h b/xen/include/xen/pci.h
+index 5975ca2f30..71c883420d 100644
+--- a/xen/include/xen/pci.h
++++ b/xen/include/xen/pci.h
+@@ -174,6 +174,9 @@ int pci_add_segment(u16 seg);
+ const unsigned long *pci_get_ro_map(u16 seg);
+ int pci_add_device(u16 seg, u8 bus, u8 devfn,
+                    const struct pci_dev_info *, nodeid_t node);
++bool  pci_bar_reset_quirks(pci_sbdf_t sbdf);
++int pci_update_bar_address(pci_sbdf_t sbdf, unsigned int pos,
++                                           unsigned int flags);
+ int pci_remove_device(u16 seg, u8 bus, u8 devfn);
+ int pci_ro_device(int seg, int bus, int devfn);
+ int pci_hide_device(unsigned int seg, unsigned int bus, unsigned int devfn);
+-- 
+2.17.1
+

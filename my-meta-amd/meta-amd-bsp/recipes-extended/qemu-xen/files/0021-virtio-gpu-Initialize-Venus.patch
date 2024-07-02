@@ -1,0 +1,41 @@
+From 833b70c7d5b2874282e0ee519c7e9b15eea927d8 Mon Sep 17 00:00:00 2001
+From: Antonio Caggiano <antonio.caggiano@collabora.com>
+Date: Mon, 26 Sep 2022 16:24:21 +0200
+Subject: [PATCH 21/70] virtio-gpu: Initialize Venus
+
+Request Venus when initializing VirGL.
+
+Signed-off-by: Antonio Caggiano <antonio.caggiano@collabora.com>
+Signed-off-by: Huang Rui <ray.huang@amd.com>
+---
+ hw/display/virtio-gpu-virgl.c | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/hw/display/virtio-gpu-virgl.c b/hw/display/virtio-gpu-virgl.c
+index 271454682f..45a987bc8d 100644
+--- a/hw/display/virtio-gpu-virgl.c
++++ b/hw/display/virtio-gpu-virgl.c
+@@ -916,6 +916,7 @@ void virtio_gpu_virgl_reset(VirtIOGPU *g)
+ int virtio_gpu_virgl_init(VirtIOGPU *g)
+ {
+     int ret;
++    uint32_t flags = 0;
+ 
+ #if VIRGL_RENDERER_CALLBACKS_VERSION >= 4
+     if (qemu_egl_display) {
+@@ -924,7 +925,11 @@ int virtio_gpu_virgl_init(VirtIOGPU *g)
+     }
+ #endif
+ 
+-    ret = virgl_renderer_init(g, 0, &virtio_gpu_3d_cbs);
++#ifdef VIRGL_RENDERER_VENUS
++    flags |= VIRGL_RENDERER_VENUS | VIRGL_RENDERER_RENDER_SERVER;
++#endif
++
++    ret = virgl_renderer_init(g, flags, &virtio_gpu_3d_cbs);
+     if (ret != 0) {
+         error_report("virgl could not be initialized: %d", ret);
+         return ret;
+-- 
+2.17.1
+

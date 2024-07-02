@@ -1,0 +1,62 @@
+From 92faa0263bf298f3d5d8069c3c12717c6f943467 Mon Sep 17 00:00:00 2001
+From: Lei Huang <Lei.Huang@amd.com>
+Date: Wed, 3 Jan 2024 16:38:26 +0800
+Subject: [PATCH 457/458] wayland:fixup! one frame snow pattern issue
+
+[Why]
+when a protected texture is created, if recreate
+eglsurface immediately, it will lose some information
+
+[How]
+Need to recreate eglsurface before blit, it will be taken
+by SDL_WINDOWEGLSURFACEDATA
+
+Jira ID: SWDEV-433918
+
+Change-Id: Id2b37400dc0851bc37ba91aa075188bc0aa65331
+Signed-off-by: Lei Huang <Lei.Huang@amd.com>
+(cherry picked from commit 3fd37967001bc2b48bccca9a8c36aec186a57035)
+---
+ src/video/wayland/SDL_waylandopengles.c | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/video/wayland/SDL_waylandopengles.c b/src/video/wayland/SDL_waylandopengles.c
+index 4186cc090..7b4714b47 100644
+--- a/src/video/wayland/SDL_waylandopengles.c
++++ b/src/video/wayland/SDL_waylandopengles.c
+@@ -200,11 +200,10 @@ void Wayland_GLES_SetROI(_THIS, SDL_Window *window, SDL_bool enable,
+ 
+ static int Wayland_GLES_ReCreateEglSurface(_THIS, SDL_Window *window)
+ {
+-
+     SDL_WindowData *wind = window->driverdata;
+     SDL_WindowEglSurfaceData *data = SDL_GetWindowData(window, SDL_WINDOWEGLSURFACEDATA);
+-    if (data->frame_need_protected != data->current_frame_state) {
+-        SDL_EGL_MakeCurrent(_this, NULL, NULL);
++
++    if (data && data->frame_need_protected != data->current_frame_state) {
+         data->current_frame_state = data->frame_need_protected;
+         if (wind->egl_surface) {
+             SDL_EGL_DestroySurface(_this, wind->egl_surface);
+@@ -228,8 +227,6 @@ int Wayland_GLES_MakeCurrent(_THIS, SDL_Window *window, SDL_GLContext context)
+     int ret;
+ 
+     if (window && context) {
+-        /*if surface type need change*/
+-        Wayland_GLES_ReCreateEglSurface(_this, window);
+         ret = SDL_EGL_MakeCurrent(_this, ((SDL_WindowData *)window->driverdata)->egl_surface, context);
+     } else {
+         ret = SDL_EGL_MakeCurrent(_this, NULL, NULL);
+@@ -238,6 +235,9 @@ int Wayland_GLES_MakeCurrent(_THIS, SDL_Window *window, SDL_GLContext context)
+     WAYLAND_wl_display_flush(((SDL_VideoData *)_this->driverdata)->display);
+ 
+     _this->egl_data->eglSwapInterval(_this->egl_data->egl_display, 0); /* see comments on Wayland_GLES_SetSwapInterval. */
++    /*if surface type need change*/
++    if (window)
++        Wayland_GLES_ReCreateEglSurface(_this, window);
+ 
+     return ret;
+ }
+-- 
+2.17.1
+

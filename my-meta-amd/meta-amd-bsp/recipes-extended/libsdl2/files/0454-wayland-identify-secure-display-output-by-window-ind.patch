@@ -1,0 +1,61 @@
+From 209843a5afa22e4ff62102c679758c4fba57d9c8 Mon Sep 17 00:00:00 2001
+From: Sophia Gong <lili.gong@amd.com>
+Date: Thu, 11 Jan 2024 21:03:54 -0500
+Subject: [PATCH 454/458] wayland: identify secure display output by window
+ index
+
+By default the output is identified by xdg output name.
+
+Signed-off-by: Sophia Gong <lili.gong@amd.com>
+Change-Id: Iee5a32eb313dec90c63ba1eac038cb652dfc24ac
+---
+ src/video/wayland/SDL_waylandopengles.c | 31 ++++++++++++++-----------
+ 1 file changed, 17 insertions(+), 14 deletions(-)
+
+diff --git a/src/video/wayland/SDL_waylandopengles.c b/src/video/wayland/SDL_waylandopengles.c
+index 7754d9741..4186cc090 100644
+--- a/src/video/wayland/SDL_waylandopengles.c
++++ b/src/video/wayland/SDL_waylandopengles.c
+@@ -177,22 +177,25 @@ void Wayland_GLES_SetROI(_THIS, SDL_Window *window, SDL_bool enable,
+                          Uint32 startx, Uint32 starty, Uint32 endx, Uint32 endy)
+ {
+     SDL_WindowData *data = (SDL_WindowData *)window->driverdata;
+-    SDL_VideoData *videodata = (SDL_VideoData *)_this->driverdata;
+-    SDL_VideoDisplay *display = SDL_GetDisplayForWindow(window);
+     SDL_WaylandOutputData *node;
+ 
+-    for (node = videodata->output_list; node != NULL; node = node->next) {
+-        if ((node->secure_crtc != NULL) && (SDL_strcmp(node->name, display->output) == 0)) {
+-	    printf("%s, send roi\n", __func__);
+-	    secure_display_crtc_v1_set_roi(node->secure_crtc,
+-                                           startx, starty,
+-					   endx, endy,
+-					   enable);
+-            WAYLAND_wl_display_flush(data->waylandData->display);
+-
+-        } else
+-	    printf("%s, no secure_crtc\n", __func__);
+-        }
++    if (window->display_index < 0 || window->display_index >= _this->num_displays) {
++        SDL_SetError("window display_index must be in the range 0 - %d",
++                      _this->num_displays - 1);
++           return;
++    }
++    node = (SDL_WaylandOutputData*)SDL_GetVideoDevice()->displays[window->display_index].driverdata;
++
++    if (node && (node->secure_crtc != NULL)) {
++        SDL_LogInfo(SDL_LOG_CATEGORY_VIDEO, "%s, send roi", __func__);
++        secure_display_crtc_v1_set_roi(node->secure_crtc,
++                                       startx, starty,
++                                       endx, endy,
++                                       enable);
++        WAYLAND_wl_display_flush(data->waylandData->display);
++    } else {
++        SDL_LogError(SDL_LOG_CATEGORY_VIDEO, "%s, no secure_crtc!", __func__);
++    }
+ }
+ 
+ static int Wayland_GLES_ReCreateEglSurface(_THIS, SDL_Window *window)
+-- 
+2.17.1
+

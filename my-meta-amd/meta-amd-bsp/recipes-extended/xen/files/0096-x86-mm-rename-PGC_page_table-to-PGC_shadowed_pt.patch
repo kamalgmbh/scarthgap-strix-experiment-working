@@ -1,0 +1,214 @@
+From c44c0dc35889848ee27549ac3455314e236cfc3d Mon Sep 17 00:00:00 2001
+From: Jan Beulich <jbeulich@suse.com>
+Date: Mon, 12 Dec 2022 12:18:41 +0100
+Subject: [PATCH 096/221] x86/mm: rename PGC_page_table to PGC_shadowed_pt
+
+The original name didn't express the purpose of the flag: It is being
+set once a page table page obtains a shadow, and it is removed when the
+last shadow of a page was destroyed.
+
+In set_tlbflush_timestamp() also remove the 2nd half of the condition as
+being redundant (PGC_shadowed_pt can't be set on a page without shadow
+mode being enabled on the owning domain).
+
+Requested-by: Andrew Cooper <andrew.cooper3@citrix.com>
+Signed-off-by: Jan Beulich <jbeulich@suse.com>
+Reviewed-by: Andrew Cooper <andrew.cooper3@citrix.com>
+---
+ xen/arch/x86/include/asm/mm.h    |  6 +++---
+ xen/arch/x86/mm.c                |  3 +--
+ xen/arch/x86/mm/p2m-pod.c        |  4 ++--
+ xen/arch/x86/mm/shadow/common.c  | 20 ++++++++++----------
+ xen/arch/x86/mm/shadow/private.h |  8 ++++----
+ 5 files changed, 20 insertions(+), 21 deletions(-)
+
+diff --git a/xen/arch/x86/include/asm/mm.h b/xen/arch/x86/include/asm/mm.h
+index 2c5f856067..c4240a94d2 100644
+--- a/xen/arch/x86/include/asm/mm.h
++++ b/xen/arch/x86/include/asm/mm.h
+@@ -70,9 +70,9 @@
+  /* Page is Xen heap? */
+ #define _PGC_xen_heap     PG_shift(2)
+ #define PGC_xen_heap      PG_mask(1, 2)
+- /* Set when is using a page as a page table */
+-#define _PGC_page_table   PG_shift(3)
+-#define PGC_page_table    PG_mask(1, 3)
++ /* Set when a page table page has been shadowed. */
++#define _PGC_shadowed_pt  PG_shift(3)
++#define PGC_shadowed_pt   PG_mask(1, 3)
+  /* Page is broken? */
+ #define _PGC_broken       PG_shift(4)
+ #define PGC_broken        PG_mask(1, 4)
+diff --git a/xen/arch/x86/mm.c b/xen/arch/x86/mm.c
+index 68f9989e1f..8b9740f575 100644
+--- a/xen/arch/x86/mm.c
++++ b/xen/arch/x86/mm.c
+@@ -591,8 +591,7 @@ static inline void set_tlbflush_timestamp(struct page_info *page)
+      *  2. Shadow mode reuses this field for shadowed page tables to store
+      *     flags info -- we don't want to conflict with that.
+      */
+-    if ( !(page->count_info & PGC_page_table) ||
+-         !shadow_mode_enabled(page_get_owner(page)) )
++    if ( !(page->count_info & PGC_shadowed_pt) )
+         page_set_tlbflush_timestamp(page);
+ }
+ 
+diff --git a/xen/arch/x86/mm/p2m-pod.c b/xen/arch/x86/mm/p2m-pod.c
+index fc110506dc..2490c841f9 100644
+--- a/xen/arch/x86/mm/p2m-pod.c
++++ b/xen/arch/x86/mm/p2m-pod.c
+@@ -803,7 +803,7 @@ p2m_pod_zero_check_superpage(struct p2m_domain *p2m, gfn_t gfn)
+         for ( k = 0, page = mfn_to_page(mfn); k < n; ++k, ++page )
+             if ( is_special_page(page) ||
+                  !(page->count_info & PGC_allocated) ||
+-                 (page->count_info & PGC_page_table) ||
++                 (page->count_info & PGC_shadowed_pt) ||
+                  (page->count_info & PGC_count_mask) > max_ref )
+                 goto out;
+     }
+@@ -946,7 +946,7 @@ p2m_pod_zero_check(struct p2m_domain *p2m, const gfn_t *gfns, unsigned int count
+ 
+             if ( !is_special_page(pg) &&
+                  (pg->count_info & PGC_allocated) &&
+-                 !(pg->count_info & PGC_page_table) &&
++                 !(pg->count_info & PGC_shadowed_pt) &&
+                  ((pg->count_info & PGC_count_mask) <= max_ref) )
+                 map[i] = map_domain_page(mfns[i]);
+         }
+diff --git a/xen/arch/x86/mm/shadow/common.c b/xen/arch/x86/mm/shadow/common.c
+index a8404f97f6..cae1d9190c 100644
+--- a/xen/arch/x86/mm/shadow/common.c
++++ b/xen/arch/x86/mm/shadow/common.c
+@@ -185,7 +185,7 @@ static void sh_oos_audit(struct domain *d)
+                 BUG();
+             }
+             pg = mfn_to_page(oos[idx]);
+-            if ( !(pg->count_info & PGC_page_table) )
++            if ( !(pg->count_info & PGC_shadowed_pt) )
+             {
+                 printk("%s: idx %x gmfn %lx not a pt (count %lx)\n",
+                        __func__, idx, mfn_x(oos[idx]), pg->count_info);
+@@ -716,7 +716,7 @@ void shadow_promote(struct domain *d, mfn_t gmfn, unsigned int type)
+            || d->is_shutting_down);
+ 
+     /* Is the page already shadowed? */
+-    if ( !test_and_set_bit(_PGC_page_table, &page->count_info) )
++    if ( !test_and_set_bit(_PGC_shadowed_pt, &page->count_info) )
+     {
+         page->shadow_flags = 0;
+ #ifdef CONFIG_HVM
+@@ -734,7 +734,7 @@ void shadow_demote(struct domain *d, mfn_t gmfn, u32 type)
+ {
+     struct page_info *page = mfn_to_page(gmfn);
+ 
+-    ASSERT(test_bit(_PGC_page_table, &page->count_info));
++    ASSERT(test_bit(_PGC_shadowed_pt, &page->count_info));
+     ASSERT(page->shadow_flags & (1u << type));
+ 
+     page->shadow_flags &= ~(1u << type);
+@@ -748,7 +748,7 @@ void shadow_demote(struct domain *d, mfn_t gmfn, u32 type)
+             oos_hash_remove(d, gmfn);
+         }
+ #endif
+-        clear_bit(_PGC_page_table, &page->count_info);
++        clear_bit(_PGC_shadowed_pt, &page->count_info);
+     }
+ 
+     TRACE_SHADOW_PATH_FLAG(TRCE_SFLAG_DEMOTE);
+@@ -779,7 +779,7 @@ sh_validate_guest_entry(struct vcpu *v, mfn_t gmfn, void *entry, u32 size)
+     // Ditto for L2s before L3s, etc.
+     //
+ 
+-    if ( !(page->count_info & PGC_page_table) )
++    if ( !(page->count_info & PGC_shadowed_pt) )
+         return 0;  /* Not shadowed at all */
+ 
+     if ( page->shadow_flags & SHF_L1_32 )
+@@ -2266,7 +2266,7 @@ void sh_remove_shadows(struct domain *d, mfn_t gmfn, int fast, int all)
+     SHADOW_PRINTK("d%d gmfn=%"PRI_mfn"\n", d->domain_id, mfn_x(gmfn));
+ 
+     /* Bail out now if the page is not shadowed */
+-    if ( (pg->count_info & PGC_page_table) == 0 )
++    if ( !(pg->count_info & PGC_shadowed_pt) )
+     {
+         paging_unlock(d);
+         return;
+@@ -2283,7 +2283,7 @@ void sh_remove_shadows(struct domain *d, mfn_t gmfn, int fast, int all)
+      */
+ #define DO_UNSHADOW(_type) do {                                         \
+     t = (_type);                                                        \
+-    if ( !(pg->count_info & PGC_page_table) ||                          \
++    if ( !(pg->count_info & PGC_shadowed_pt) ||                         \
+          !(pg->shadow_flags & (1 << t)) )                               \
+         break;                                                          \
+     smfn = shadow_hash_lookup(d, mfn_x(gmfn), t);                       \
+@@ -2299,7 +2299,7 @@ void sh_remove_shadows(struct domain *d, mfn_t gmfn, int fast, int all)
+     else if ( sh_type_has_up_pointer(d, t) )                            \
+         sh_remove_shadow_via_pointer(d, smfn);                          \
+     if ( !fast &&                                                       \
+-         (pg->count_info & PGC_page_table) &&                           \
++         (pg->count_info & PGC_shadowed_pt) &&                          \
+          (pg->shadow_flags & (1 << t)) )                                \
+     {                                                                   \
+         HASH_CALLBACKS_CHECK(SHF_page_type_mask);                       \
+@@ -2322,7 +2322,7 @@ void sh_remove_shadows(struct domain *d, mfn_t gmfn, int fast, int all)
+ #undef DO_UNSHADOW
+ 
+     /* If that didn't catch the shadows, something is wrong */
+-    if ( !fast && all && (pg->count_info & PGC_page_table) )
++    if ( !fast && all && (pg->count_info & PGC_shadowed_pt) )
+     {
+         printk(XENLOG_G_ERR "can't find all shadows of mfn %"PRI_mfn
+                " (shadow_flags=%04x)\n", mfn_x(gmfn), pg->shadow_flags);
+@@ -2339,7 +2339,7 @@ void sh_remove_shadows(struct domain *d, mfn_t gmfn, int fast, int all)
+ void shadow_prepare_page_type_change(struct domain *d,
+                                      const struct page_info *page)
+ {
+-    if ( !(page->count_info & PGC_page_table) )
++    if ( !(page->count_info & PGC_shadowed_pt) )
+         return;
+ 
+ #if (SHADOW_OPTIMIZATIONS & SHOPT_OUT_OF_SYNC)
+diff --git a/xen/arch/x86/mm/shadow/private.h b/xen/arch/x86/mm/shadow/private.h
+index 85bb26c7ea..b8a62ec1ff 100644
+--- a/xen/arch/x86/mm/shadow/private.h
++++ b/xen/arch/x86/mm/shadow/private.h
+@@ -320,7 +320,7 @@ static inline void sh_terminate_list(struct page_list_head *tmp_list)
+ static inline int sh_page_has_multiple_shadows(struct page_info *pg)
+ {
+     u32 shadows;
+-    if ( !(pg->count_info & PGC_page_table) )
++    if ( !(pg->count_info & PGC_shadowed_pt) )
+         return 0;
+     shadows = pg->shadow_flags & SHF_page_type_mask;
+     /* More than one type bit set in shadow-flags? */
+@@ -332,7 +332,7 @@ static inline int sh_page_has_multiple_shadows(struct page_info *pg)
+  * domain is translated, &c */
+ static inline int page_is_out_of_sync(struct page_info *p)
+ {
+-    return (p->count_info & PGC_page_table)
++    return (p->count_info & PGC_shadowed_pt)
+         && (p->shadow_flags & SHF_out_of_sync);
+ }
+ 
+@@ -343,7 +343,7 @@ static inline int mfn_is_out_of_sync(mfn_t gmfn)
+ 
+ static inline int page_oos_may_write(struct page_info *p)
+ {
+-    return (p->count_info & PGC_page_table)
++    return (p->count_info & PGC_shadowed_pt)
+         && (p->shadow_flags & SHF_oos_may_write);
+ }
+ 
+@@ -545,7 +545,7 @@ sh_mfn_is_a_page_table(mfn_t gmfn)
+ 
+     owner = page_get_owner(page);
+     if ( owner && shadow_mode_refcounts(owner)
+-         && (page->count_info & PGC_page_table) )
++         && (page->count_info & PGC_shadowed_pt) )
+         return 1;
+ 
+     type_info = page->u.inuse.type_info & PGT_type_mask;
+-- 
+2.17.1
+

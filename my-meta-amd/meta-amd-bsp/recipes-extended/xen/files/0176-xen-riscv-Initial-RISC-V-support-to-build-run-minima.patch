@@ -1,0 +1,293 @@
+From bb62c25e3e5c3ff0c61a0351b7c4c65ff11ce9d9 Mon Sep 17 00:00:00 2001
+From: Oleksii Kurochko <oleksii.kurochko@gmail.com>
+Date: Thu, 5 Jan 2023 14:01:45 +0200
+Subject: [PATCH 176/221] xen/riscv: Initial RISC-V support to build/run
+ minimal Xen
+
+The patch provides a minimal amount of changes to start
+build and run minimal Xen binary at GitLab CI&CD that will
+allow continuous checking of the build status of RISC-V Xen.
+
+Except introduction of new files the following changes were done:
+* Redefinition of ALIGN define from '.align 2' to '.align 4', as 2 was
+  incorrect choice done previously.
+* ALL_OBJ-y and ALL_LIBS-y were temporary overwritted to produce
+  a minimal hypervisor image otherwise it will be required to push
+  huge amount of headers and stubs for common, drivers, libs etc which
+  aren't necessary for now.
+* Section changed from .text to .text.header for start function
+  to make it the first one executed.
+* Rework riscv64/Makefile logic to rebase over changes since the first
+  RISC-V commit.
+
+RISC-V Xen can be built by the following instructions:
+  $ CONTAINER=riscv64 ./automation/scripts/containerize \
+       make XEN_TARGET_ARCH=riscv64 -C xen tiny64_defconfig
+  $ CONTAINER=riscv64 ./automation/scripts/containerize \
+       make XEN_TARGET_ARCH=riscv64 -C xen build
+
+Signed-off-by: Oleksii Kurochko <oleksii.kurochko@gmail.com>
+Reviewed-by: Andrew Cooper <andrew.cooper3@citrix.com>
+---
+ xen/arch/riscv/Makefile             |  14 +++
+ xen/arch/riscv/arch.mk              |   4 +
+ xen/arch/riscv/include/asm/config.h |   9 +-
+ xen/arch/riscv/riscv64/Makefile     |   2 +-
+ xen/arch/riscv/riscv64/head.S       |   4 +-
+ xen/arch/riscv/xen.lds.S            | 158 ++++++++++++++++++++++++++++
+ 6 files changed, 186 insertions(+), 5 deletions(-)
+ create mode 100644 xen/arch/riscv/xen.lds.S
+
+diff --git a/xen/arch/riscv/Makefile b/xen/arch/riscv/Makefile
+index 942e4ffbc1..248f2cbb3e 100644
+--- a/xen/arch/riscv/Makefile
++++ b/xen/arch/riscv/Makefile
+@@ -1,2 +1,16 @@
++obj-$(CONFIG_RISCV_64) += riscv64/
++
++$(TARGET): $(TARGET)-syms
++	$(OBJCOPY) -O binary -S $< $@
++
++$(TARGET)-syms: $(objtree)/prelink.o $(obj)/xen.lds
++	$(LD) $(XEN_LDFLAGS) -T $(obj)/xen.lds -N $< $(build_id_linker) -o $@
++	$(NM) -pa --format=sysv $(@D)/$(@F) \
++		| $(objtree)/tools/symbols --all-symbols --xensyms --sysv --sort \
++		>$(@D)/$(@F).map
++
++$(obj)/xen.lds: $(src)/xen.lds.S FORCE
++	$(call if_changed_dep,cpp_lds_S)
++
+ .PHONY: include
+ include:
+diff --git a/xen/arch/riscv/arch.mk b/xen/arch/riscv/arch.mk
+index ae8fe9dec7..012dc677c3 100644
+--- a/xen/arch/riscv/arch.mk
++++ b/xen/arch/riscv/arch.mk
+@@ -11,3 +11,7 @@ riscv-march-$(CONFIG_RISCV_ISA_C)       := $(riscv-march-y)c
+ # -mcmodel=medlow would force Xen into the lower half.
+ 
+ CFLAGS += -march=$(riscv-march-y) -mstrict-align -mcmodel=medany
++
++# TODO: Drop override when more of the build is working
++override ALL_OBJS-y = arch/$(TARGET_ARCH)/built_in.o
++override ALL_LIBS-y =
+diff --git a/xen/arch/riscv/include/asm/config.h b/xen/arch/riscv/include/asm/config.h
+index e2ae21de61..0370f865f3 100644
+--- a/xen/arch/riscv/include/asm/config.h
++++ b/xen/arch/riscv/include/asm/config.h
+@@ -1,6 +1,9 @@
+ #ifndef __RISCV_CONFIG_H__
+ #define __RISCV_CONFIG_H__
+ 
++#include <xen/const.h>
++#include <xen/page-size.h>
++
+ #if defined(CONFIG_RISCV_64)
+ # define LONG_BYTEORDER 3
+ # define ELFSIZE 64
+@@ -28,7 +31,7 @@
+ 
+ /* Linkage for RISCV */
+ #ifdef __ASSEMBLY__
+-#define ALIGN .align 2
++#define ALIGN .align 4
+ 
+ #define ENTRY(name)                                \
+   .globl name;                                     \
+@@ -36,6 +39,10 @@
+   name:
+ #endif
+ 
++#define XEN_VIRT_START  _AT(UL, 0x80200000)
++
++#define SMP_CACHE_BYTES (1 << 6)
++
+ #endif /* __RISCV_CONFIG_H__ */
+ /*
+  * Local variables:
+diff --git a/xen/arch/riscv/riscv64/Makefile b/xen/arch/riscv/riscv64/Makefile
+index 15a4a65f66..3340058c08 100644
+--- a/xen/arch/riscv/riscv64/Makefile
++++ b/xen/arch/riscv/riscv64/Makefile
+@@ -1 +1 @@
+-extra-y += head.o
++obj-y += head.o
+diff --git a/xen/arch/riscv/riscv64/head.S b/xen/arch/riscv/riscv64/head.S
+index 0dbc27ba75..990edb70a0 100644
+--- a/xen/arch/riscv/riscv64/head.S
++++ b/xen/arch/riscv/riscv64/head.S
+@@ -1,6 +1,4 @@
+-#include <asm/config.h>
+-
+-        .text
++        .section .text.header, "ax", %progbits
+ 
+ ENTRY(start)
+         j  start
+diff --git a/xen/arch/riscv/xen.lds.S b/xen/arch/riscv/xen.lds.S
+new file mode 100644
+index 0000000000..ca57cce75c
+--- /dev/null
++++ b/xen/arch/riscv/xen.lds.S
+@@ -0,0 +1,158 @@
++#include <xen/xen.lds.h>
++
++#undef ENTRY
++#undef ALIGN
++
++OUTPUT_ARCH(riscv)
++ENTRY(start)
++
++PHDRS
++{
++    text PT_LOAD ;
++#if defined(BUILD_ID)
++    note PT_NOTE ;
++#endif
++}
++
++SECTIONS
++{
++    . = XEN_VIRT_START;
++    _start = .;
++    .text : {
++        _stext = .;            /* Text section */
++        *(.text.header)
++
++        *(.text.cold)
++        *(.text.unlikely .text.*_unlikely .text.unlikely.*)
++
++        *(.text)
++#ifdef CONFIG_CC_SPLIT_SECTIONS
++        *(.text.*)
++#endif
++
++        *(.fixup)
++        *(.gnu.warning)
++        . = ALIGN(POINTER_ALIGN);
++        _etext = .;             /* End of text section */
++    } :text
++
++    . = ALIGN(PAGE_SIZE);
++    .rodata : {
++        _srodata = .;          /* Read-only data */
++        *(.rodata)
++        *(.rodata.*)
++        *(.data.rel.ro)
++        *(.data.rel.ro.*)
++
++        VPCI_ARRAY
++
++        . = ALIGN(POINTER_ALIGN);
++        _erodata = .;        /* End of read-only data */
++    } :text
++
++    #if defined(BUILD_ID)
++    . = ALIGN(4);
++    .note.gnu.build-id : {
++        __note_gnu_build_id_start = .;
++        *(.note.gnu.build-id)
++        __note_gnu_build_id_end = .;
++    } :note :text
++    #endif
++    _erodata = .;                /* End of read-only data */
++
++    . = ALIGN(PAGE_SIZE);
++    .data.ro_after_init : {
++        __ro_after_init_start = .;
++        *(.data.ro_after_init)
++        . = ALIGN(PAGE_SIZE);
++        __ro_after_init_end = .;
++    } : text
++
++    .data.read_mostly : {
++        *(.data.read_mostly)
++    } :text
++
++    . = ALIGN(PAGE_SIZE);
++    .data : {                    /* Data */
++        *(.data.page_aligned)
++        . = ALIGN(8);
++        __start_schedulers_array = .;
++        *(.data.schedulers)
++        __end_schedulers_array = .;
++
++        HYPFS_PARAM
++
++        *(.data .data.*)
++        CONSTRUCTORS
++    } :text
++
++    . = ALIGN(PAGE_SIZE);             /* Init code and data */
++    __init_begin = .;
++    .init.text : {
++        _sinittext = .;
++        *(.init.text)
++        _einittext = .;
++        . = ALIGN(PAGE_SIZE);        /* Avoid mapping alt insns executable */
++    } :text
++    . = ALIGN(PAGE_SIZE);
++    .init.data : {
++        *(.init.rodata)
++        *(.init.rodata.*)
++
++        . = ALIGN(POINTER_ALIGN);
++        __setup_start = .;
++        *(.init.setup)
++        __setup_end = .;
++
++        __initcall_start = .;
++        *(.initcallpresmp.init)
++        __presmp_initcall_end = .;
++        *(.initcall1.init)
++        __initcall_end = .;
++
++        LOCK_PROFILE_DATA
++
++        *(.init.data)
++        *(.init.data.rel)
++        *(.init.data.rel.*)
++
++        . = ALIGN(8);
++        __ctors_start = .;
++        *(.ctors)
++        *(.init_array)
++        *(SORT(.init_array.*))
++        __ctors_end = .;
++    } :text
++    . = ALIGN(POINTER_ALIGN);
++    __init_end = .;
++
++    .bss : {                     /* BSS */
++        __bss_start = .;
++        *(.bss.stack_aligned)
++        . = ALIGN(PAGE_SIZE);
++        *(.bss.page_aligned)
++        . = ALIGN(PAGE_SIZE);
++        __per_cpu_start = .;
++        *(.bss.percpu.page_aligned)
++        *(.bss.percpu)
++        . = ALIGN(SMP_CACHE_BYTES);
++        *(.bss.percpu.read_mostly)
++        . = ALIGN(SMP_CACHE_BYTES);
++        __per_cpu_data_end = .;
++        *(.bss .bss.*)
++        . = ALIGN(POINTER_ALIGN);
++        __bss_end = .;
++    } :text
++    _end = . ;
++
++    /* Section for the device tree blob (if any). */
++    .dtb : { *(.dtb) } :text
++
++    DWARF2_DEBUG_SECTIONS
++
++    DISCARD_SECTIONS
++
++    STABS_DEBUG_SECTIONS
++
++    ELF_DETAILS_SECTIONS
++}
+-- 
+2.17.1
+

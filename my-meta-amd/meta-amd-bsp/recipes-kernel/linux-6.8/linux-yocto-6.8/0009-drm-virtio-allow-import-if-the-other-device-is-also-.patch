@@ -1,0 +1,49 @@
+From 7a0972dc9615b8e5aaba7620027e759483b7bec3 Mon Sep 17 00:00:00 2001
+From: Pierre-Eric Pelloux-Prayer <pierre-eric.pelloux-prayer@amd.com>
+Date: Fri, 23 Jun 2023 15:46:05 +0200
+Subject: [PATCH 09/49] drm/virtio: allow import if the other device is also a
+ virtgpu
+
+This is required for DRI_PRIME support with multiple virtgpu in
+a VM.
+---
+ drivers/gpu/drm/virtio/virtgpu_prime.c | 23 +++++++++++++++++++++++
+ 1 file changed, 23 insertions(+)
+
+diff --git a/drivers/gpu/drm/virtio/virtgpu_prime.c b/drivers/gpu/drm/virtio/virtgpu_prime.c
+index 44425f20d91a..7135620cd3f6 100644
+--- a/drivers/gpu/drm/virtio/virtgpu_prime.c
++++ b/drivers/gpu/drm/virtio/virtgpu_prime.c
+@@ -156,6 +156,29 @@ struct drm_gem_object *virtgpu_gem_prime_import(struct drm_device *dev,
+ 			 */
+ 			drm_gem_object_get(obj);
+ 			return obj;
++		} else {
++			/* Assume the other device is a virtio-gpu + native context */
++			struct virtio_gpu_device *vgdev = dev->dev_private;
++			struct drm_gem_object *obj = buf->priv;
++			struct virtio_gpu_object *qobj = NULL;
++			struct virtio_gpu_object *bo = NULL;
++			struct drm_gem_shmem_object *shmem_obj;
++
++			qobj = gem_to_virtio_gpu_obj(obj);
++			shmem_obj = drm_gem_shmem_create(vgdev->ddev, obj->size);
++
++			if (IS_ERR(shmem_obj))
++				return PTR_ERR(shmem_obj);
++
++			bo = gem_to_virtio_gpu_obj(&shmem_obj->base);
++			/* Assign the same hw_res_handle, so virglrenderer knows
++			 * about this resource.
++			 */
++			bo->hw_res_handle = qobj->hw_res_handle;
++			bo->host3d_blob = qobj->host3d_blob;
++			/* TODO: copy other fields? */
++
++			return &bo->base.base;
+ 		}
+ 	}
+ 
+-- 
+2.17.1
+

@@ -1,0 +1,33 @@
+From 7c7917c38347ce32e562b4e8257d9af8ea237562 Mon Sep 17 00:00:00 2001
+From: Huang Rui <ray.huang@amd.com>
+Date: Mon, 4 Dec 2023 16:28:40 +0800
+Subject: [PATCH 218/221] Revert "x86/mm: Workaround add a condition to check
+ page usage"
+
+This reverts commit 3a015c842b2fec10113e3d07ff39d071be0118fe.
+
+It's the workaround that not complete fix the CTS issue, and will
+introduce the finial fix. (Ray)
+
+Signed-off-by: Ramesh Babu Nalluri <rameshbabu.nalluri@amd.com>
+Change-Id: If49a60a22ced0a2800952d0548208e527a19bf94
+---
+ xen/arch/x86/mm.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/xen/arch/x86/mm.c b/xen/arch/x86/mm.c
+index 0078096e65..5e28352957 100644
+--- a/xen/arch/x86/mm.c
++++ b/xen/arch/x86/mm.c
+@@ -4385,7 +4385,7 @@ int steal_page(
+     y = page->count_info;
+     do {
+         x = y;
+-        if ( (x & (PGC_count_mask|PGC_allocated)) != (2 | PGC_allocated) && page->u.inuse.type_info != 0)
++        if ( (x & (PGC_count_mask|PGC_allocated)) != (2 | PGC_allocated) )
+             goto fail_put;
+         y = cmpxchg(&page->count_info, x, x & ~(PGC_count_mask|PGC_allocated));
+     } while ( y != x );
+-- 
+2.17.1
+

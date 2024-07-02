@@ -1,0 +1,123 @@
+From 432ffda15f80519154d7af0c889816811ee90340 Mon Sep 17 00:00:00 2001
+From: Jan Beulich <jbeulich@suse.com>
+Date: Fri, 2 Dec 2022 10:24:31 +0100
+Subject: [PATCH 032/221] gnttab: no need to translate handle for
+ gnttab_get_status_frames()
+
+Unlike for GNTTABOP_setup_table, native and compat frame lists for
+GNTTABOP_get_status_frames are arrays of the same type (uint64_t). Hence
+there's no need to translate the frame values. This then also renders
+unnecessary the limit_max parameter of gnttab_get_status_frames().
+
+Signed-off-by: Jan Beulich <jbeulich@suse.com>
+Reviewed-by: Andrew Cooper <andrew.cooper3@citrix.com>
+---
+ xen/common/compat/grant_table.c | 34 +++++++++------------------------
+ xen/common/grant_table.c        | 14 ++------------
+ 2 files changed, 11 insertions(+), 37 deletions(-)
+
+diff --git a/xen/common/compat/grant_table.c b/xen/common/compat/grant_table.c
+index 4705ee5f76..4f6d0b05fb 100644
+--- a/xen/common/compat/grant_table.c
++++ b/xen/common/compat/grant_table.c
+@@ -271,10 +271,7 @@ int compat_grant_table_op(
+             }
+             break;
+ 
+-        case GNTTABOP_get_status_frames: {
+-            unsigned int max_frame_list_size_in_pages =
+-                (COMPAT_ARG_XLAT_SIZE - sizeof(*nat.get_status)) /
+-                sizeof(*nat.get_status->frame_list.p);
++        case GNTTABOP_get_status_frames:
+             if ( count != 1)
+             {
+                 rc = -EINVAL;
+@@ -289,38 +286,25 @@ int compat_grant_table_op(
+             }
+ 
+ #define XLAT_gnttab_get_status_frames_HNDL_frame_list(_d_, _s_) \
+-            set_xen_guest_handle((_d_)->frame_list, (uint64_t *)(nat.get_status + 1))
++            guest_from_compat_handle((_d_)->frame_list, (_s_)->frame_list)
+             XLAT_gnttab_get_status_frames(nat.get_status, &cmp.get_status);
+ #undef XLAT_gnttab_get_status_frames_HNDL_frame_list
+ 
+             rc = gnttab_get_status_frames(
+-                guest_handle_cast(nat.uop, gnttab_get_status_frames_t),
+-                count, max_frame_list_size_in_pages);
++                guest_handle_cast(nat.uop, gnttab_get_status_frames_t), count);
+             if ( rc >= 0 )
+             {
+-#define XLAT_gnttab_get_status_frames_HNDL_frame_list(_d_, _s_) \
+-                do \
+-                { \
+-                    if ( (_s_)->status == GNTST_okay ) \
+-                    { \
+-                        for ( i = 0; i < (_s_)->nr_frames; ++i ) \
+-                        { \
+-                            uint64_t frame = (_s_)->frame_list.p[i]; \
+-                            if ( __copy_to_compat_offset((_d_)->frame_list, \
+-                                                         i, &frame, 1) ) \
+-                                (_s_)->status = GNTST_bad_virt_addr; \
+-                        } \
+-                    } \
+-                } while (0)
+-                XLAT_gnttab_get_status_frames(&cmp.get_status, nat.get_status);
+-#undef XLAT_gnttab_get_status_frames_HNDL_frame_list
+-                if ( unlikely(__copy_to_guest(cmp_uop, &cmp.get_status, 1)) )
++                XEN_GUEST_HANDLE_PARAM(gnttab_get_status_frames_compat_t) get =
++                    guest_handle_cast(cmp_uop,
++                                      gnttab_get_status_frames_compat_t);
++
++                if ( unlikely(__copy_field_to_guest(get, nat.get_status,
++                                                    status)) )
+                     rc = -EFAULT;
+                 else
+                     i = 1;
+             }
+             break;
+-        }
+ 
+         default:
+             domain_crash(current->domain);
+diff --git a/xen/common/grant_table.c b/xen/common/grant_table.c
+index ee7cc496b8..6326bae5aa 100644
+--- a/xen/common/grant_table.c
++++ b/xen/common/grant_table.c
+@@ -3257,7 +3257,7 @@ gnttab_set_version(XEN_GUEST_HANDLE_PARAM(gnttab_set_version_t) uop)
+ 
+ static long
+ gnttab_get_status_frames(XEN_GUEST_HANDLE_PARAM(gnttab_get_status_frames_t) uop,
+-                         unsigned int count, unsigned int limit_max)
++                         unsigned int count)
+ {
+     gnttab_get_status_frames_t op;
+     struct domain *d;
+@@ -3307,15 +3307,6 @@ gnttab_get_status_frames(XEN_GUEST_HANDLE_PARAM(gnttab_get_status_frames_t) uop,
+         goto unlock;
+     }
+ 
+-    if ( unlikely(limit_max < op.nr_frames) )
+-    {
+-        gdprintk(XENLOG_WARNING,
+-                 "nr_status_frames for %pd is too large (%u,%u)\n",
+-                 d, op.nr_frames, limit_max);
+-        op.status = GNTST_general_error;
+-        goto unlock;
+-    }
+-
+     for ( i = 0; i < op.nr_frames; i++ )
+     {
+         gmfn = gfn_x(gnttab_status_gfn(d, gt, i));
+@@ -3683,8 +3674,7 @@ long do_grant_table_op(
+ 
+     case GNTTABOP_get_status_frames:
+         rc = gnttab_get_status_frames(
+-            guest_handle_cast(uop, gnttab_get_status_frames_t), count,
+-                              UINT_MAX);
++            guest_handle_cast(uop, gnttab_get_status_frames_t), count);
+         break;
+ 
+     case GNTTABOP_get_version:
+-- 
+2.17.1
+

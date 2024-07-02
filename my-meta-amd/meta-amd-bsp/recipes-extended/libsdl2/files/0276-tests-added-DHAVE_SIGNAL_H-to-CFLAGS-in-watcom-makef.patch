@@ -1,0 +1,39 @@
+From bc87983310bfe1694b9047b8bd8bc141fe2ada7e Mon Sep 17 00:00:00 2001
+From: Ozkan Sezer <sezeroz@gmail.com>
+Date: Wed, 8 Mar 2023 18:56:50 +0300
+Subject: [PATCH 276/458] tests: added -DHAVE_SIGNAL_H to CFLAGS in watcom
+ makefiles
+
+---
+ test/Makefile.os2 | 1 +
+ test/Makefile.w32 | 2 +-
+ 2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/test/Makefile.os2 b/test/Makefile.os2
+index ee66409b0..0d5198eb5 100644
+--- a/test/Makefile.os2
++++ b/test/Makefile.os2
+@@ -9,6 +9,7 @@ INCPATH = -I"$(%WATCOM)/h/os2" -I"$(%WATCOM)/h"
+ 
+ CFLAGS = -bt=os2 -d0 -q -bm -5s -fp5 -fpi87 -sg -oteanbmier -ei
+ CFLAGS+= -wx -wcd=303
++CFLAGS+= -DHAVE_SIGNAL_H
+ !ifeq ENABLE_WERROR 1
+ CFLAGS+= -we
+ !endif
+diff --git a/test/Makefile.w32 b/test/Makefile.w32
+index 02e68e865..63613e290 100644
+--- a/test/Makefile.w32
++++ b/test/Makefile.w32
+@@ -13,7 +13,7 @@ CFLAGS+= -wx -wcd=303
+ CFLAGS+= -we
+ !endif
+ CFLAGS+= -DSDL_MAIN_HANDLED
+-CFLAGS+= -DHAVE_OPENGL
++CFLAGS+= -DHAVE_OPENGL -DHAVE_SIGNAL_H
+ GLLIBS = opengl32.lib
+ 
+ TNSRCS = testnative.c testnativew32.c
+-- 
+2.17.1
+

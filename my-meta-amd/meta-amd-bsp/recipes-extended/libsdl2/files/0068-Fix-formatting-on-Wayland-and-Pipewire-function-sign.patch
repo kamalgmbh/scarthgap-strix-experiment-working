@@ -1,0 +1,363 @@
+From b5483f2c6880295908663da48f0642f492bec417 Mon Sep 17 00:00:00 2001
+From: Frank Praznik <frank.praznik@gmail.com>
+Date: Thu, 1 Dec 2022 18:03:36 -0500
+Subject: [PATCH 068/458] Fix formatting on Wayland and Pipewire function
+ signatures
+
+Fixes the formatting on some function signatures that clang-format missed.
+
+(cherry picked from commit 378b1c286a9c3206e827a47f0147384e92c4c2b2)
+---
+ src/audio/pipewire/SDL_pipewire.c          |  9 ++--
+ src/video/wayland/SDL_waylandclipboard.c   | 12 ++----
+ src/video/wayland/SDL_waylanddatamanager.c | 50 +++++++++-------------
+ src/video/wayland/SDL_waylandevents.c      | 15 +++----
+ src/video/wayland/SDL_waylandkeyboard.c    |  3 +-
+ src/video/wayland/SDL_waylandopengles.c    |  3 +-
+ src/video/wayland/SDL_waylandvideo.c       |  6 +--
+ src/video/wayland/SDL_waylandwindow.c      |  9 ++--
+ 8 files changed, 39 insertions(+), 68 deletions(-)
+
+diff --git a/src/audio/pipewire/SDL_pipewire.c b/src/audio/pipewire/SDL_pipewire.c
+index b32be91a2..fcb50a4e3 100644
+--- a/src/audio/pipewire/SDL_pipewire.c
++++ b/src/audio/pipewire/SDL_pipewire.c
+@@ -205,8 +205,7 @@ static int load_pipewire_syms()
+     return 0;
+ }
+ 
+-SDL_FORCE_INLINE SDL_bool
+-pipewire_version_at_least(int major, int minor, int patch)
++SDL_FORCE_INLINE SDL_bool pipewire_version_at_least(int major, int minor, int patch)
+ {
+     return (pipewire_version_major >= major) &&
+            (pipewire_version_major > major || pipewire_version_minor >= minor) &&
+@@ -376,8 +375,7 @@ static void io_list_clear()
+     }
+ }
+ 
+-static struct io_node *
+-io_list_get_by_id(Uint32 id)
++static struct io_node *io_list_get_by_id(Uint32 id)
+ {
+     struct io_node *n, *temp;
+     spa_list_for_each_safe (n, temp, &hotplug_io_list, link) {
+@@ -388,8 +386,7 @@ io_list_get_by_id(Uint32 id)
+     return NULL;
+ }
+ 
+-static struct io_node *
+-io_list_get_by_path(char *path)
++static struct io_node *io_list_get_by_path(char *path)
+ {
+     struct io_node *n, *temp;
+     spa_list_for_each_safe (n, temp, &hotplug_io_list, link) {
+diff --git a/src/video/wayland/SDL_waylandclipboard.c b/src/video/wayland/SDL_waylandclipboard.c
+index efdcc1701..7d442a88e 100644
+--- a/src/video/wayland/SDL_waylandclipboard.c
++++ b/src/video/wayland/SDL_waylandclipboard.c
+@@ -89,8 +89,7 @@ int Wayland_SetPrimarySelectionText(_THIS, const char *text)
+     return status;
+ }
+ 
+-char *
+-Wayland_GetClipboardText(_THIS)
++char *Wayland_GetClipboardText(_THIS)
+ {
+     SDL_VideoData *video_data = NULL;
+     SDL_WaylandDataDevice *data_device = NULL;
+@@ -124,8 +123,7 @@ Wayland_GetClipboardText(_THIS)
+     return text;
+ }
+ 
+-char *
+-Wayland_GetPrimarySelectionText(_THIS)
++char *Wayland_GetPrimarySelectionText(_THIS)
+ {
+     SDL_VideoData *video_data = NULL;
+     SDL_WaylandPrimarySelectionDevice *primary_selection_device = NULL;
+@@ -159,8 +157,7 @@ Wayland_GetPrimarySelectionText(_THIS)
+     return text;
+ }
+ 
+-SDL_bool
+-Wayland_HasClipboardText(_THIS)
++SDL_bool Wayland_HasClipboardText(_THIS)
+ {
+     SDL_VideoData *video_data = NULL;
+     SDL_WaylandDataDevice *data_device = NULL;
+@@ -180,8 +177,7 @@ Wayland_HasClipboardText(_THIS)
+     return result;
+ }
+ 
+-SDL_bool
+-Wayland_HasPrimarySelectionText(_THIS)
++SDL_bool Wayland_HasPrimarySelectionText(_THIS)
+ {
+     SDL_VideoData *video_data = NULL;
+     SDL_WaylandPrimarySelectionDevice *primary_selection_device = NULL;
+diff --git a/src/video/wayland/SDL_waylanddatamanager.c b/src/video/wayland/SDL_waylanddatamanager.c
+index bbcec9ac4..997120183 100644
+--- a/src/video/wayland/SDL_waylanddatamanager.c
++++ b/src/video/wayland/SDL_waylanddatamanager.c
+@@ -40,8 +40,7 @@
+  */
+ #define PIPE_MS_TIMEOUT 14
+ 
+-static ssize_t
+-write_pipe(int fd, const void *buffer, size_t total_length, size_t *pos)
++static ssize_t write_pipe(int fd, const void *buffer, size_t total_length, size_t *pos)
+ {
+     int ready = 0;
+     ssize_t bytes_written = 0;
+@@ -87,8 +86,7 @@ write_pipe(int fd, const void *buffer, size_t total_length, size_t *pos)
+     return bytes_written;
+ }
+ 
+-static ssize_t
+-read_pipe(int fd, void **buffer, size_t *total_length, SDL_bool null_terminate)
++static ssize_t read_pipe(int fd, void **buffer, size_t *total_length, SDL_bool null_terminate)
+ {
+     int ready = 0;
+     void *output_buffer = NULL;
+@@ -148,8 +146,7 @@ static const char *mime_conversion_list[MIME_LIST_SIZE][2] = {
+     { "STRING", TEXT_MIME }
+ };
+ 
+-const char *
+-Wayland_convert_mime_type(const char *mime_type)
++const char *Wayland_convert_mime_type(const char *mime_type)
+ {
+     const char *found = mime_type;
+ 
+@@ -309,9 +306,8 @@ int Wayland_primary_selection_source_add_data(SDL_WaylandPrimarySelectionSource
+     return mime_data_list_add(&source->mimes, mime_type, buffer, length);
+ }
+ 
+-SDL_bool
+-Wayland_data_source_has_mime(SDL_WaylandDataSource *source,
+-                             const char *mime_type)
++SDL_bool Wayland_data_source_has_mime(SDL_WaylandDataSource *source,
++                                      const char *mime_type)
+ {
+     SDL_bool found = SDL_FALSE;
+ 
+@@ -321,9 +317,8 @@ Wayland_data_source_has_mime(SDL_WaylandDataSource *source,
+     return found;
+ }
+ 
+-SDL_bool
+-Wayland_primary_selection_source_has_mime(SDL_WaylandPrimarySelectionSource *source,
+-                                          const char *mime_type)
++SDL_bool Wayland_primary_selection_source_has_mime(SDL_WaylandPrimarySelectionSource *source,
++                                                   const char *mime_type)
+ {
+     SDL_bool found = SDL_FALSE;
+ 
+@@ -360,10 +355,9 @@ static void *Wayland_source_get_data(SDL_MimeDataList *mime_data,
+     return buffer;
+ }
+ 
+-void *
+-Wayland_data_source_get_data(SDL_WaylandDataSource *source,
+-                             size_t *length, const char *mime_type,
+-                             SDL_bool null_terminate)
++void *Wayland_data_source_get_data(SDL_WaylandDataSource *source,
++                                   size_t *length, const char *mime_type,
++                                   SDL_bool null_terminate)
+ {
+     SDL_MimeDataList *mime_data = NULL;
+     void *buffer = NULL;
+@@ -379,10 +373,9 @@ Wayland_data_source_get_data(SDL_WaylandDataSource *source,
+     return buffer;
+ }
+ 
+-void *
+-Wayland_primary_selection_source_get_data(SDL_WaylandPrimarySelectionSource *source,
+-                                          size_t *length, const char *mime_type,
+-                                          SDL_bool null_terminate)
++void *Wayland_primary_selection_source_get_data(SDL_WaylandPrimarySelectionSource *source,
++                                                size_t *length, const char *mime_type,
++                                                SDL_bool null_terminate)
+ {
+     SDL_MimeDataList *mime_data = NULL;
+     void *buffer = NULL;
+@@ -458,10 +451,9 @@ void *Wayland_data_offer_receive(SDL_WaylandDataOffer *offer,
+     return buffer;
+ }
+ 
+-void *
+-Wayland_primary_selection_offer_receive(SDL_WaylandPrimarySelectionOffer *offer,
+-                                        size_t *length, const char *mime_type,
+-                                        SDL_bool null_terminate)
++void *Wayland_primary_selection_offer_receive(SDL_WaylandPrimarySelectionOffer *offer,
++                                              size_t *length, const char *mime_type,
++                                              SDL_bool null_terminate)
+ {
+     SDL_WaylandPrimarySelectionDevice *primary_selection_device = NULL;
+ 
+@@ -505,9 +497,8 @@ int Wayland_primary_selection_offer_add_mime(SDL_WaylandPrimarySelectionOffer *o
+     return mime_data_list_add(&offer->mimes, mime_type, NULL, 0);
+ }
+ 
+-SDL_bool
+-Wayland_data_offer_has_mime(SDL_WaylandDataOffer *offer,
+-                            const char *mime_type)
++SDL_bool Wayland_data_offer_has_mime(SDL_WaylandDataOffer *offer,
++                                     const char *mime_type)
+ {
+     SDL_bool found = SDL_FALSE;
+ 
+@@ -517,9 +508,8 @@ Wayland_data_offer_has_mime(SDL_WaylandDataOffer *offer,
+     return found;
+ }
+ 
+-SDL_bool
+-Wayland_primary_selection_offer_has_mime(SDL_WaylandPrimarySelectionOffer *offer,
+-                                         const char *mime_type)
++SDL_bool Wayland_primary_selection_offer_has_mime(SDL_WaylandPrimarySelectionOffer *offer,
++                                                  const char *mime_type)
+ {
+     SDL_bool found = SDL_FALSE;
+ 
+diff --git a/src/video/wayland/SDL_waylandevents.c b/src/video/wayland/SDL_waylandevents.c
+index 827d8681a..0ce0ecb76 100644
+--- a/src/video/wayland/SDL_waylandevents.c
++++ b/src/video/wayland/SDL_waylandevents.c
+@@ -162,8 +162,7 @@ static void touch_del(SDL_TouchID id, float *x, float *y, struct wl_surface **su
+     }
+ }
+ 
+-static struct wl_surface *
+-touch_surface(SDL_TouchID id)
++static struct wl_surface *touch_surface(SDL_TouchID id)
+ {
+     struct SDL_WaylandTouchPoint *tp = touch_points.head;
+ 
+@@ -1409,8 +1408,7 @@ static const struct zwp_primary_selection_source_v1_listener primary_selection_s
+     primary_selection_source_cancelled,
+ };
+ 
+-SDL_WaylandDataSource *
+-Wayland_data_source_create(_THIS)
++SDL_WaylandDataSource *Wayland_data_source_create(_THIS)
+ {
+     SDL_WaylandDataSource *data_source = NULL;
+     SDL_VideoData *driver_data = NULL;
+@@ -1445,8 +1443,7 @@ Wayland_data_source_create(_THIS)
+     return data_source;
+ }
+ 
+-SDL_WaylandPrimarySelectionSource *
+-Wayland_primary_selection_source_create(_THIS)
++SDL_WaylandPrimarySelectionSource *Wayland_primary_selection_source_create(_THIS)
+ {
+     SDL_WaylandPrimarySelectionSource *primary_selection_source = NULL;
+     SDL_VideoData *driver_data = NULL;
+@@ -2060,8 +2057,7 @@ static void tablet_tool_handle_proximity_out(void *data, struct zwp_tablet_tool_
+     }
+ }
+ 
+-uint32_t
+-tablet_tool_btn_to_sdl_button(struct SDL_WaylandTabletInput *input)
++uint32_t tablet_tool_btn_to_sdl_button(struct SDL_WaylandTabletInput *input)
+ {
+     unsigned int tool_btn = input->btn_stylus3 << 2 | input->btn_stylus2 << 1 | input->btn_stylus << 0;
+     switch (tool_btn) {
+@@ -2212,8 +2208,7 @@ static const struct zwp_tablet_tool_v2_listener tablet_tool_listener = {
+     tablet_tool_handle_frame
+ };
+ 
+-struct SDL_WaylandTabletObjectListNode *
+-tablet_object_list_new_node(void *object)
++struct SDL_WaylandTabletObjectListNode *tablet_object_list_new_node(void *object)
+ {
+     struct SDL_WaylandTabletObjectListNode *node;
+ 
+diff --git a/src/video/wayland/SDL_waylandkeyboard.c b/src/video/wayland/SDL_waylandkeyboard.c
+index 676b536fd..66eb14af4 100644
+--- a/src/video/wayland/SDL_waylandkeyboard.c
++++ b/src/video/wayland/SDL_waylandkeyboard.c
+@@ -141,8 +141,7 @@ void Wayland_SetTextInputRect(_THIS, const SDL_Rect *rect)
+ #endif
+ }
+ 
+-SDL_bool
+-Wayland_HasScreenKeyboardSupport(_THIS)
++SDL_bool Wayland_HasScreenKeyboardSupport(_THIS)
+ {
+     /* In reality we just want to return true when the screen keyboard is the
+      * _only_ way to get text input. So, in addition to checking for the text
+diff --git a/src/video/wayland/SDL_waylandopengles.c b/src/video/wayland/SDL_waylandopengles.c
+index 677a247be..72e1e9b32 100644
+--- a/src/video/wayland/SDL_waylandopengles.c
++++ b/src/video/wayland/SDL_waylandopengles.c
+@@ -48,8 +48,7 @@ int Wayland_GLES_LoadLibrary(_THIS, const char *path)
+     return ret;
+ }
+ 
+-SDL_GLContext
+-Wayland_GLES_CreateContext(_THIS, SDL_Window *window)
++SDL_GLContext Wayland_GLES_CreateContext(_THIS, SDL_Window *window)
+ {
+     SDL_GLContext context;
+     context = SDL_EGL_CreateContext(_this, ((SDL_WindowData *)window->driverdata)->egl_surface);
+diff --git a/src/video/wayland/SDL_waylandvideo.c b/src/video/wayland/SDL_waylandvideo.c
+index 75ee711fb..d014cfe42 100644
+--- a/src/video/wayland/SDL_waylandvideo.c
++++ b/src/video/wayland/SDL_waylandvideo.c
+@@ -905,8 +905,7 @@ static SDL_bool should_use_libdecor(SDL_VideoData *data, SDL_bool ignore_xdg)
+ }
+ #endif
+ 
+-SDL_bool
+-Wayland_LoadLibdecor(SDL_VideoData *data, SDL_bool ignore_xdg)
++SDL_bool Wayland_LoadLibdecor(SDL_VideoData *data, SDL_bool ignore_xdg)
+ {
+ #ifdef HAVE_LIBDECOR_H
+     if (data->shell.libdecor != NULL) {
+@@ -1114,8 +1113,7 @@ static void Wayland_VideoCleanup(_THIS)
+     }
+ }
+ 
+-SDL_bool
+-Wayland_VideoReconnect(_THIS)
++SDL_bool Wayland_VideoReconnect(_THIS)
+ {
+ #if 0 /* TODO RECONNECT: Uncomment all when https://invent.kde.org/plasma/kwin/-/wikis/Restarting is completed */
+     SDL_VideoData *data = _this->driverdata;
+diff --git a/src/video/wayland/SDL_waylandwindow.c b/src/video/wayland/SDL_waylandwindow.c
+index e6defb8e1..8c76abba8 100644
+--- a/src/video/wayland/SDL_waylandwindow.c
++++ b/src/video/wayland/SDL_waylandwindow.c
+@@ -48,8 +48,7 @@
+ 
+ #define FULLSCREEN_MASK (SDL_WINDOW_FULLSCREEN | SDL_WINDOW_FULLSCREEN_DESKTOP)
+ 
+-SDL_FORCE_INLINE SDL_bool
+-FloatEqual(float a, float b)
++SDL_FORCE_INLINE SDL_bool FloatEqual(float a, float b)
+ {
+     const float diff = SDL_fabsf(a - b);
+     const float largest = SDL_max(SDL_fabsf(a), SDL_fabsf(b));
+@@ -118,15 +117,13 @@ static void GetFullScreenDimensions(SDL_Window *window, int *width, int *height,
+     }
+ }
+ 
+-SDL_FORCE_INLINE SDL_bool
+-SurfaceScaleIsFractional(SDL_Window *window)
++SDL_FORCE_INLINE SDL_bool SurfaceScaleIsFractional(SDL_Window *window)
+ {
+     SDL_WindowData *data = window->driverdata;
+     return !FloatEqual(SDL_roundf(data->scale_factor), data->scale_factor);
+ }
+ 
+-SDL_FORCE_INLINE SDL_bool
+-FullscreenModeEmulation(SDL_Window *window)
++SDL_FORCE_INLINE SDL_bool FullscreenModeEmulation(SDL_Window *window)
+ {
+     return (window->flags & SDL_WINDOW_FULLSCREEN) &&
+            ((window->flags & SDL_WINDOW_FULLSCREEN_DESKTOP) != SDL_WINDOW_FULLSCREEN_DESKTOP);
+-- 
+2.17.1
+

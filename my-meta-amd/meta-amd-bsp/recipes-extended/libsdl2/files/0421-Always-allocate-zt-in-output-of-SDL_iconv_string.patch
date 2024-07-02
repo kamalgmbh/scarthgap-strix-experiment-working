@@ -1,0 +1,61 @@
+From 2660da6f5c845a19b898ae67dfad821baa346046 Mon Sep 17 00:00:00 2001
+From: Eddy Jansson <eddy@klopper.net>
+Date: Tue, 28 Feb 2023 17:50:26 +0100
+Subject: [PATCH 421/458] Always allocate zt in output of SDL_iconv_string()
+
+Before this, the function could not be used on buffers,
+as it would not account for the zero-termination unless
+it was included in the input.
+
+(cherry picked from commit 5f5abb680523e1adedd3fca2a8e252db01fc1c52)
+---
+ include/SDL_stdinc.h   | 2 +-
+ src/stdlib/SDL_iconv.c | 5 +++--
+ 2 files changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/include/SDL_stdinc.h b/include/SDL_stdinc.h
+index f46a728f6..182ed86ee 100644
+--- a/include/SDL_stdinc.h
++++ b/include/SDL_stdinc.h
+@@ -688,7 +688,7 @@ extern DECLSPEC size_t SDLCALL SDL_iconv(SDL_iconv_t cd, const char **inbuf,
+                                          size_t * outbytesleft);
+ 
+ /**
+- * This function converts a string between encodings in one pass, returning a
++ * This function converts a buffer or string between encodings in one pass, returning a
+  * string that must be freed with SDL_free() or NULL on error.
+  *
+  * \since This function is available since SDL 2.0.0.
+diff --git a/src/stdlib/SDL_iconv.c b/src/stdlib/SDL_iconv.c
+index a42f2639d..9448afcf5 100644
+--- a/src/stdlib/SDL_iconv.c
++++ b/src/stdlib/SDL_iconv.c
+@@ -811,7 +811,7 @@ char *SDL_iconv_string(const char *tocode, const char *fromcode, const char *inb
+     }
+ 
+     stringsize = inbytesleft > 4 ? inbytesleft : 4;
+-    string = (char *)SDL_malloc(stringsize);
++    string = (char *)SDL_malloc(stringsize + 1);
+     if (string == NULL) {
+         SDL_iconv_close(cd);
+         return NULL;
+@@ -828,7 +828,7 @@ char *SDL_iconv_string(const char *tocode, const char *fromcode, const char *inb
+         {
+             char *oldstring = string;
+             stringsize *= 2;
+-            string = (char *)SDL_realloc(string, stringsize);
++            string = (char *)SDL_realloc(string, stringsize + 1);
+             if (string == NULL) {
+                 SDL_free(oldstring);
+                 SDL_iconv_close(cd);
+@@ -855,6 +855,7 @@ char *SDL_iconv_string(const char *tocode, const char *fromcode, const char *inb
+             break;
+         }
+     }
++    *outbuf = '\0';
+     SDL_iconv_close(cd);
+ 
+     return string;
+-- 
+2.17.1
+

@@ -1,0 +1,31 @@
+From 1158cff9ea39582a2473fb97102a6df683241c9a Mon Sep 17 00:00:00 2001
+From: Anonymous Maarten <anonymous.maarten@gmail.com>
+Date: Thu, 23 Mar 2023 04:38:47 +0100
+Subject: [PATCH 315/458] cmake: increase threshold for stack probes
+
+The /Gs argument controls the number of bytes that local variables
+can occupy before a stack probe is initiated.
+By setting it to a huge value, no calls to __chkstk are inserted.
+
+This change is needed for the classic Intel C compiler to build SDL
+with -DSDL_LIBC=OFF.
+---
+ CMakeLists.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index fe7d3ce3b..bdd92d459 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -1704,7 +1704,7 @@ elseif(WINDOWS)
+ 
+   if(MSVC AND NOT SDL_LIBC)
+     # Prevent codegen that would use the VC runtime libraries.
+-    set_property(DIRECTORY . APPEND PROPERTY COMPILE_OPTIONS "/GS-")
++    set_property(DIRECTORY . APPEND PROPERTY COMPILE_OPTIONS "/GS-;/Gs1048576")
+     if(NOT ARCH_64 AND NOT CMAKE_GENERATOR_PLATFORM STREQUAL "ARM")
+       set_property(DIRECTORY . APPEND PROPERTY COMPILE_OPTIONS "/arch:SSE")
+     endif()
+-- 
+2.17.1
+

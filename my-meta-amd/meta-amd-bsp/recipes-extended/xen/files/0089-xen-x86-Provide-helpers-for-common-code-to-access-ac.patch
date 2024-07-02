@@ -1,0 +1,115 @@
+From 9bbfd7b14c4ad3774d88fe6430ab8726720633ec Mon Sep 17 00:00:00 2001
+From: Wei Chen <wei.chen@arm.com>
+Date: Mon, 12 Dec 2022 12:10:18 +0100
+Subject: [PATCH 089/221] xen/x86: Provide helpers for common code to access
+ acpi_numa
+
+acpi_numa is a specific NUMA switch for ACPI NUMA implementation.
+Other NUMA implementation may not need this switch. But this switch is
+not only used by ACPI code, it is also used directly in some general
+NUMA logic code. So far this hasn't caused any problem because Xen only
+has x86 implementing ACPI NUMA, but now Arm is implementing device tree
+based NUMA. Accesssing acpi_numa directly in some functions will be a
+block of reusing NUMA common code. It is also difficult for us to replace
+it with a new generic switch, because it is hard to prove that the new
+switch states can guarantee the original code will work correctly.
+
+So in this patch, we provide two helpers for common code to update and
+get states of acpi_numa. And other new NUMA implementations just need
+to provide the same helpers for common code. In this case, the generic
+NUMA logic code can be reused by all NUMA implementations.
+
+Signed-off-by: Wei Chen <wei.chen@arm.com>
+Reviewed-by: Jan Beulich <jbeulich@suse.com>
+---
+ xen/arch/x86/include/asm/numa.h |  5 +++--
+ xen/arch/x86/numa.c             | 38 ++++++++++++++++++++++-----------
+ 2 files changed, 28 insertions(+), 15 deletions(-)
+
+diff --git a/xen/arch/x86/include/asm/numa.h b/xen/arch/x86/include/asm/numa.h
+index c32ccffde3..237f2c6dbf 100644
+--- a/xen/arch/x86/include/asm/numa.h
++++ b/xen/arch/x86/include/asm/numa.h
+@@ -32,8 +32,9 @@ extern void numa_add_cpu(int cpu);
+ extern void numa_init_array(void);
+ extern bool numa_off;
+ 
+-
+-extern int srat_disabled(void);
++extern int arch_numa_setup(const char *opt);
++extern bool arch_numa_disabled(void);
++extern bool srat_disabled(void);
+ extern void numa_set_node(int cpu, nodeid_t node);
+ extern nodeid_t setup_node(unsigned int pxm);
+ extern void srat_detect_node(int cpu);
+diff --git a/xen/arch/x86/numa.c b/xen/arch/x86/numa.c
+index 322157fab7..1c3198445d 100644
+--- a/xen/arch/x86/numa.c
++++ b/xen/arch/x86/numa.c
+@@ -50,9 +50,28 @@ nodemask_t __read_mostly node_online_map = { { [0] = 1UL } };
+ bool numa_off;
+ s8 acpi_numa = 0;
+ 
+-int srat_disabled(void)
++int __init arch_numa_setup(const char *opt)
+ {
+-    return numa_off || acpi_numa < 0;
++#ifdef CONFIG_ACPI_NUMA
++    if ( !strncmp(opt, "noacpi", 6) )
++    {
++        numa_off = false;
++        acpi_numa = -1;
++        return 0;
++    }
++#endif
++
++    return -EINVAL;
++}
++
++bool arch_numa_disabled(void)
++{
++    return acpi_numa < 0;
++}
++
++bool srat_disabled(void)
++{
++    return numa_off || arch_numa_disabled();
+ }
+ 
+ /*
+@@ -294,28 +313,21 @@ void numa_set_node(int cpu, nodeid_t node)
+ /* [numa=off] */
+ static int __init cf_check numa_setup(const char *opt)
+ {
+-    if ( !strncmp(opt,"off",3) )
++    if ( !strncmp(opt, "off", 3) )
+         numa_off = true;
+-    else if ( !strncmp(opt,"on",2) )
++    else if ( !strncmp(opt, "on", 2) )
+         numa_off = false;
+ #ifdef CONFIG_NUMA_EMU
+     else if ( !strncmp(opt, "fake=", 5) )
+     {
+         numa_off = false;
+-        numa_fake = simple_strtoul(opt+5,NULL,0);
++        numa_fake = simple_strtoul(opt + 5, NULL, 0);
+         if ( numa_fake >= MAX_NUMNODES )
+             numa_fake = MAX_NUMNODES;
+     }
+-#endif
+-#ifdef CONFIG_ACPI_NUMA
+-    else if ( !strncmp(opt,"noacpi",6) )
+-    {
+-        numa_off = false;
+-        acpi_numa = -1;
+-    }
+ #endif
+     else
+-        return -EINVAL;
++        return arch_numa_setup(opt);
+ 
+     return 0;
+ } 
+-- 
+2.17.1
+

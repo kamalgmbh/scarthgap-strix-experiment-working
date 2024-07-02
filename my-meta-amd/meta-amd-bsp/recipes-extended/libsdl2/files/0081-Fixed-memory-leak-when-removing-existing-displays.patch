@@ -1,0 +1,24 @@
+From cfc7cac3c9f33fada3d3da1ba974f33ddb4ddfc5 Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Thu, 8 Dec 2022 12:43:23 -0800
+Subject: [PATCH 081/458] Fixed memory leak when removing existing displays
+
+---
+ src/video/SDL_video.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/src/video/SDL_video.c b/src/video/SDL_video.c
+index 6590ddbfa..6ec7ef549 100644
+--- a/src/video/SDL_video.c
++++ b/src/video/SDL_video.c
+@@ -640,6 +640,7 @@ void SDL_DelVideoDisplay(int index)
+     SDL_SendDisplayEvent(&_this->displays[index], SDL_DISPLAYEVENT_DISCONNECTED, 0);
+ 
+     if (index < (_this->num_displays - 1)) {
++        SDL_free(_this->displays[index].driverdata);
+         SDL_memmove(&_this->displays[index], &_this->displays[index + 1], (_this->num_displays - index - 1) * sizeof(_this->displays[index]));
+     }
+     --_this->num_displays;
+-- 
+2.17.1
+

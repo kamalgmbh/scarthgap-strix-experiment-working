@@ -1,0 +1,30 @@
+From 86786ed5447fe32ea2e48f12f0598816a76721c2 Mon Sep 17 00:00:00 2001
+From: "Ryan C. Gordon" <icculus@icculus.org>
+Date: Mon, 8 May 2023 14:25:01 -0400
+Subject: [PATCH 366/458] coreaudio: Flush/stop the AudioQueue before disposing
+ of it.
+
+Otherwise, a CoreAudio thread lingers forever, and coreaudiod eats CPU
+until the SDL process terminates.
+
+Fixes #7689.
+---
+ src/audio/coreaudio/SDL_coreaudio.m | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/src/audio/coreaudio/SDL_coreaudio.m b/src/audio/coreaudio/SDL_coreaudio.m
+index 1b2db8700..974fe8681 100644
+--- a/src/audio/coreaudio/SDL_coreaudio.m
++++ b/src/audio/coreaudio/SDL_coreaudio.m
+@@ -692,6 +692,8 @@ static void COREAUDIO_CloseDevice(_THIS)
+ 
+     /* dispose of the audio queue before waiting on the thread, or it might stall for a long time! */
+     if (this->hidden->audioQueue) {
++        AudioQueueFlush(this->hidden->audioQueue);
++        AudioQueueStop(this->hidden->audioQueue, 0);
+         AudioQueueDispose(this->hidden->audioQueue, 0);
+     }
+ 
+-- 
+2.17.1
+

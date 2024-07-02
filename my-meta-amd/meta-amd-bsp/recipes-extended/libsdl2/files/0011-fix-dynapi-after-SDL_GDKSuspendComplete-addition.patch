@@ -1,0 +1,67 @@
+From cd399caf6f4921b59fd8ba08c583ec8df70ef003 Mon Sep 17 00:00:00 2001
+From: Ozkan Sezer <sezeroz@gmail.com>
+Date: Wed, 23 Nov 2022 22:50:10 +0300
+Subject: [PATCH 011/458] fix dynapi after SDL_GDKSuspendComplete addition.
+
+---
+ src/dynapi/SDL2.exports           | 2 +-
+ src/dynapi/SDL_dynapi_overrides.h | 2 +-
+ src/dynapi/SDL_dynapi_procs.h     | 4 +++-
+ 3 files changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/src/dynapi/SDL2.exports b/src/dynapi/SDL2.exports
+index 68f936b78..0a509838c 100644
+--- a/src/dynapi/SDL2.exports
++++ b/src/dynapi/SDL2.exports
+@@ -851,7 +851,6 @@
+ ++'_SDL_utf8strnlen'.'SDL2.dll'.'SDL_utf8strnlen'
+ # ++'_SDL_GDKGetTaskQueue'.'SDL2.dll'.'SDL_GDKGetTaskQueue'
+ # ++'_SDL_GDKRunApp'.'SDL2.dll'.'SDL_GDKRunApp'
+-# ++'_SDL_GDKSuspendComplete'.'SDL2.dll'.'SDL_GDKSuspendComplete'
+ ++'_SDL_GetOriginalMemoryFunctions'.'SDL2.dll'.'SDL_GetOriginalMemoryFunctions'
+ ++'_SDL_ResetKeyboard'.'SDL2.dll'.'SDL_ResetKeyboard'
+ ++'_SDL_GetDefaultAudioInfo'.'SDL2.dll'.'SDL_GetDefaultAudioInfo'
+@@ -868,3 +867,4 @@
+ ++'_SDL_SensorGetDataWithTimestamp'.'SDL2.dll'.'SDL_SensorGetDataWithTimestamp'
+ ++'_SDL_ResetHints'.'SDL2.dll'.'SDL_ResetHints'
+ ++'_SDL_strcasestr'.'SDL2.dll'.'SDL_strcasestr'
++# ++'_SDL_GDKSuspendComplete'.'SDL2.dll'.'SDL_GDKSuspendComplete'
+diff --git a/src/dynapi/SDL_dynapi_overrides.h b/src/dynapi/SDL_dynapi_overrides.h
+index 5627b7295..d93d5084f 100644
+--- a/src/dynapi/SDL_dynapi_overrides.h
++++ b/src/dynapi/SDL_dynapi_overrides.h
+@@ -877,7 +877,6 @@
+ #define SDL_utf8strnlen SDL_utf8strnlen_REAL
+ #define SDL_GDKGetTaskQueue SDL_GDKGetTaskQueue_REAL
+ #define SDL_GDKRunApp SDL_GDKRunApp_REAL
+-#define SDL_GDKSuspendComplete SDL_GDKSuspendComplete_REAL
+ #define SDL_GetOriginalMemoryFunctions SDL_GetOriginalMemoryFunctions_REAL
+ #define SDL_ResetKeyboard SDL_ResetKeyboard_REAL
+ #define SDL_GetDefaultAudioInfo SDL_GetDefaultAudioInfo_REAL
+@@ -894,3 +893,4 @@
+ #define SDL_SensorGetDataWithTimestamp SDL_SensorGetDataWithTimestamp_REAL
+ #define SDL_ResetHints SDL_ResetHints_REAL
+ #define SDL_strcasestr SDL_strcasestr_REAL
++#define SDL_GDKSuspendComplete SDL_GDKSuspendComplete_REAL
+diff --git a/src/dynapi/SDL_dynapi_procs.h b/src/dynapi/SDL_dynapi_procs.h
+index f11090d17..7b9842aff 100644
+--- a/src/dynapi/SDL_dynapi_procs.h
++++ b/src/dynapi/SDL_dynapi_procs.h
+@@ -959,7 +959,6 @@ SDL_DYNAPI_PROC(size_t,SDL_utf8strnlen,(const char *a, size_t b),(a,b),return)
+ #if defined(__GDK__)
+ SDL_DYNAPI_PROC(int,SDL_GDKGetTaskQueue,(XTaskQueueHandle *a),(a),return)
+ SDL_DYNAPI_PROC(int,SDL_GDKRunApp,(SDL_main_func a, void *b),(a,b),return)
+-SDL_DYNAPI_PROC(void,SDL_GDKSuspendComplete,(void),(),return)
+ #endif
+ SDL_DYNAPI_PROC(void,SDL_GetOriginalMemoryFunctions,(SDL_malloc_func *a, SDL_calloc_func *b, SDL_realloc_func *c, SDL_free_func *d),(a,b,c,d),)
+ SDL_DYNAPI_PROC(void,SDL_ResetKeyboard,(void),(),)
+@@ -977,3 +976,6 @@ SDL_DYNAPI_PROC(int,SDL_GameControllerGetSensorDataWithTimestamp,(SDL_GameContro
+ SDL_DYNAPI_PROC(int,SDL_SensorGetDataWithTimestamp,(SDL_Sensor *a, Uint64 *b, float *c, int d),(a,b,c,d),return)
+ SDL_DYNAPI_PROC(void,SDL_ResetHints,(void),(),)
+ SDL_DYNAPI_PROC(char*,SDL_strcasestr,(const char *a, const char *b),(a,b),return)
++#if defined(__GDK__)
++SDL_DYNAPI_PROC(void,SDL_GDKSuspendComplete,(void),(),return)
++#endif
+-- 
+2.17.1
+

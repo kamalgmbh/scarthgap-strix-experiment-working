@@ -1,0 +1,26 @@
+From 0dc4373aad4f11fff3d9941be7e079096b577ca1 Mon Sep 17 00:00:00 2001
+From: Anonymous Maarten <anonymous.maarten@gmail.com>
+Date: Fri, 3 Feb 2023 20:58:02 +0100
+Subject: [PATCH 187/458] opengl: make SDL_opengl_glext.h's include compatible
+ with macos
+
+- Mesa defines __gl_glext_h_
+- Apple defines __glext_h_
+---
+ include/SDL_opengl_glext.h | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/include/SDL_opengl_glext.h b/include/SDL_opengl_glext.h
+index 8527e1744..bdd3efb79 100644
+--- a/include/SDL_opengl_glext.h
++++ b/include/SDL_opengl_glext.h
+@@ -1,4 +1,5 @@
+-#ifndef __gl_glext_h_
++#if !defined(__glext_h_) && !defined(__gl_glext_h_)
++#define __glext_h_ 1
+ #define __gl_glext_h_ 1
+ 
+ #ifdef __cplusplus
+-- 
+2.17.1
+

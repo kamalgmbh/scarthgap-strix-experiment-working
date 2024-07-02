@@ -1,0 +1,36 @@
+From 4e465f25d03aaf6ddd3aeb02cdbd4e32ecfdf112 Mon Sep 17 00:00:00 2001
+From: Ozkan Sezer <sezeroz@gmail.com>
+Date: Sun, 4 Dec 2022 12:55:15 +0300
+Subject: [PATCH 073/458] reverted const removal from SDL_NewAudioStream in
+ commit d0bbfdbfb.
+
+---
+ include/SDL_audio.h | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/include/SDL_audio.h b/include/SDL_audio.h
+index 4b2147bb8..c42de3ed9 100644
+--- a/include/SDL_audio.h
++++ b/include/SDL_audio.h
+@@ -1008,12 +1008,12 @@ typedef struct _SDL_AudioStream SDL_AudioStream;
+  * \sa SDL_AudioStreamClear
+  * \sa SDL_FreeAudioStream
+  */
+-extern DECLSPEC SDL_AudioStream *SDLCALL SDL_NewAudioStream(SDL_AudioFormat src_format,
+-                                                            Uint8 src_channels,
+-                                                            int src_rate,
+-                                                            SDL_AudioFormat dst_format,
+-                                                            Uint8 dst_channels,
+-                                                            int dst_rate);
++extern DECLSPEC SDL_AudioStream * SDLCALL SDL_NewAudioStream(const SDL_AudioFormat src_format,
++                                           const Uint8 src_channels,
++                                           const int src_rate,
++                                           const SDL_AudioFormat dst_format,
++                                           const Uint8 dst_channels,
++                                           const int dst_rate);
+ 
+ /**
+  * Add data to be converted/resampled to the stream.
+-- 
+2.17.1
+

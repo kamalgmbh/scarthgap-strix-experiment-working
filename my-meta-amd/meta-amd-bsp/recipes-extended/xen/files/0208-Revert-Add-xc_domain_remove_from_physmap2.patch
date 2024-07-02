@@ -1,0 +1,71 @@
+From c3b6f7ec5b41a1bd6dbd111ec1ab65bb75ca494f Mon Sep 17 00:00:00 2001
+From: Ramesh Babu Nalluri <rameshbabu.nalluri@amd.com>
+Date: Thu, 19 Oct 2023 11:11:55 +0530
+Subject: [PATCH 208/221] Revert "Add xc_domain_remove_from_physmap2"
+
+This reverts commit 66465e036712ca25989bd15ba9653371ada47c47.
+
+Change-Id: I19b9045131fc57222ae6b4424a7ac1a123c12cfb
+---
+ tools/include/xenctrl.h     |  5 -----
+ tools/libs/ctrl/xc_domain.c | 14 --------------
+ xen/include/public/memory.h |  2 --
+ 3 files changed, 21 deletions(-)
+
+diff --git a/tools/include/xenctrl.h b/tools/include/xenctrl.h
+index 2bdcac4c67..3918be9e53 100644
+--- a/tools/include/xenctrl.h
++++ b/tools/include/xenctrl.h
+@@ -1342,11 +1342,6 @@ int xc_domain_remove_from_physmap(xc_interface *xch,
+                                   uint32_t domid,
+                                   xen_pfn_t gpfn);
+ 
+-int xc_domain_remove_from_physmap2(xc_interface *xch,
+-                                   uint32_t domid,
+-                                   xen_pfn_t gpfn,
+-                                   bool skip_map_cache_inv);
+-
+ int xc_domain_populate_physmap(xc_interface *xch,
+                                uint32_t domid,
+                                unsigned long nr_extents,
+diff --git a/tools/libs/ctrl/xc_domain.c b/tools/libs/ctrl/xc_domain.c
+index 9e69ad197d..e939d07157 100644
+--- a/tools/libs/ctrl/xc_domain.c
++++ b/tools/libs/ctrl/xc_domain.c
+@@ -1115,20 +1115,6 @@ int xc_domain_remove_from_physmap(xc_interface *xch,
+     struct xen_remove_from_physmap xrfp = {
+         .domid = domid,
+         .gpfn = gpfn,
+-        .skip_mapcache_invalidation = false,
+-    };
+-    return xc_memory_op(xch, XENMEM_remove_from_physmap, &xrfp, sizeof(xrfp));
+-}
+-
+-int xc_domain_remove_from_physmap2(xc_interface *xch,
+-                                   uint32_t domid,
+-                                   xen_pfn_t gpfn,
+-                                   bool skip_mc_inv)
+-{
+-    struct xen_remove_from_physmap xrfp = {
+-        .domid = domid,
+-        .gpfn = gpfn,
+-        .skip_mapcache_invalidation = skip_mc_inv,
+     };
+     return xc_memory_op(xch, XENMEM_remove_from_physmap, &xrfp, sizeof(xrfp));
+ }
+diff --git a/xen/include/public/memory.h b/xen/include/public/memory.h
+index 9cc0ade812..c5f0d31e23 100644
+--- a/xen/include/public/memory.h
++++ b/xen/include/public/memory.h
+@@ -298,8 +298,6 @@ struct xen_remove_from_physmap {
+ 
+     /* GPFN of the current mapping of the page. */
+     xen_pfn_t     gpfn;
+-
+-    int skip_mapcache_invalidation; /* WIP */
+ };
+ typedef struct xen_remove_from_physmap xen_remove_from_physmap_t;
+ DEFINE_XEN_GUEST_HANDLE(xen_remove_from_physmap_t);
+-- 
+2.17.1
+

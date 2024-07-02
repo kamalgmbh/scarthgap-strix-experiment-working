@@ -1,0 +1,34 @@
+From 3ddbddf143fbd164c55e46c5a276f6606e5cc843 Mon Sep 17 00:00:00 2001
+From: Julien Grall <jgrall@amazon.com>
+Date: Wed, 15 Nov 2023 12:16:32 +0000
+Subject: [PATCH 015/106] SUPPORT.md: Define support lifetime
+
+Signed-off-by: Julien Grall <jgrall@amazon.com>
+Release-acked-by: Henry Wang <Henry.Wang@arm.com>
+Acked-by: Jan Beulich <jbeulich@suse.com>
+---
+ SUPPORT.md | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/SUPPORT.md b/SUPPORT.md
+index fff4b4c5ba..75917e7a58 100644
+--- a/SUPPORT.md
++++ b/SUPPORT.md
+@@ -9,10 +9,10 @@ for the definitions of the support status levels etc.
+ 
+ # Release Support
+ 
+-    Xen-Version: 4.18-rc
+-    Initial-Release: n/a
+-    Supported-Until: TBD
+-    Security-Support-Until: Unreleased - not yet security-supported
++    Xen-Version: 4.18
++    Initial-Release: 2023-11-16
++    Supported-Until: 2025-05-16
++    Security-Support-Until: 2026-11-16
+ 
+ Release Notes
+ : <a href="https://wiki.xenproject.org/wiki/Xen_Project_X.YY_Release_Notes">RN</a>
+-- 
+2.25.1
+

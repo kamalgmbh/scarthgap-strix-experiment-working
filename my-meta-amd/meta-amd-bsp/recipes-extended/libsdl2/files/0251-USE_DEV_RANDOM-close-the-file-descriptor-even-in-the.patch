@@ -1,0 +1,35 @@
+From 0c7346ec3e7ac8f0e5aca1c79b5bc9b41529cea3 Mon Sep 17 00:00:00 2001
+From: David Carlier <devnexen@gmail.com>
+Date: Sun, 26 Feb 2023 09:42:04 +0000
+Subject: [PATCH 251/458] USE_DEV_RANDOM close the file descriptor even in the
+ rare case it can't read it
+
+---
+ src/stdlib/SDL_malloc.c | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/src/stdlib/SDL_malloc.c b/src/stdlib/SDL_malloc.c
+index 78a50aa3f..c1aa44414 100644
+--- a/src/stdlib/SDL_malloc.c
++++ b/src/stdlib/SDL_malloc.c
+@@ -2539,11 +2539,14 @@ static int init_mparams(void) {
+       int fd;
+       unsigned char buf[sizeof(size_t)];
+       /* Try to use /dev/urandom, else fall back on using time */
+-      if ((fd = open("/dev/urandom", O_RDONLY)) >= 0 &&
+-          read(fd, buf, sizeof(buf)) == sizeof(buf)) {
+-        s = *((size_t *) buf);
++      if ((fd = open("/dev/urandom", O_RDONLY)) < 0) {
++        s = 0;
++      } else {
++	s = read(fd, buf, sizeof(buf));
+         close(fd);
+       }
++      if (s == sizeof(buf))
++        s = *((size_t *)buf);
+       else
+ #endif /* USE_DEV_RANDOM */
+         s = (size_t)(time(0) ^ (size_t)0x55555555U);
+-- 
+2.17.1
+

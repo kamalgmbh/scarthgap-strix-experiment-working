@@ -1,0 +1,94 @@
+From b18d09ca216a91a319e6391029f798522b0b1e8d Mon Sep 17 00:00:00 2001
+From: Pierre-Eric Pelloux-Prayer <pierre-eric.pelloux-prayer@amd.com>
+Date: Mon, 29 Jan 2024 22:29:26 +0100
+Subject: [PATCH 30/70] virtio-gpu: make set_scanout_blob duplicates the dmabuf
+ fd
+
+This allows VGPUDMABuf to own the dmabuf and opens up the possibility
+to create a dmabuf fd for opaque resources.
+
+Not creating dmabuf fd by default is a way to not hit the file descriptor
+limit for the qemu process.
+---
+ hw/display/virtio-gpu-udmabuf.c |  3 ++-
+ hw/display/virtio-gpu-virgl.c   | 26 ++++++++++++++++++++++++--
+ 2 files changed, 26 insertions(+), 3 deletions(-)
+
+diff --git a/hw/display/virtio-gpu-udmabuf.c b/hw/display/virtio-gpu-udmabuf.c
+index 69e2cf0bd6..7c60ae664d 100644
+--- a/hw/display/virtio-gpu-udmabuf.c
++++ b/hw/display/virtio-gpu-udmabuf.c
+@@ -163,6 +163,7 @@ static void virtio_gpu_free_dmabuf(VirtIOGPU *g, VGPUDMABuf *dmabuf)
+     scanout = &g->parent_obj.scanout[dmabuf->scanout_id];
+     dpy_gl_release_dmabuf(scanout->con, &dmabuf->buf);
+     QTAILQ_REMOVE(&g->dmabuf.bufs, dmabuf, next);
++    close(dmabuf->buf.fd);
+     g_free(dmabuf);
+ }
+ 
+@@ -188,7 +189,7 @@ static VGPUDMABuf
+     dmabuf->buf.scanout_width = r->width;
+     dmabuf->buf.scanout_height = r->height;
+     dmabuf->buf.fourcc = qemu_pixman_to_drm_format(fb->format);
+-    dmabuf->buf.fd = res->dmabuf_fd;
++    dmabuf->buf.fd = qemu_dup(res->dmabuf_fd);
+     dmabuf->buf.allow_fences = true;
+     dmabuf->buf.draw_submitted = false;
+     dmabuf->scanout_id = scanout_id;
+diff --git a/hw/display/virtio-gpu-virgl.c b/hw/display/virtio-gpu-virgl.c
+index 518db4ccb3..0f0257f0de 100644
+--- a/hw/display/virtio-gpu-virgl.c
++++ b/hw/display/virtio-gpu-virgl.c
+@@ -728,6 +728,7 @@ static void virgl_cmd_set_scanout_blob(VirtIOGPU *g,
+     struct virtio_gpu_set_scanout_blob ss;
+     struct virgl_renderer_resource_info info;
+     uint64_t fbend;
++    int transient_fd = 0;
+ 
+     VIRTIO_GPU_FILL_CMD(ss);
+     virtio_gpu_scanout_blob_bswap(&ss);
+@@ -780,8 +781,21 @@ static void virgl_cmd_set_scanout_blob(VirtIOGPU *g,
+         cmd->error = VIRTIO_GPU_RESP_ERR_INVALID_RESOURCE_ID;
+         return;
+     }
+-    if (!vres->res.dmabuf_fd && info.fd)
+-        vres->res.dmabuf_fd = info.fd;
++
++    if (!vres->res.dmabuf_fd) {
++        if (info.fd >= 0) {
++            vres->res.dmabuf_fd = info.fd;
++        } else {
++            uint32_t fd_type;
++            if (virgl_renderer_resource_export_blob(ss.resource_id, &fd_type, &transient_fd) == 0 &&
++                fd_type == VIRGL_RENDERER_BLOB_FD_TYPE_DMABUF) {
++                vres->res.dmabuf_fd = transient_fd;
++            } else {
++                close(transient_fd);
++                transient_fd = 0;
++            }
++        }
++    }
+ 
+     fb.format = virtio_gpu_get_pixman_format(ss.format);
+     if (!fb.format) {
+@@ -815,9 +829,17 @@ static void virgl_cmd_set_scanout_blob(VirtIOGPU *g,
+         qemu_log_mask(LOG_GUEST_ERROR,
+                       "%s: failed to update dmabuf\n", __func__);
+         cmd->error = VIRTIO_GPU_RESP_ERR_INVALID_PARAMETER;
++        if (vres->res.dmabuf_fd == transient_fd) {
++            vres->res.dmabuf_fd = 0;
++            close(transient_fd);
++        }
+         return;
+     }
+     virtio_gpu_update_scanout(g, ss.scanout_id, &vres->res, &ss.r);
++    if (vres->res.dmabuf_fd == transient_fd) {
++        vres->res.dmabuf_fd = 0;
++        close(transient_fd);
++    }
+ }
+ 
+ #endif /* HAVE_VIRGL_RESOURCE_BLOB */
+-- 
+2.17.1
+

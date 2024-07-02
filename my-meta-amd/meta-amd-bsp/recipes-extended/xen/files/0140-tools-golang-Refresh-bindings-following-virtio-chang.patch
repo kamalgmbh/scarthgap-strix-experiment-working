@@ -1,0 +1,146 @@
+From 5f05b229319e25aa7f35735bba060ddbeb325872 Mon Sep 17 00:00:00 2001
+From: Andrew Cooper <andrew.cooper3@citrix.com>
+Date: Fri, 16 Dec 2022 10:46:42 +0000
+Subject: [PATCH 140/221] tools/golang: Refresh bindings following virtio
+ changes
+
+Fixes: 43ba5202e2ee ("libxl: add support for generic virtio device")
+Signed-off-by: Andrew Cooper <andrew.cooper3@citrix.com>
+Acked-by: George Dunlap <george.dunlap@cloud.com>
+---
+ tools/golang/xenlight/helpers.gen.go | 62 ++++++++++++++++++++++++++++
+ tools/golang/xenlight/types.gen.go   | 17 ++++++++
+ 2 files changed, 79 insertions(+)
+
+diff --git a/tools/golang/xenlight/helpers.gen.go b/tools/golang/xenlight/helpers.gen.go
+index cb1bdf9bdf..3ac4938858 100644
+--- a/tools/golang/xenlight/helpers.gen.go
++++ b/tools/golang/xenlight/helpers.gen.go
+@@ -1722,6 +1722,49 @@ xc.multi_touch_num_contacts = C.uint32_t(x.MultiTouchNumContacts)
+  return nil
+  }
+ 
++// NewDeviceVirtio returns an instance of DeviceVirtio initialized with defaults.
++func NewDeviceVirtio() (*DeviceVirtio, error) {
++var (
++x DeviceVirtio
++xc C.libxl_device_virtio)
++
++C.libxl_device_virtio_init(&xc)
++defer C.libxl_device_virtio_dispose(&xc)
++
++if err := x.fromC(&xc); err != nil {
++return nil, err }
++
++return &x, nil}
++
++func (x *DeviceVirtio) fromC(xc *C.libxl_device_virtio) error {
++ x.BackendDomid = Domid(xc.backend_domid)
++x.BackendDomname = C.GoString(xc.backend_domname)
++x.Type = C.GoString(xc._type)
++x.Transport = VirtioTransport(xc.transport)
++x.Devid = Devid(xc.devid)
++x.Irq = uint32(xc.irq)
++x.Base = uint64(xc.base)
++
++ return nil}
++
++func (x *DeviceVirtio) toC(xc *C.libxl_device_virtio) (err error){defer func(){
++if err != nil{
++C.libxl_device_virtio_dispose(xc)}
++}()
++
++xc.backend_domid = C.libxl_domid(x.BackendDomid)
++if x.BackendDomname != "" {
++xc.backend_domname = C.CString(x.BackendDomname)}
++if x.Type != "" {
++xc._type = C.CString(x.Type)}
++xc.transport = C.libxl_virtio_transport(x.Transport)
++xc.devid = C.libxl_devid(x.Devid)
++xc.irq = C.uint32_t(x.Irq)
++xc.base = C.uint64_t(x.Base)
++
++ return nil
++ }
++
+ // NewDeviceDisk returns an instance of DeviceDisk initialized with defaults.
+ func NewDeviceDisk() (*DeviceDisk, error) {
+ var (
+@@ -2855,6 +2898,15 @@ if err := x.Vkbs[i].fromC(&v); err != nil {
+ return fmt.Errorf("converting field Vkbs: %v", err) }
+ }
+ }
++x.Virtios = nil
++if n := int(xc.num_virtios); n > 0 {
++cVirtios := (*[1<<28]C.libxl_device_virtio)(unsafe.Pointer(xc.virtios))[:n:n]
++x.Virtios = make([]DeviceVirtio, n)
++for i, v := range cVirtios {
++if err := x.Virtios[i].fromC(&v); err != nil {
++return fmt.Errorf("converting field Virtios: %v", err) }
++}
++}
+ x.Vtpms = nil
+ if n := int(xc.num_vtpms); n > 0 {
+ cVtpms := (*[1<<28]C.libxl_device_vtpm)(unsafe.Pointer(xc.vtpms))[:n:n]
+@@ -3016,6 +3068,16 @@ return fmt.Errorf("converting field Vkbs: %v", err)
+ }
+ }
+ }
++if numVirtios := len(x.Virtios); numVirtios > 0 {
++xc.virtios = (*C.libxl_device_virtio)(C.malloc(C.ulong(numVirtios)*C.sizeof_libxl_device_virtio))
++xc.num_virtios = C.int(numVirtios)
++cVirtios := (*[1<<28]C.libxl_device_virtio)(unsafe.Pointer(xc.virtios))[:numVirtios:numVirtios]
++for i,v := range x.Virtios {
++if err := v.toC(&cVirtios[i]); err != nil {
++return fmt.Errorf("converting field Virtios: %v", err)
++}
++}
++}
+ if numVtpms := len(x.Vtpms); numVtpms > 0 {
+ xc.vtpms = (*C.libxl_device_vtpm)(C.malloc(C.ulong(numVtpms)*C.sizeof_libxl_device_vtpm))
+ xc.num_vtpms = C.int(numVtpms)
+diff --git a/tools/golang/xenlight/types.gen.go b/tools/golang/xenlight/types.gen.go
+index 871576fb0e..16ce879e3f 100644
+--- a/tools/golang/xenlight/types.gen.go
++++ b/tools/golang/xenlight/types.gen.go
+@@ -255,6 +255,12 @@ VkbBackendQemu VkbBackend = 1
+ VkbBackendLinux VkbBackend = 2
+ )
+ 
++type VirtioTransport int
++const(
++VirtioTransportUnknown VirtioTransport = 0
++VirtioTransportMmio VirtioTransport = 1
++)
++
+ type Passthrough int
+ const(
+ PassthroughDefault Passthrough = 0
+@@ -644,6 +650,16 @@ MultiTouchHeight uint32
+ MultiTouchNumContacts uint32
+ }
+ 
++type DeviceVirtio struct {
++BackendDomid Domid
++BackendDomname string
++Type string
++Transport VirtioTransport
++Devid Devid
++Irq uint32
++Base uint64
++}
++
+ type DeviceDisk struct {
+ BackendDomid Domid
+ BackendDomname string
+@@ -933,6 +949,7 @@ Rdms []DeviceRdm
+ Dtdevs []DeviceDtdev
+ Vfbs []DeviceVfb
+ Vkbs []DeviceVkb
++Virtios []DeviceVirtio
+ Vtpms []DeviceVtpm
+ P9S []DeviceP9
+ Pvcallsifs []DevicePvcallsif
+-- 
+2.17.1
+

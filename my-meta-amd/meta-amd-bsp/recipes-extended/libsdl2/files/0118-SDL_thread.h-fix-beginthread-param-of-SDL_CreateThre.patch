@@ -1,0 +1,27 @@
+From 738442b82aac8e93d72143b01d374820b6b53bc9 Mon Sep 17 00:00:00 2001
+From: Ozkan Sezer <sezeroz@gmail.com>
+Date: Tue, 27 Dec 2022 00:10:00 +0300
+Subject: [PATCH 118/458] SDL_thread.h: fix beginthread param of
+ SDL_CreateThreadWithStackSize for win32
+
+(cherry-picked from commit 29ba5f5d6426f36ee84304dc8a0e111416450aab)
+---
+ include/SDL_thread.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/include/SDL_thread.h b/include/SDL_thread.h
+index a72bae659..cf422d8cf 100644
+--- a/include/SDL_thread.h
++++ b/include/SDL_thread.h
+@@ -142,7 +142,7 @@ SDL_CreateThreadWithStackSize(SDL_ThreadFunction fn,
+ #define SDL_CreateThreadWithStackSize(fn, name, stacksize, data) SDL_CreateThreadWithStackSize_REAL(fn, name, stacksize, data, (pfnSDL_CurrentBeginThread)SDL_beginthread, (pfnSDL_CurrentEndThread)SDL_endthread)
+ #else
+ #define SDL_CreateThread(fn, name, data) SDL_CreateThread(fn, name, data, (pfnSDL_CurrentBeginThread)SDL_beginthread, (pfnSDL_CurrentEndThread)SDL_endthread)
+-#define SDL_CreateThreadWithStackSize(fn, name, stacksize, data) SDL_CreateThreadWithStackSize(fn, name, stacksize, data, (pfnSDL_CurrentBeginThread)_beginthreadex, (pfnSDL_CurrentEndThread)SDL_endthread)
++#define SDL_CreateThreadWithStackSize(fn, name, stacksize, data) SDL_CreateThreadWithStackSize(fn, name, stacksize, data, (pfnSDL_CurrentBeginThread)SDL_beginthread, (pfnSDL_CurrentEndThread)SDL_endthread)
+ #endif
+ 
+ #elif defined(__OS2__)
+-- 
+2.17.1
+

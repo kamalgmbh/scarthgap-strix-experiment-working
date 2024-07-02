@@ -1,0 +1,88 @@
+From 311b02f0b5eb7834a8cc257ddd336d140fefd27b Mon Sep 17 00:00:00 2001
+From: Maido <v3rm0n@users.noreply.github.com>
+Date: Mon, 19 Dec 2022 17:02:10 +0200
+Subject: [PATCH 108/458] Android active driver check (#6850)
+
+Check if a driver is active before attempting to handle the devices.
+Otherwise an assertion will fail.
+---
+ src/core/android/SDL_android.c | 32 ++++++++++++++++++--------------
+ 1 file changed, 18 insertions(+), 14 deletions(-)
+
+diff --git a/src/core/android/SDL_android.c b/src/core/android/SDL_android.c
+index 5e0b7affd..08b6d33e1 100644
+--- a/src/core/android/SDL_android.c
++++ b/src/core/android/SDL_android.c
+@@ -222,12 +222,12 @@ JNIEXPORT void JNICALL SDL_JAVA_AUDIO_INTERFACE(nativeSetupJNI)(
+     JNIEnv *env, jclass jcls);
+ 
+ JNIEXPORT void JNICALL
+-SDL_JAVA_AUDIO_INTERFACE(addAudioDevice)(JNIEnv *env, jclass jcls, jboolean is_capture,
+-                                         jint device_id);
++    SDL_JAVA_AUDIO_INTERFACE(addAudioDevice)(JNIEnv *env, jclass jcls, jboolean is_capture,
++                                             jint device_id);
+ 
+ JNIEXPORT void JNICALL
+-SDL_JAVA_AUDIO_INTERFACE(removeAudioDevice)(JNIEnv *env, jclass jcls, jboolean is_capture,
+-                                            jint device_id);
++    SDL_JAVA_AUDIO_INTERFACE(removeAudioDevice)(JNIEnv *env, jclass jcls, jboolean is_capture,
++                                                jint device_id);
+ 
+ static JNINativeMethod SDLAudioManager_tab[] = {
+     { "nativeSetupJNI", "()I", SDL_JAVA_AUDIO_INTERFACE(nativeSetupJNI) },
+@@ -940,18 +940,22 @@ JNIEXPORT void JNICALL
+ SDL_JAVA_AUDIO_INTERFACE(addAudioDevice)(JNIEnv *env, jclass jcls, jboolean is_capture,
+                                          jint device_id)
+ {
+-    char device_name[64];
+-    SDL_snprintf(device_name, sizeof (device_name), "%d", device_id);
+-    SDL_Log("Adding device with name %s, capture %d", device_name, is_capture);
+-    SDL_AddAudioDevice(is_capture, SDL_strdup(device_name), NULL, (void *) ((size_t) device_id + 1));
++    if (SDL_GetCurrentAudioDriver() != NULL) {
++        char device_name[64];
++        SDL_snprintf(device_name, sizeof(device_name), "%d", device_id);
++        SDL_Log("Adding device with name %s, capture %d", device_name, is_capture);
++        SDL_AddAudioDevice(is_capture, SDL_strdup(device_name), NULL, (void *)((size_t)device_id + 1));
++    }
+ }
+ 
+ JNIEXPORT void JNICALL
+ SDL_JAVA_AUDIO_INTERFACE(removeAudioDevice)(JNIEnv *env, jclass jcls, jboolean is_capture,
+                                             jint device_id)
+ {
+-    SDL_Log("Removing device with handle %d, capture %d", device_id + 1, is_capture);
+-    SDL_RemoveAudioDevice(is_capture, (void *) ((size_t) device_id + 1));
++    if (SDL_GetCurrentAudioDriver() != NULL) {
++        SDL_Log("Removing device with handle %d, capture %d", device_id + 1, is_capture);
++        SDL_RemoveAudioDevice(is_capture, (void *)((size_t)device_id + 1));
++    }
+ }
+ 
+ /* Paddown */
+@@ -1504,9 +1508,9 @@ void Android_DetectDevices(void)
+     for (int i = 0; i < inputs_length; ++i) {
+         int device_id = inputs[i];
+         char device_name[64];
+-        SDL_snprintf(device_name, sizeof (device_name), "%d", device_id);
++        SDL_snprintf(device_name, sizeof(device_name), "%d", device_id);
+         SDL_Log("Adding input device with name %s", device_name);
+-        SDL_AddAudioDevice(SDL_TRUE, SDL_strdup(device_name), NULL, (void *) ((size_t) device_id + 1));
++        SDL_AddAudioDevice(SDL_TRUE, SDL_strdup(device_name), NULL, (void *)((size_t)device_id + 1));
+     }
+ 
+     SDL_zeroa(outputs);
+@@ -1516,9 +1520,9 @@ void Android_DetectDevices(void)
+     for (int i = 0; i < outputs_length; ++i) {
+         int device_id = outputs[i];
+         char device_name[64];
+-        SDL_snprintf(device_name, sizeof (device_name), "%d", device_id);
++        SDL_snprintf(device_name, sizeof(device_name), "%d", device_id);
+         SDL_Log("Adding output device with name %s", device_name);
+-        SDL_AddAudioDevice(SDL_FALSE, SDL_strdup(device_name), NULL, (void *) ((size_t) device_id + 1));
++        SDL_AddAudioDevice(SDL_FALSE, SDL_strdup(device_name), NULL, (void *)((size_t)device_id + 1));
+     }
+ }
+ 
+-- 
+2.17.1
+

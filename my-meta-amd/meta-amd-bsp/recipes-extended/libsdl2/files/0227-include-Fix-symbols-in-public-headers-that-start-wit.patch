@@ -1,0 +1,72 @@
+From e6e654e25c6adc97581bc3ad240f773b1c7d0702 Mon Sep 17 00:00:00 2001
+From: "Ryan C. Gordon" <icculus@icculus.org>
+Date: Mon, 20 Feb 2023 11:35:30 -0500
+Subject: [PATCH 227/458] include: Fix symbols in public headers that start
+ with an underscore.
+
+Fixes #7352.
+---
+ include/begin_code.h | 14 +++++++-------
+ include/close_code.h |  4 ++--
+ 2 files changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/include/begin_code.h b/include/begin_code.h
+index 1f01e0bc6..4142ffeba 100644
+--- a/include/begin_code.h
++++ b/include/begin_code.h
+@@ -28,10 +28,10 @@
+  */
+ 
+ /* This shouldn't be nested -- included it around code only. */
+-#ifdef _begin_code_h
++#ifdef SDL_begin_code_h
+ #error Nested inclusion of begin_code.h
+ #endif
+-#define _begin_code_h
++#define SDL_begin_code_h
+ 
+ #ifndef SDL_DEPRECATED
+ #  if defined(__GNUC__) && (__GNUC__ >= 4)  /* technically, this arrived in gcc 3.1, but oh well. */
+@@ -171,17 +171,17 @@
+ #define SDL_FALLTHROUGH [[fallthrough]]
+ #else
+ #if defined(__has_attribute)
+-#define _HAS_FALLTHROUGH __has_attribute(__fallthrough__)
++#define SDL_HAS_FALLTHROUGH __has_attribute(__fallthrough__)
+ #else
+-#define _HAS_FALLTHROUGH 0
++#define SDL_HAS_FALLTHROUGH 0
+ #endif /* __has_attribute */
+-#if _HAS_FALLTHROUGH && \
++#if SDL_HAS_FALLTHROUGH && \
+    ((defined(__GNUC__) && __GNUC__ >= 7) || \
+     (defined(__clang_major__) && __clang_major__ >= 10))
+ #define SDL_FALLTHROUGH __attribute__((__fallthrough__))
+ #else
+ #define SDL_FALLTHROUGH do {} while (0) /* fallthrough */
+-#endif /* _HAS_FALLTHROUGH */
+-#undef _HAS_FALLTHROUGH
++#endif /* SDL_HAS_FALLTHROUGH */
++#undef SDL_HAS_FALLTHROUGH
+ #endif /* C++17 or C2x */
+ #endif /* SDL_FALLTHROUGH not defined */
+diff --git a/include/close_code.h b/include/close_code.h
+index 874a926b7..b5ff3e204 100644
+--- a/include/close_code.h
++++ b/include/close_code.h
+@@ -26,10 +26,10 @@
+  *  after you finish any function and structure declarations in your headers
+  */
+ 
+-#ifndef _begin_code_h
++#ifndef SDL_begin_code_h
+ #error close_code.h included without matching begin_code.h
+ #endif
+-#undef _begin_code_h
++#undef SDL_begin_code_h
+ 
+ /* Reset structure packing at previous byte alignment */
+ #if defined(_MSC_VER) || defined(__MWERKS__) || defined(__BORLANDC__)
+-- 
+2.17.1
+

@@ -1,0 +1,87 @@
+From dcd1252368b1e6fe1b29c8e6f0ac72d11b285918 Mon Sep 17 00:00:00 2001
+From: Anonymous Maarten <anonymous.maarten@gmail.com>
+Date: Fri, 25 Nov 2022 02:18:16 +0100
+Subject: [PATCH 026/458] cmake: test for lsx and lasx intrinsics for loongarch
+
+---
+ CMakeLists.txt                   | 36 ++++++++++++++++++++++++++++++++
+ cmake/CheckCPUArchitecture.cmake |  2 ++
+ 2 files changed, 38 insertions(+)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 294f82614..8ada68e8b 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -139,6 +139,7 @@ check_cpu_architecture(x86 SDL_CPU_X86)
+ check_cpu_architecture(x64 SDL_CPU_X64)
+ check_cpu_architecture(arm32 SDL_CPU_ARM32)
+ check_cpu_architecture(arm64 SDL_CPU_ARM64)
++check_cpu_architecture(loongarch64 SDL_CPU_LOONGARCH64)
+ 
+ # Check for 64 or 32 bit
+ set(SIZEOF_VOIDP ${CMAKE_SIZEOF_VOID_P})
+@@ -440,6 +441,8 @@ dep_option(SDL_3DNOW               "Use 3Dnow! MMX assembly routines" ON "SDL_AS
+ dep_option(SDL_ALTIVEC             "Use Altivec assembly routines" ON "SDL_ASSEMBLY" OFF)
+ dep_option(SDL_ARMSIMD             "Use SIMD assembly blitters on ARM" OFF "SDL_ASSEMBLY;SDL_CPU_ARM32" OFF)
+ dep_option(SDL_ARMNEON             "Use NEON assembly blitters on ARM" OFF "SDL_ASSEMBLY;SDL_CPU_ARM32" OFF)
++dep_option(SDL_LSX                 "Use LSX assembly routines" ON "SDL_ASSEMBLY;SDL_CPU_LOONGARCH64" OFF)
++dep_option(SDL_LASX                "Use LASX assembly routines" ON "SDL_ASSEMBLY;SDL_CPU_LOONGARCH64" OFF)
+ 
+ set_option(SDL_LIBC                "Use the system C library" ${OPT_DEF_LIBC})
+ set_option(SDL_GCC_ATOMICS         "Use gcc builtin atomics" ${OPT_DEF_GCC_ATOMICS})
+@@ -905,6 +908,39 @@ if(SDL_ASSEMBLY)
+       endif()
+     endif()
+ 
++    if(SDL_LSX)
++      cmake_push_check_state()
++      list(APPEND CMAKE_REQUIRED_FLAGS "-mlsx")
++      check_c_source_compiles([[
++          #ifndef __loongarch_sx
++          #error Assembler CPP flag not enabled
++          #endif
++        ]] CPU_HAS_LSX)
++      check_include_file("lsxintrin.h" HAVE_LSXINTRIN_H)
++      cmake_pop_check_state()
++
++      if(CPU_HAS_LSX AND HAVE_LSXINTRIN_H)
++        list(APPEND EXTRA_CFLAGS "-mlsx")
++        set(HAS_LSX TRUE)
++      endif()
++    endif()
++
++    if(SDL_LASX)
++      cmake_push_check_state()
++      list(APPEND CMAKE_REQUIRED_FLAGS "-mlasx")
++      check_c_source_compiles([[
++          #ifndef __loongarch_asx
++          #error Assembler CPP flag not enabled
++          #endif
++        ]] CPU_HAS_LASX)
++      check_include_file("lasxintrin.h" HAVE_LASXINTRIN_H)
++      cmake_pop_check_state()
++      if(CPU_HAS_LASX AND HAVE_LASXINTRIN_H)
++        list(APPEND EXTRA_CFLAGS "-mlasx")
++        set(HAS_LASX TRUE)
++      endif()
++    endif()
++
+     if(SDL_ARMSIMD)
+       set(ORIG_CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS}")
+       set(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -x assembler-with-cpp")
+diff --git a/cmake/CheckCPUArchitecture.cmake b/cmake/CheckCPUArchitecture.cmake
+index 79639f1c2..7e3e45947 100644
+--- a/cmake/CheckCPUArchitecture.cmake
++++ b/cmake/CheckCPUArchitecture.cmake
+@@ -32,6 +32,8 @@ function(check_cpu_architecture ARCH VARIABLE)
+     _internal_check_cpu_architecture("defined(__arm__) || defined(_M_ARM)" arm32 ${VARIABLE})
+   elseif(ARCH STREQUAL "arm64")
+     _internal_check_cpu_architecture("defined(__aarch64__) || defined(_M_ARM64)" arm64 ${VARIABLE})
++  elseif(ARCH STREQUAL "loongarch64")
++    _internal_check_cpu_architecture("defined(__loongarch64)" loongarch64 ${VARIABLE})
+   else()
+     message(WARNING "Unknown CPU architectures (${ARCH}).")
+     set(${VARIABLE} FALSE)
+-- 
+2.17.1
+

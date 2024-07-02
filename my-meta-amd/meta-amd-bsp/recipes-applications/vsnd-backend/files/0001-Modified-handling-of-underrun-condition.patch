@@ -1,0 +1,105 @@
+From 5b9c7d00801be747642e97bc6f189697fdde55cc Mon Sep 17 00:00:00 2001
+From: saravanakumar <Saravanakumar.S@amd.com>
+Date: Wed, 9 Aug 2023 13:20:57 +0530
+Subject: [PATCH 1/4] Modified handling of underrun condition
+
+Modifed handling of underrun/overrun condition in periodic timer
+callback where buffer position will be updated to DomU
+
+Change-Id: I729f06d034f1d1fab0f173870d6cc6228442433d
+---
+ snd_be/src/AlsaPcm.cpp | 28 +++++++++++++++++++++++++---
+ snd_be/src/AlsaPcm.hpp |  2 ++
+ 2 files changed, 27 insertions(+), 3 deletions(-)
+
+diff --git a/snd_be/src/AlsaPcm.cpp b/snd_be/src/AlsaPcm.cpp
+index b22ce6a..a53eced 100644
+--- a/snd_be/src/AlsaPcm.cpp
++++ b/snd_be/src/AlsaPcm.cpp
+@@ -114,6 +114,7 @@ void AlsaPcm::open(const PcmParams& params)
+ 
+ 		mFrameWritten = 0;
+ 		mFrameUnderrun = 0;
++		mPrevFrame = 0;
+ 
+ 		mTimerPeriodMs = milliseconds(
+ 			(snd_pcm_bytes_to_frames(mHandle, mParams.periodSize) * 1000) /
+@@ -167,6 +168,12 @@ void AlsaPcm::read(uint8_t* buffer, size_t size)
+ 								   << ", message: " << snd_strerror(status);
+ 
+ 				snd_pcm_prepare(mHandle);
++				if ((status = snd_pcm_start(mHandle)) < 0)
++				{
++					throw Exception("Can't recover overrun: " +
++									mDeviceName, -status);
++				}
++				DLOG(mLog, DEBUG) << "Read: prepare done with snd_pcm_start";
+ 			}
+ 			else if (status < 0)
+ 			{
+@@ -260,6 +267,8 @@ void AlsaPcm::start()
+ 		throw Exception("Can't start device " + mDeviceName, -ret);
+ 	}
+ 
++	mIsFrameUnderrun = false;
++	mPrevFrame = 0;
+ 	mTimer.start(mTimerPeriodMs);
+ }
+ 
+@@ -509,24 +518,37 @@ void AlsaPcm::getTimeStamp()
+ 	uint64_t frame = ((audioTimeStamp.tv_sec * 1000000000 +
+ 					 audioTimeStamp.tv_nsec) * mParams.rate) / 1000000000;
+ 
+-	frame += mFrameUnderrun;
+ 
+ 	uint64_t bytes;
+ 
+ 	if (state == SND_PCM_STATE_XRUN)
++		LOG(mLog, DEBUG) << "SND_PCM_STATE_XRUN";
++
++	if ((state == SND_PCM_STATE_XRUN && !mIsFrameUnderrun) ||
++			(frame < mPrevFrame))
+ 	{
+-		bytes = snd_pcm_frames_to_bytes(mHandle, mFrameWritten);
++		LOG(mLog, DEBUG) << "SND_PCM_STATE_XRUN, sending -1";
++		mIsFrameUnderrun = true;
++		mPrevFrame = 0;
++		bytes = ((snd_pcm_uframes_t)-1);
++		if (mProgressCbk)
++		{
++			mProgressCbk(bytes);
++		}
++		return;
+ 	}
+ 	else
+ 	{
+ 		bytes = snd_pcm_frames_to_bytes(mHandle, frame);
++		mPrevFrame = frame;
+ 	}
+ 
+ 	LOG(mLog, DEBUG) << "Frame: " << frame
+ 					 << ", bytes: " << bytes
+ 					 << ", state: " << state;
+ 
+-	if (mProgressCbk)
++
++	if (mProgressCbk && !mIsFrameUnderrun)
+ 	{
+ 		mProgressCbk(bytes);
+ 	}
+diff --git a/snd_be/src/AlsaPcm.hpp b/snd_be/src/AlsaPcm.hpp
+index 8622437..2b0dd16 100644
+--- a/snd_be/src/AlsaPcm.hpp
++++ b/snd_be/src/AlsaPcm.hpp
+@@ -153,6 +153,8 @@ private:
+ 	SoundItf::ProgressCbk mProgressCbk;
+ 	snd_pcm_uframes_t mFrameWritten;
+ 	snd_pcm_uframes_t mFrameUnderrun;
++	snd_pcm_uframes_t mPrevFrame;
++	bool mIsFrameUnderrun;
+ 
+ 	snd_pcm_t* mHwQueryHandle;
+ 	snd_pcm_hw_params_t* mHwQueryParams;
+-- 
+2.17.1
+

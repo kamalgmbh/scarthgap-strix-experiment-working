@@ -1,0 +1,59 @@
+From e0a39883475c2505c5a6a78bb3717e3d3d038fab Mon Sep 17 00:00:00 2001
+From: Michal Orzel <michal.orzel@amd.com>
+Date: Tue, 27 Sep 2022 11:47:26 +0200
+Subject: [PATCH 028/221] automation: Rename qemu-alpine-arm64.sh to
+ qemu-smoke-dom0-arm64.sh
+
+qemu-alpine-arm64.sh script is used to perform dom0 based testing.
+Rename this script to qemu-smoke-dom0-arm64.sh to reflect its usage.
+Also rename the corresponding test jobs.
+
+Signed-off-by: Michal Orzel <michal.orzel@amd.com>
+Acked-by: Stefano Stabellini <sstabellini@kernel.org>
+---
+ automation/gitlab-ci/test.yaml                            | 8 ++++----
+ .../{qemu-alpine-arm64.sh => qemu-smoke-dom0-arm64.sh}    | 0
+ 2 files changed, 4 insertions(+), 4 deletions(-)
+ rename automation/scripts/{qemu-alpine-arm64.sh => qemu-smoke-dom0-arm64.sh} (100%)
+
+diff --git a/automation/gitlab-ci/test.yaml b/automation/gitlab-ci/test.yaml
+index f620622671..3b147c88ab 100644
+--- a/automation/gitlab-ci/test.yaml
++++ b/automation/gitlab-ci/test.yaml
+@@ -25,12 +25,12 @@ build-each-commit-gcc:
+   tags:
+     - x86_64
+ 
+-qemu-alpine-arm64-gcc:
++qemu-smoke-dom0-arm64-gcc:
+   extends: .test-jobs-common
+   variables:
+     CONTAINER: debian:unstable-arm64v8
+   script:
+-    - ./automation/scripts/qemu-alpine-arm64.sh 2>&1 | tee qemu-smoke-arm64.log
++    - ./automation/scripts/qemu-smoke-dom0-arm64.sh 2>&1 | tee qemu-smoke-arm64.log
+   needs:
+     - alpine-3.12-gcc-arm64
+     - alpine-3.12-arm64-rootfs-export
+@@ -44,12 +44,12 @@ qemu-alpine-arm64-gcc:
+   tags:
+     - arm64
+ 
+-qemu-alpine-arm64-gcc-debug:
++qemu-smoke-dom0-arm64-gcc-debug:
+   extends: .test-jobs-common
+   variables:
+     CONTAINER: debian:unstable-arm64v8
+   script:
+-    - ./automation/scripts/qemu-alpine-arm64.sh 2>&1 | tee qemu-smoke-arm64.log
++    - ./automation/scripts/qemu-smoke-dom0-arm64.sh 2>&1 | tee qemu-smoke-arm64.log
+   needs:
+     - alpine-3.12-gcc-debug-arm64
+     - alpine-3.12-arm64-rootfs-export
+diff --git a/automation/scripts/qemu-alpine-arm64.sh b/automation/scripts/qemu-smoke-dom0-arm64.sh
+similarity index 100%
+rename from automation/scripts/qemu-alpine-arm64.sh
+rename to automation/scripts/qemu-smoke-dom0-arm64.sh
+-- 
+2.17.1
+

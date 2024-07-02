@@ -1,0 +1,31 @@
+From ad62da7143830b42c7e9748418bcc70d4de0d77a Mon Sep 17 00:00:00 2001
+From: jiqichen <Jiqian.Chen@amd.com>
+Date: Mon, 30 Jan 2023 14:03:16 +0800
+Subject: [PATCH 189/221] hvm: shouldn't check pirq flag when map pirq in PVH
+
+PVH is also hvm type domain, but PVH hasn't X86_EMU_USE_PIRQ
+flag. So, when dom0 is PVH and call PHYSDEVOP_map_pirq, it
+will fail at check has_pirq();
+
+Signed-off-by: Chen Jiqian <Jiqian.Chen@amd.com>
+Change-Id: I08f7773ba8a4cdf4dd1b7044874fd8181018cba1
+---
+ xen/arch/x86/hvm/hypercall.c | 2 --
+ 1 file changed, 2 deletions(-)
+
+diff --git a/xen/arch/x86/hvm/hypercall.c b/xen/arch/x86/hvm/hypercall.c
+index 405d0a95af..16a2f5c0b3 100644
+--- a/xen/arch/x86/hvm/hypercall.c
++++ b/xen/arch/x86/hvm/hypercall.c
+@@ -89,8 +89,6 @@ long hvm_physdev_op(int cmd, XEN_GUEST_HANDLE_PARAM(void) arg)
+     case PHYSDEVOP_eoi:
+     case PHYSDEVOP_irq_status_query:
+     case PHYSDEVOP_get_free_pirq:
+-        if ( !has_pirq(currd) )
+-            return -ENOSYS;
+         break;
+ 
+     case PHYSDEVOP_pci_mmcfg_reserved:
+-- 
+2.17.1
+

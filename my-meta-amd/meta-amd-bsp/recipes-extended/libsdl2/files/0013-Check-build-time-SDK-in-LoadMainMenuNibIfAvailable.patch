@@ -1,0 +1,37 @@
+From f52e7199df4565439cc2d48aae5cbe770247503a Mon Sep 17 00:00:00 2001
+From: Joshua Root <jmr@macports.org>
+Date: Sun, 28 Aug 2022 00:52:19 +1000
+Subject: [PATCH 013/458] Check build-time SDK in LoadMainMenuNibIfAvailable
+
+Fixes building against OS X 10.7 SDK.
+
+(cherry picked from commit f8cebeea599ae65f36d388257a9d9a8ed8ada576)
+---
+ src/video/cocoa/SDL_cocoaevents.m | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/src/video/cocoa/SDL_cocoaevents.m b/src/video/cocoa/SDL_cocoaevents.m
+index 4903a8a04..ed2aaa6c6 100644
+--- a/src/video/cocoa/SDL_cocoaevents.m
++++ b/src/video/cocoa/SDL_cocoaevents.m
+@@ -333,6 +333,7 @@ GetApplicationName(void)
+ static bool
+ LoadMainMenuNibIfAvailable(void)
+ {
++#if MAC_OS_X_VERSION_MAX_ALLOWED >= 1080
+     NSDictionary *infoDict;
+     NSString *mainNibFileName;
+     bool success = false;
+@@ -350,6 +351,9 @@ LoadMainMenuNibIfAvailable(void)
+     }
+     
+     return success;
++#else
++    return false;
++#endif
+ }
+ 
+ static void
+-- 
+2.17.1
+

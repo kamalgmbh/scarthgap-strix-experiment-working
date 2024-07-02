@@ -1,0 +1,44 @@
+From 0efb31ef325dd1116cf2aff5191e4617b26f218e Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Mon, 20 Feb 2023 10:40:54 -0800
+Subject: [PATCH 230/458] cocoa/gles: do not unload EGL when context is
+ destroyed
+
+(cherry picked from commit e8091b89830c3b9bb19eff76463a6e2525f05fa5)
+---
+ src/video/cocoa/SDL_cocoaopengles.m | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/video/cocoa/SDL_cocoaopengles.m b/src/video/cocoa/SDL_cocoaopengles.m
+index 3efcb4756..27091c5dc 100644
+--- a/src/video/cocoa/SDL_cocoaopengles.m
++++ b/src/video/cocoa/SDL_cocoaopengles.m
+@@ -49,7 +49,7 @@ Cocoa_GLES_LoadLibrary(_THIS, const char *path)
+         return SDL_SetError("SDL not configured with OpenGL/CGL support");
+ #endif
+     }
+-    
++
+     if (_this->egl_data == NULL) {
+         return SDL_EGL_LoadLibrary(_this, NULL, EGL_DEFAULT_DISPLAY, 0);
+     }
+@@ -95,7 +95,6 @@ Cocoa_GLES_DeleteContext(_THIS, SDL_GLContext context)
+ { @autoreleasepool
+ {
+     SDL_EGL_DeleteContext(_this, context);
+-    Cocoa_GLES_UnloadLibrary(_this);
+ }}
+ 
+ int
+@@ -133,7 +132,7 @@ Cocoa_GLES_SetupWindow(_THIS, SDL_Window * window)
+         }
+         _this->gl_config.driver_loaded = 1;
+     }
+-  
++
+     /* Create the GLES window surface */
+     v = windowdata.nswindow.contentView;
+     windowdata.egl_surface = SDL_EGL_CreateSurface(_this, (__bridge NativeWindowType)[v layer]);
+-- 
+2.17.1
+

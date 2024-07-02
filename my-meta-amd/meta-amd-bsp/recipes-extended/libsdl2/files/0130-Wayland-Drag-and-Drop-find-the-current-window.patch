@@ -1,0 +1,58 @@
+From 0a9f61fbf1991ac42bdf3e1ef81eb98a72386342 Mon Sep 17 00:00:00 2001
+From: Sylvain <sylvain.becker@gmail.com>
+Date: Tue, 3 Jan 2023 16:35:51 +0100
+Subject: [PATCH 130/458] Wayland / Drag and Drop: find the current window
+
+---
+ src/video/wayland/SDL_waylanddatamanager.h |  1 +
+ src/video/wayland/SDL_waylandevents.c      | 12 ++++++++++--
+ 2 files changed, 11 insertions(+), 2 deletions(-)
+
+diff --git a/src/video/wayland/SDL_waylanddatamanager.h b/src/video/wayland/SDL_waylanddatamanager.h
+index 6a8cdd6b9..774c1289d 100644
+--- a/src/video/wayland/SDL_waylanddatamanager.h
++++ b/src/video/wayland/SDL_waylanddatamanager.h
+@@ -75,6 +75,7 @@ typedef struct
+     uint32_t drag_serial;
+     SDL_WaylandDataOffer *drag_offer;
+     SDL_WaylandDataOffer *selection_offer;
++    SDL_Window *dnd_window;
+ 
+     /* Clipboard and Primary Selection */
+     uint32_t selection_serial;
+diff --git a/src/video/wayland/SDL_waylandevents.c b/src/video/wayland/SDL_waylandevents.c
+index 04cef504e..a25c70e47 100644
+--- a/src/video/wayland/SDL_waylandevents.c
++++ b/src/video/wayland/SDL_waylandevents.c
+@@ -1558,6 +1558,14 @@ static void data_device_handle_enter(void *data, struct wl_data_device *wl_data_
+             wl_data_offer_set_actions(data_device->drag_offer->offer,
+                                       dnd_action, dnd_action);
+         }
++
++        /* find the current window */
++        if (surface && SDL_WAYLAND_own_surface(surface)) {
++           SDL_WindowData *window = (SDL_WindowData *)wl_surface_get_user_data(surface);
++           if (window) {
++              data_device->dnd_window = window->sdlwindow;
++           }
++        }
+     }
+ }
+ 
+@@ -1713,11 +1721,11 @@ static void data_device_handle_drop(void *data, struct wl_data_device *wl_data_d
+             while (token != NULL) {
+                 char *fn = Wayland_URIToLocal(token);
+                 if (fn) {
+-                    SDL_SendDropFile(NULL, fn); /* FIXME: Window? */
++                    SDL_SendDropFile(data_device->dnd_window, fn);
+                 }
+                 token = SDL_strtokr(NULL, "\r\n", &saveptr);
+             }
+-            SDL_SendDropComplete(NULL); /* FIXME: Window? */
++            SDL_SendDropComplete(data_device->dnd_window);
+             SDL_free(buffer);
+         }
+     }
+-- 
+2.17.1
+

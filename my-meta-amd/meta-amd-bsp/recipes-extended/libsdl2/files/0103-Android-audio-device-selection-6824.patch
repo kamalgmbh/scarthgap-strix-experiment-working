@@ -1,0 +1,600 @@
+From 741499dea777b98f6dee4479596f94ba02adbfdc Mon Sep 17 00:00:00 2001
+From: Maido <v3rm0n@users.noreply.github.com>
+Date: Fri, 16 Dec 2022 17:38:57 +0200
+Subject: [PATCH 103/458] Android audio device selection (#6824)
+
+Make it possible to select a specific audio device for Android
+---
+ .../app/src/main/java/org/libsdl/app/SDL.java |   1 +
+ .../main/java/org/libsdl/app/SDLActivity.java |   4 +-
+ .../java/org/libsdl/app/SDLAudioManager.java  | 113 +++++++++++++++---
+ include/SDL_surface.h                         |   2 +-
+ src/audio/aaudio/SDL_aaudio.c                 |  50 +++++++-
+ src/audio/aaudio/SDL_aaudiofuncs.h            |   2 +-
+ src/audio/android/SDL_androidaudio.c          |  52 +++++++-
+ src/core/android/SDL_android.c                |  82 +++++++++++--
+ src/core/android/SDL_android.h                |   4 +-
+ 9 files changed, 277 insertions(+), 33 deletions(-)
+
+diff --git a/android-project/app/src/main/java/org/libsdl/app/SDL.java b/android-project/app/src/main/java/org/libsdl/app/SDL.java
+index dafc0cb87..44c21c1c7 100644
+--- a/android-project/app/src/main/java/org/libsdl/app/SDL.java
++++ b/android-project/app/src/main/java/org/libsdl/app/SDL.java
+@@ -29,6 +29,7 @@ public class SDL {
+ 
+     // This function stores the current activity (SDL or not)
+     public static void setContext(Context context) {
++        SDLAudioManager.setContext(context);
+         mContext = context;
+     }
+ 
+diff --git a/android-project/app/src/main/java/org/libsdl/app/SDLActivity.java b/android-project/app/src/main/java/org/libsdl/app/SDLActivity.java
+index e2748f26f..535e16395 100644
+--- a/android-project/app/src/main/java/org/libsdl/app/SDLActivity.java
++++ b/android-project/app/src/main/java/org/libsdl/app/SDLActivity.java
+@@ -393,7 +393,7 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
+         mHIDDeviceManager = HIDDeviceManager.acquire(this);
+ 
+         // Set up the surface
+-        mSurface = createSDLSurface(getApplication());
++        mSurface = createSDLSurface(this);
+ 
+         mLayout = new RelativeLayout(this);
+         mLayout.addView(mSurface);
+@@ -588,6 +588,8 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
+             mHIDDeviceManager = null;
+         }
+ 
++        SDLAudioManager.release(this);
++
+         if (SDLActivity.mBrokenLibraries) {
+            super.onDestroy();
+            return;
+diff --git a/android-project/app/src/main/java/org/libsdl/app/SDLAudioManager.java b/android-project/app/src/main/java/org/libsdl/app/SDLAudioManager.java
+index 2bfc71860..94aa49a53 100644
+--- a/android-project/app/src/main/java/org/libsdl/app/SDLAudioManager.java
++++ b/android-project/app/src/main/java/org/libsdl/app/SDLAudioManager.java
+@@ -1,5 +1,8 @@
+ package org.libsdl.app;
+ 
++import android.content.Context;
++import android.media.AudioDeviceCallback;
++import android.media.AudioDeviceInfo;
+ import android.media.AudioFormat;
+ import android.media.AudioManager;
+ import android.media.AudioRecord;
+@@ -8,34 +11,59 @@ import android.media.MediaRecorder;
+ import android.os.Build;
+ import android.util.Log;
+ 
+-public class SDLAudioManager
+-{
++import java.util.Arrays;
++
++public class SDLAudioManager {
+     protected static final String TAG = "SDLAudio";
+ 
+     protected static AudioTrack mAudioTrack;
+     protected static AudioRecord mAudioRecord;
++    protected static Context mContext;
++
++    private static final AudioDeviceCallback mAudioDeviceCallback = new AudioDeviceCallback() {
++        @Override
++        public void onAudioDevicesAdded(AudioDeviceInfo[] addedDevices) {
++            Arrays.stream(addedDevices).forEach(deviceInfo -> addAudioDevice(deviceInfo.isSink(), deviceInfo.getId()));
++        }
++
++        @Override
++        public void onAudioDevicesRemoved(AudioDeviceInfo[] removedDevices) {
++            Arrays.stream(removedDevices).forEach(deviceInfo -> removeAudioDevice(deviceInfo.isSink(), deviceInfo.getId()));
++        }
++    };
+ 
+     public static void initialize() {
+         mAudioTrack = null;
+         mAudioRecord = null;
+     }
+ 
++    public static void setContext(Context context) {
++        mContext = context;
++        if (context != null) {
++            registerAudioDeviceCallback();
++        }
++    }
++
++    public static void release(Context context) {
++        unregisterAudioDeviceCallback(context);
++    }
++
+     // Audio
+ 
+     protected static String getAudioFormatString(int audioFormat) {
+         switch (audioFormat) {
+-        case AudioFormat.ENCODING_PCM_8BIT:
+-            return "8-bit";
+-        case AudioFormat.ENCODING_PCM_16BIT:
+-            return "16-bit";
+-        case AudioFormat.ENCODING_PCM_FLOAT:
+-            return "float";
+-        default:
+-            return Integer.toString(audioFormat);
++            case AudioFormat.ENCODING_PCM_8BIT:
++                return "8-bit";
++            case AudioFormat.ENCODING_PCM_16BIT:
++                return "16-bit";
++            case AudioFormat.ENCODING_PCM_FLOAT:
++                return "float";
++            default:
++                return Integer.toString(audioFormat);
+         }
+     }
+ 
+-    protected static int[] open(boolean isCapture, int sampleRate, int audioFormat, int desiredChannels, int desiredFrames) {
++    protected static int[] open(boolean isCapture, int sampleRate, int audioFormat, int desiredChannels, int desiredFrames, int deviceId) {
+         int channelConfig;
+         int sampleSize;
+         int frameSize;
+@@ -201,6 +229,10 @@ public class SDLAudioManager
+                     return null;
+                 }
+ 
++                if (deviceId != 0) {
++                    mAudioRecord.setPreferredDevice(getOutputAudioDeviceInfo(deviceId));
++                }
++
+                 mAudioRecord.startRecording();
+             }
+ 
+@@ -224,6 +256,10 @@ public class SDLAudioManager
+                     return null;
+                 }
+ 
++                if (deviceId != 0) {
++                    mAudioTrack.setPreferredDevice(getInputAudioDeviceInfo(deviceId));
++                }
++
+                 mAudioTrack.play();
+             }
+ 
+@@ -238,11 +274,53 @@ public class SDLAudioManager
+         return results;
+     }
+ 
++    private static AudioDeviceInfo getInputAudioDeviceInfo(int deviceId) {
++        AudioManager audioManager = (AudioManager) mContext.getSystemService(Context.AUDIO_SERVICE);
++        return Arrays.stream(audioManager.getDevices(AudioManager.GET_DEVICES_INPUTS))
++                .filter(deviceInfo -> deviceInfo.getId() == deviceId)
++                .findFirst()
++                .orElse(null);
++    }
++
++    private static AudioDeviceInfo getOutputAudioDeviceInfo(int deviceId) {
++        AudioManager audioManager = (AudioManager) mContext.getSystemService(Context.AUDIO_SERVICE);
++        return Arrays.stream(audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS))
++                .filter(deviceInfo -> deviceInfo.getId() == deviceId)
++                .findFirst()
++                .orElse(null);
++    }
++
++    private static void registerAudioDeviceCallback() {
++        AudioManager audioManager = (AudioManager) mContext.getSystemService(Context.AUDIO_SERVICE);
++        audioManager.registerAudioDeviceCallback(mAudioDeviceCallback, null);
++    }
++
++    private static void unregisterAudioDeviceCallback(Context context) {
++        AudioManager audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
++        audioManager.unregisterAudioDeviceCallback(mAudioDeviceCallback);
++    }
++
++    /**
++     * This method is called by SDL using JNI.
++     */
++    public static int[] getAudioOutputDevices() {
++        AudioManager audioManager = (AudioManager) mContext.getSystemService(Context.AUDIO_SERVICE);
++        return Arrays.stream(audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)).mapToInt(AudioDeviceInfo::getId).toArray();
++    }
++
++    /**
++     * This method is called by SDL using JNI.
++     */
++    public static int[] getAudioInputDevices() {
++        AudioManager audioManager = (AudioManager) mContext.getSystemService(Context.AUDIO_SERVICE);
++        return Arrays.stream(audioManager.getDevices(AudioManager.GET_DEVICES_INPUTS)).mapToInt(AudioDeviceInfo::getId).toArray();
++    }
++
+     /**
+      * This method is called by SDL using JNI.
+      */
+-    public static int[] audioOpen(int sampleRate, int audioFormat, int desiredChannels, int desiredFrames) {
+-        return open(false, sampleRate, audioFormat, desiredChannels, desiredFrames);
++    public static int[] audioOpen(int sampleRate, int audioFormat, int desiredChannels, int desiredFrames, int deviceId) {
++        return open(false, sampleRate, audioFormat, desiredChannels, desiredFrames, deviceId);
+     }
+ 
+     /**
+@@ -326,8 +404,8 @@ public class SDLAudioManager
+     /**
+      * This method is called by SDL using JNI.
+      */
+-    public static int[] captureOpen(int sampleRate, int audioFormat, int desiredChannels, int desiredFrames) {
+-        return open(true, sampleRate, audioFormat, desiredChannels, desiredFrames);
++    public static int[] captureOpen(int sampleRate, int audioFormat, int desiredChannels, int desiredFrames, int deviceId) {
++        return open(true, sampleRate, audioFormat, desiredChannels, desiredFrames, deviceId);
+     }
+ 
+     /** This method is called by SDL using JNI. */
+@@ -391,4 +469,9 @@ public class SDLAudioManager
+     }
+ 
+     public static native int nativeSetupJNI();
++
++    public static native void removeAudioDevice(boolean isCapture, int deviceId);
++
++    public static native void addAudioDevice(boolean isCapture, int deviceId);
++
+ }
+diff --git a/include/SDL_surface.h b/include/SDL_surface.h
+index 561b2be18..838de654e 100644
+--- a/include/SDL_surface.h
++++ b/include/SDL_surface.h
+@@ -683,7 +683,7 @@ extern DECLSPEC SDL_Surface *SDLCALL SDL_ConvertSurface
+  * it might be easier to call but it doesn't have access to palette
+  * information for the destination surface, in case that would be important.
+  *
+- * \param surface the existing SDL_Surface structure to convert
++ * \param src the existing SDL_Surface structure to convert
+  * \param pixel_format the SDL_PixelFormatEnum that the new surface is
+  *                     optimized for
+  * \param flags the flags are unused and should be set to 0; this is a
+diff --git a/src/audio/aaudio/SDL_aaudio.c b/src/audio/aaudio/SDL_aaudio.c
+index 92d22338d..7b7e662f2 100644
+--- a/src/audio/aaudio/SDL_aaudio.c
++++ b/src/audio/aaudio/SDL_aaudio.c
+@@ -70,6 +70,45 @@ void aaudio_errorCallback(AAudioStream *stream, void *userData, aaudio_result_t
+ 
+ #define LIB_AAUDIO_SO "libaaudio.so"
+ 
++static void aaudio_DetectDevices(void)
++{
++    int *inputs;
++    inputs = SDL_malloc(sizeof(int) * 100);
++    SDL_zerop(inputs);
++    int inputs_length = 0;
++
++    Android_JNI_GetAudioInputDevices(inputs, &inputs_length);
++
++    for (int i = 0; i < inputs_length; ++i) {
++        int device_id = inputs[i];
++        int n = (int) (log10(device_id) + 1);
++        char device_name[n];
++        SDL_itoa(device_id, device_name, 10);
++        SDL_Log("Adding input device with name %s", device_name);
++        SDL_AddAudioDevice(SDL_FALSE, SDL_strdup(device_name), NULL, (void *) ((size_t) device_id + 1));
++    }
++
++    SDL_free(inputs);
++
++    int *outputs;
++    outputs = SDL_malloc(sizeof(int) * 100);
++    SDL_zerop(outputs);
++    int outputs_length = 0;
++
++    Android_JNI_GetAudioOutputDevices(outputs, &outputs_length);
++
++    for (int i = 0; i < outputs_length; ++i) {
++        int device_id = outputs[i];
++        int n = (int) (log10(device_id) + 1);
++        char device_name[n];
++        SDL_itoa(device_id, device_name, 10);
++        SDL_Log("Adding output device with name %s", device_name);
++        SDL_AddAudioDevice(SDL_TRUE, SDL_strdup(device_name), NULL, (void *) ((size_t) device_id + 1));
++    }
++
++    SDL_free(outputs);
++}
++
+ static int aaudio_OpenDevice(_THIS, const char *devname)
+ {
+     struct SDL_PrivateAudioData *private;
+@@ -101,6 +140,11 @@ static int aaudio_OpenDevice(_THIS, const char *devname)
+ 
+     ctx.AAudioStreamBuilder_setSampleRate(ctx.builder, this->spec.freq);
+     ctx.AAudioStreamBuilder_setChannelCount(ctx.builder, this->spec.channels);
++    if(devname != NULL) {
++        int aaudio_device_id = SDL_atoi(devname);
++        LOGI("Opening device id %d", aaudio_device_id);
++        ctx.AAudioStreamBuilder_setDeviceId(ctx.builder, aaudio_device_id);
++    }
+     {
+         aaudio_direction_t direction = (iscapture ? AAUDIO_DIRECTION_INPUT : AAUDIO_DIRECTION_OUTPUT);
+         ctx.AAudioStreamBuilder_setDirection(ctx.builder, direction);
+@@ -300,17 +344,19 @@ static SDL_bool aaudio_Init(SDL_AudioDriverImpl *impl)
+         goto failure;
+     }
+ 
++    impl->DetectDevices = aaudio_DetectDevices;
+     impl->Deinitialize = aaudio_Deinitialize;
+     impl->OpenDevice = aaudio_OpenDevice;
+     impl->CloseDevice = aaudio_CloseDevice;
+     impl->PlayDevice = aaudio_PlayDevice;
+     impl->GetDeviceBuf = aaudio_GetDeviceBuf;
+     impl->CaptureFromDevice = aaudio_CaptureFromDevice;
++    impl->AllowsArbitraryDeviceNames = SDL_TRUE;
+ 
+     /* and the capabilities */
+     impl->HasCaptureSupport = SDL_TRUE;
+-    impl->OnlyHasDefaultOutputDevice = SDL_TRUE;
+-    impl->OnlyHasDefaultCaptureDevice = SDL_TRUE;
++    impl->OnlyHasDefaultOutputDevice = SDL_FALSE;
++    impl->OnlyHasDefaultCaptureDevice = SDL_FALSE;
+ 
+     /* this audio target is available. */
+     LOGI("SDL aaudio_Init OK");
+diff --git a/src/audio/aaudio/SDL_aaudiofuncs.h b/src/audio/aaudio/SDL_aaudiofuncs.h
+index 57f84d45a..79b24d214 100644
+--- a/src/audio/aaudio/SDL_aaudiofuncs.h
++++ b/src/audio/aaudio/SDL_aaudiofuncs.h
+@@ -24,7 +24,7 @@
+ SDL_PROC(const char *, AAudio_convertResultToText, (aaudio_result_t returnCode))
+ SDL_PROC(const char *, AAudio_convertStreamStateToText, (aaudio_stream_state_t state))
+ SDL_PROC(aaudio_result_t, AAudio_createStreamBuilder, (AAudioStreamBuilder * *builder))
+-SDL_PROC_UNUSED(void, AAudioStreamBuilder_setDeviceId, (AAudioStreamBuilder * builder, int32_t deviceId))
++SDL_PROC(void, AAudioStreamBuilder_setDeviceId, (AAudioStreamBuilder * builder, int32_t deviceId))
+ SDL_PROC(void, AAudioStreamBuilder_setSampleRate, (AAudioStreamBuilder * builder, int32_t sampleRate))
+ SDL_PROC(void, AAudioStreamBuilder_setChannelCount, (AAudioStreamBuilder * builder, int32_t channelCount))
+ SDL_PROC_UNUSED(void, AAudioStreamBuilder_setSamplesPerFrame, (AAudioStreamBuilder * builder, int32_t samplesPerFrame))
+diff --git a/src/audio/android/SDL_androidaudio.c b/src/audio/android/SDL_androidaudio.c
+index 60779b049..3944e925e 100644
+--- a/src/audio/android/SDL_androidaudio.c
++++ b/src/audio/android/SDL_androidaudio.c
+@@ -35,6 +35,44 @@
+ static SDL_AudioDevice *audioDevice = NULL;
+ static SDL_AudioDevice *captureDevice = NULL;
+ 
++static void ANDROIDAUDIO_DetectDevices(void) {
++    int *inputs;
++    inputs = SDL_malloc(sizeof(int) * 100);
++    SDL_zerop(inputs);
++    int inputs_length = 0;
++
++    Android_JNI_GetAudioInputDevices(inputs, &inputs_length);
++
++    for (int i = 0; i < inputs_length; ++i) {
++        int device_id = inputs[i];
++        int n = (int) (log10(device_id) + 1);
++        char device_name[n];
++        SDL_itoa(device_id, device_name, 10);
++        SDL_Log("Adding input device with name %s", device_name);
++        SDL_AddAudioDevice(SDL_FALSE, SDL_strdup(device_name), NULL, (void *) ((size_t) device_id + 1));
++    }
++
++    SDL_free(inputs);
++
++    int *outputs;
++    outputs = SDL_malloc(sizeof(int) * 100);
++    SDL_zerop(outputs);
++    int outputs_length = 0;
++
++    Android_JNI_GetAudioOutputDevices(outputs, &outputs_length);
++
++    for (int i = 0; i < outputs_length; ++i) {
++        int device_id = outputs[i];
++        int n = (int) (log10(device_id) + 1);
++        char device_name[n];
++        SDL_itoa(device_id, device_name, 10);
++        SDL_Log("Adding output device with name %s", device_name);
++        SDL_AddAudioDevice(SDL_TRUE, SDL_strdup(device_name), NULL, (void *) ((size_t) device_id + 1));
++    }
++
++    SDL_free(outputs);
++}
++
+ static int ANDROIDAUDIO_OpenDevice(_THIS, const char *devname)
+ {
+     SDL_AudioFormat test_format;
+@@ -63,12 +101,18 @@ static int ANDROIDAUDIO_OpenDevice(_THIS, const char *devname)
+         }
+     }
+ 
++    int audio_device_id = 0;
++
++    if(devname != NULL) {
++        audio_device_id = SDL_atoi(devname);
++    }
++
+     if (!test_format) {
+         /* Didn't find a compatible format :( */
+         return SDL_SetError("%s: Unsupported audio format", "android");
+     }
+ 
+-    if (Android_JNI_OpenAudioDevice(iscapture, &this->spec) < 0) {
++    if (Android_JNI_OpenAudioDevice(iscapture, audio_device_id, &this->spec) < 0) {
+         return -1;
+     }
+ 
+@@ -116,17 +160,19 @@ static void ANDROIDAUDIO_CloseDevice(_THIS)
+ static SDL_bool ANDROIDAUDIO_Init(SDL_AudioDriverImpl *impl)
+ {
+     /* Set the function pointers */
++    impl->DetectDevices = ANDROIDAUDIO_DetectDevices;
+     impl->OpenDevice = ANDROIDAUDIO_OpenDevice;
+     impl->PlayDevice = ANDROIDAUDIO_PlayDevice;
+     impl->GetDeviceBuf = ANDROIDAUDIO_GetDeviceBuf;
+     impl->CloseDevice = ANDROIDAUDIO_CloseDevice;
+     impl->CaptureFromDevice = ANDROIDAUDIO_CaptureFromDevice;
+     impl->FlushCapture = ANDROIDAUDIO_FlushCapture;
++    impl->AllowsArbitraryDeviceNames = SDL_TRUE;
+ 
+     /* and the capabilities */
+     impl->HasCaptureSupport = SDL_TRUE;
+-    impl->OnlyHasDefaultOutputDevice = SDL_TRUE;
+-    impl->OnlyHasDefaultCaptureDevice = SDL_TRUE;
++    impl->OnlyHasDefaultOutputDevice = SDL_FALSE;
++    impl->OnlyHasDefaultCaptureDevice = SDL_FALSE;
+ 
+     return SDL_TRUE; /* this audio target is available. */
+ }
+diff --git a/src/core/android/SDL_android.c b/src/core/android/SDL_android.c
+index 7df8a6946..ac8f9a34e 100644
+--- a/src/core/android/SDL_android.c
++++ b/src/core/android/SDL_android.c
+@@ -221,8 +221,18 @@ static JNINativeMethod SDLInputConnection_tab[] = {
+ JNIEXPORT void JNICALL SDL_JAVA_AUDIO_INTERFACE(nativeSetupJNI)(
+     JNIEnv *env, jclass jcls);
+ 
++JNIEXPORT void JNICALL
++SDL_JAVA_AUDIO_INTERFACE(addAudioDevice)(JNIEnv *env, jclass jcls, jboolean is_capture,
++                                         jint device_id);
++
++JNIEXPORT void JNICALL
++SDL_JAVA_AUDIO_INTERFACE(removeAudioDevice)(JNIEnv *env, jclass jcls, jboolean is_capture,
++                                            jint device_id);
++
+ static JNINativeMethod SDLAudioManager_tab[] = {
+-    { "nativeSetupJNI", "()I", SDL_JAVA_AUDIO_INTERFACE(nativeSetupJNI) }
++    { "nativeSetupJNI", "()I", SDL_JAVA_AUDIO_INTERFACE(nativeSetupJNI) },
++    { "addAudioDevice", "(ZI)V", SDL_JAVA_AUDIO_INTERFACE(addAudioDevice) },
++    { "removeAudioDevice", "(ZI)V", SDL_JAVA_AUDIO_INTERFACE(removeAudioDevice) }
+ };
+ 
+ /* Java class SDLControllerManager */
+@@ -330,6 +340,8 @@ static jmethodID midSupportsRelativeMouse;
+ static jclass mAudioManagerClass;
+ 
+ /* method signatures */
++static jmethodID midGetAudioOutputDevices;
++static jmethodID midGetAudioInputDevices;
+ static jmethodID midAudioOpen;
+ static jmethodID midAudioWriteByteBuffer;
+ static jmethodID midAudioWriteShortBuffer;
+@@ -655,8 +667,14 @@ JNIEXPORT void JNICALL SDL_JAVA_AUDIO_INTERFACE(nativeSetupJNI)(JNIEnv *env, jcl
+ 
+     mAudioManagerClass = (jclass)((*env)->NewGlobalRef(env, cls));
+ 
++    midGetAudioOutputDevices = (*env)->GetStaticMethodID(env, mAudioManagerClass,
++                                                         "getAudioOutputDevices",
++                                                         "()[I");
++    midGetAudioInputDevices = (*env)->GetStaticMethodID(env, mAudioManagerClass,
++                                                        "getAudioInputDevices",
++                                                        "()[I");
+     midAudioOpen = (*env)->GetStaticMethodID(env, mAudioManagerClass,
+-                                             "audioOpen", "(IIII)[I");
++                                             "audioOpen", "(IIIII)[I");
+     midAudioWriteByteBuffer = (*env)->GetStaticMethodID(env, mAudioManagerClass,
+                                                         "audioWriteByteBuffer", "([B)V");
+     midAudioWriteShortBuffer = (*env)->GetStaticMethodID(env, mAudioManagerClass,
+@@ -666,7 +684,7 @@ JNIEXPORT void JNICALL SDL_JAVA_AUDIO_INTERFACE(nativeSetupJNI)(JNIEnv *env, jcl
+     midAudioClose = (*env)->GetStaticMethodID(env, mAudioManagerClass,
+                                               "audioClose", "()V");
+     midCaptureOpen = (*env)->GetStaticMethodID(env, mAudioManagerClass,
+-                                               "captureOpen", "(IIII)[I");
++                                               "captureOpen", "(IIIII)[I");
+     midCaptureReadByteBuffer = (*env)->GetStaticMethodID(env, mAudioManagerClass,
+                                                          "captureReadByteBuffer", "([BZ)I");
+     midCaptureReadShortBuffer = (*env)->GetStaticMethodID(env, mAudioManagerClass,
+@@ -678,9 +696,13 @@ JNIEXPORT void JNICALL SDL_JAVA_AUDIO_INTERFACE(nativeSetupJNI)(JNIEnv *env, jcl
+     midAudioSetThreadPriority = (*env)->GetStaticMethodID(env, mAudioManagerClass,
+                                                           "audioSetThreadPriority", "(ZI)V");
+ 
+-    if (!midAudioOpen || !midAudioWriteByteBuffer || !midAudioWriteShortBuffer || !midAudioWriteFloatBuffer || !midAudioClose ||
+-        !midCaptureOpen || !midCaptureReadByteBuffer || !midCaptureReadShortBuffer || !midCaptureReadFloatBuffer || !midCaptureClose || !midAudioSetThreadPriority) {
+-        __android_log_print(ANDROID_LOG_WARN, "SDL", "Missing some Java callbacks, do you have the latest version of SDLAudioManager.java?");
++    if (!midGetAudioOutputDevices || !midGetAudioInputDevices || !midAudioOpen ||
++        !midAudioWriteByteBuffer || !midAudioWriteShortBuffer || !midAudioWriteFloatBuffer ||
++        !midAudioClose ||
++        !midCaptureOpen || !midCaptureReadByteBuffer || !midCaptureReadShortBuffer ||
++        !midCaptureReadFloatBuffer || !midCaptureClose || !midAudioSetThreadPriority) {
++        __android_log_print(ANDROID_LOG_WARN, "SDL",
++                            "Missing some Java callbacks, do you have the latest version of SDLAudioManager.java?");
+     }
+ 
+     checkJNIReady();
+@@ -911,6 +933,26 @@ JNIEXPORT void JNICALL SDL_JAVA_INTERFACE(nativePermissionResult)(
+     SDL_AtomicSet(&bPermissionRequestPending, SDL_FALSE);
+ }
+ 
++extern void SDL_AddAudioDevice(const SDL_bool iscapture, const char *name, SDL_AudioSpec *spec, void *handle);
++extern void SDL_RemoveAudioDevice(const SDL_bool iscapture, void *handle);
++
++JNIEXPORT void JNICALL
++SDL_JAVA_AUDIO_INTERFACE(addAudioDevice)(JNIEnv *env, jclass jcls, jboolean is_capture,
++                                         jint device_id) {
++    int n = (int) (log10(device_id) + 1);
++    char device_name[n];
++    SDL_itoa(device_id, device_name, 10);
++    SDL_Log("Adding device with name %s, capture %d", device_name, is_capture);
++    SDL_AddAudioDevice(is_capture, SDL_strdup(device_name), NULL, (void *) ((size_t) device_id + 1));
++}
++
++JNIEXPORT void JNICALL
++SDL_JAVA_AUDIO_INTERFACE(removeAudioDevice)(JNIEnv *env, jclass jcls, jboolean is_capture,
++                                            jint device_id) {
++    SDL_Log("Removing device with handle %d, capture %d", device_id + 1, is_capture);
++    SDL_RemoveAudioDevice(is_capture, (void *) ((size_t) device_id + 1));
++}
++
+ /* Paddown */
+ JNIEXPORT jint JNICALL SDL_JAVA_CONTROLLER_INTERFACE(onNativePadDown)(
+     JNIEnv *env, jclass jcls,
+@@ -1429,7 +1471,29 @@ static void *audioBufferPinned = NULL;
+ static int captureBufferFormat = 0;
+ static jobject captureBuffer = NULL;
+ 
+-int Android_JNI_OpenAudioDevice(int iscapture, SDL_AudioSpec *spec)
++void Android_JNI_GetAudioOutputDevices(int *devices, int *length) {
++    JNIEnv *env = Android_JNI_GetEnv();
++    jintArray result;
++
++    result = (*env)->CallStaticObjectMethod(env, mAudioManagerClass, midGetAudioOutputDevices);
++
++    *length = (*env)->GetArrayLength(env, result);
++
++    (*env)->GetIntArrayRegion(env, result, 0, *length, devices);
++}
++
++void Android_JNI_GetAudioInputDevices(int * devices, int *length) {
++    JNIEnv *env = Android_JNI_GetEnv();
++    jintArray result;
++
++    result = (*env)->CallStaticObjectMethod(env, mAudioManagerClass, midGetAudioInputDevices);
++
++    *length = (*env)->GetArrayLength(env, result);
++
++    (*env)->GetIntArrayRegion(env, result, 0, *length, devices);
++}
++
++int Android_JNI_OpenAudioDevice(int iscapture, int device_id, SDL_AudioSpec *spec)
+ {
+     int audioformat;
+     jobject jbufobj = NULL;
+@@ -1455,10 +1519,10 @@ int Android_JNI_OpenAudioDevice(int iscapture, SDL_AudioSpec *spec)
+ 
+     if (iscapture) {
+         __android_log_print(ANDROID_LOG_VERBOSE, "SDL", "SDL audio: opening device for capture");
+-        result = (*env)->CallStaticObjectMethod(env, mAudioManagerClass, midCaptureOpen, spec->freq, audioformat, spec->channels, spec->samples);
++        result = (*env)->CallStaticObjectMethod(env, mAudioManagerClass, midCaptureOpen, spec->freq, audioformat, spec->channels, spec->samples, device_id);
+     } else {
+         __android_log_print(ANDROID_LOG_VERBOSE, "SDL", "SDL audio: opening device for output");
+-        result = (*env)->CallStaticObjectMethod(env, mAudioManagerClass, midAudioOpen, spec->freq, audioformat, spec->channels, spec->samples);
++        result = (*env)->CallStaticObjectMethod(env, mAudioManagerClass, midAudioOpen, spec->freq, audioformat, spec->channels, spec->samples, device_id);
+     }
+     if (result == NULL) {
+         /* Error during audio initialization, error printed from Java */
+diff --git a/src/core/android/SDL_android.h b/src/core/android/SDL_android.h
+index 62ae65311..a1027124f 100644
+--- a/src/core/android/SDL_android.h
++++ b/src/core/android/SDL_android.h
+@@ -52,7 +52,9 @@ extern SDL_DisplayOrientation Android_JNI_GetDisplayOrientation(void);
+ extern int Android_JNI_GetDisplayDPI(float *ddpi, float *xdpi, float *ydpi);
+ 
+ /* Audio support */
+-extern int Android_JNI_OpenAudioDevice(int iscapture, SDL_AudioSpec *spec);
++extern void Android_JNI_GetAudioOutputDevices(int* devices, int *length);
++extern void Android_JNI_GetAudioInputDevices(int* devices, int *length);
++extern int Android_JNI_OpenAudioDevice(int iscapture, int device_id, SDL_AudioSpec *spec);
+ extern void *Android_JNI_GetAudioBuffer(void);
+ extern void Android_JNI_WriteAudioBuffer(void);
+ extern int Android_JNI_CaptureAudioBuffer(void *buffer, int buflen);
+-- 
+2.17.1
+

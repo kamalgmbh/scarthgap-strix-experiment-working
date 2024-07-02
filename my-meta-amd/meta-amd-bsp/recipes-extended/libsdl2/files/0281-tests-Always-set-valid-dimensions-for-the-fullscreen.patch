@@ -1,0 +1,26 @@
+From 8f7427c15808f000b5042628363d605b6b684c10 Mon Sep 17 00:00:00 2001
+From: Frank Praznik <frank.praznik@gmail.com>
+Date: Wed, 8 Mar 2023 19:19:15 -0500
+Subject: [PATCH 281/458] tests: Always set valid dimensions for the fullscreen
+ mode
+
+---
+ src/test/SDL_test_common.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/src/test/SDL_test_common.c b/src/test/SDL_test_common.c
+index 40e6e4226..b1477dfc9 100644
+--- a/src/test/SDL_test_common.c
++++ b/src/test/SDL_test_common.c
+@@ -1287,6 +1287,8 @@ SDLTest_CommonInit(SDLTest_CommonState *state)
+                 state->window_w = w;
+                 state->window_h = h;
+             }
++            fullscreen_mode.w = state->window_w;
++            fullscreen_mode.h = state->window_h;
+             if (SDL_SetWindowDisplayMode(state->windows[i], &fullscreen_mode) < 0) {
+                 SDL_Log("Can't set up fullscreen display mode: %s\n",
+                         SDL_GetError());
+-- 
+2.17.1
+

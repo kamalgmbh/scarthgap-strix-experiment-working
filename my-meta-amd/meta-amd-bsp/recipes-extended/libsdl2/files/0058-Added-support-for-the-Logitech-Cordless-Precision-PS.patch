@@ -1,0 +1,47 @@
+From 6e40c7a9b880683e22993d3a36c046fd7d0ed940 Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Wed, 30 Nov 2022 17:03:29 -0800
+Subject: [PATCH 058/458] Added support for the Logitech Cordless Precision PS3
+ controller
+
+---
+ src/joystick/hidapi/SDL_hidapi_ps3.c | 2 +-
+ src/joystick/usb_ids.h               | 2 ++
+ 2 files changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/joystick/hidapi/SDL_hidapi_ps3.c b/src/joystick/hidapi/SDL_hidapi_ps3.c
+index 71d5365f2..4d08303f2 100644
+--- a/src/joystick/hidapi/SDL_hidapi_ps3.c
++++ b/src/joystick/hidapi/SDL_hidapi_ps3.c
+@@ -806,7 +806,7 @@ static SDL_bool HIDAPI_DriverPS3ThirdParty_UpdateDevice(SDL_HIDAPI_Device *devic
+             continue;
+         }
+ 
+-        if (size == 27) {
++        if (size >= 19) {
+             HIDAPI_DriverPS3ThirdParty_HandleStatePacket(joystick, ctx, data, size);
+         } else {
+ #ifdef DEBUG_JOYSTICK
+diff --git a/src/joystick/usb_ids.h b/src/joystick/usb_ids.h
+index 1a5ffa7eb..4261a380e 100644
+--- a/src/joystick/usb_ids.h
++++ b/src/joystick/usb_ids.h
+@@ -31,6 +31,7 @@
+ #define USB_VENDOR_GOOGLE       0x18d1
+ #define USB_VENDOR_HORI         0x0f0d
+ #define USB_VENDOR_HYPERKIN     0x2e24
++#define USB_VENDOR_LOGITECH     0x046d
+ #define USB_VENDOR_MADCATZ      0x0738
+ #define USB_VENDOR_MICROSOFT    0x045e
+ #define USB_VENDOR_NACON        0x146b
+@@ -51,6 +52,7 @@
+ #define SONY_THIRDPARTY_VENDOR(X)    \
+     (X == USB_VENDOR_DRAGONRISE ||   \
+      X == USB_VENDOR_HORI ||         \
++     X == USB_VENDOR_LOGITECH ||     \
+      X == USB_VENDOR_MADCATZ ||      \
+      X == USB_VENDOR_NACON ||        \
+      X == USB_VENDOR_PDP ||          \
+-- 
+2.17.1
+

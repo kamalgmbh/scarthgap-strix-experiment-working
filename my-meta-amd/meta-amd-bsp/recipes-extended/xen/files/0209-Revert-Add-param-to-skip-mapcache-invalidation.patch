@@ -1,0 +1,323 @@
+From 8d4c5b3a408f8825d5a43f7cdcb65ad2958ca417 Mon Sep 17 00:00:00 2001
+From: Ramesh Babu Nalluri <rameshbabu.nalluri@amd.com>
+Date: Thu, 19 Oct 2023 11:26:31 +0530
+Subject: [PATCH 209/221] Revert "Add param to skip mapcache invalidation"
+
+This reverts commit accd8dcb2b9bfc2ddceafe0640147656ec962be4.
+
+Change-Id: I268c643c01e4f7e17844036a6232e2cd0ad29e04
+Signed-off-by: Ramesh Babu Nalluri <rameshbabu.nalluri@amd.com>
+---
+ xen/arch/arm/include/asm/grant_table.h      |  2 +-
+ xen/arch/arm/mm.c                           |  2 +-
+ xen/arch/arm/p2m.c                          |  4 ++--
+ xen/arch/x86/domain.c                       |  2 +-
+ xen/arch/x86/hvm/grant_table.c              |  2 +-
+ xen/arch/x86/hvm/ioreq.c                    |  2 +-
+ xen/arch/x86/include/asm/grant_table.h      |  2 +-
+ xen/arch/x86/include/asm/p2m.h              |  2 +-
+ xen/arch/x86/mm/p2m.c                       | 19 +++++++++----------
+ xen/arch/x86/mm/physmap.c                   |  5 ++---
+ xen/common/grant_table.c                    |  2 +-
+ xen/common/memory.c                         |  9 ++++-----
+ xen/drivers/passthrough/arm/iommu_helpers.c |  2 +-
+ xen/include/xen/p2m-common.h                |  2 +-
+ 14 files changed, 27 insertions(+), 30 deletions(-)
+
+diff --git a/xen/arch/arm/include/asm/grant_table.h b/xen/arch/arm/include/asm/grant_table.h
+index 240fcbd6f8..e13dfeefa5 100644
+--- a/xen/arch/arm/include/asm/grant_table.h
++++ b/xen/arch/arm/include/asm/grant_table.h
+@@ -55,7 +55,7 @@ int replace_grant_host_mapping(unsigned long gpaddr, mfn_t mfn,
+     (gfn_eq(gfn, INVALID_GFN)                                            \
+      ? guest_physmap_remove_page((gt)->domain,                           \
+                                  gnttab_get_frame_gfn(gt, st, idx),      \
+-                                 mfn, 0, false)                          \
++                                 mfn, 0)                                 \
+      : 0)
+ 
+ #define gnttab_get_frame_gfn(gt, st, idx) ({                             \
+diff --git a/xen/arch/arm/mm.c b/xen/arch/arm/mm.c
+index f692fcc8a1..0fc6f2992d 100644
+--- a/xen/arch/arm/mm.c
++++ b/xen/arch/arm/mm.c
+@@ -1577,7 +1577,7 @@ int replace_grant_host_mapping(unsigned long addr, mfn_t mfn,
+     if ( new_addr != 0 || (flags & GNTMAP_contains_pte) )
+         return GNTST_general_error;
+ 
+-    rc = guest_physmap_remove_page(d, gfn, mfn, 0, false);
++    rc = guest_physmap_remove_page(d, gfn, mfn, 0);
+ 
+     return rc ? GNTST_general_error : GNTST_okay;
+ }
+diff --git a/xen/arch/arm/p2m.c b/xen/arch/arm/p2m.c
+index f898c9f26b..948f199d84 100644
+--- a/xen/arch/arm/p2m.c
++++ b/xen/arch/arm/p2m.c
+@@ -1561,9 +1561,9 @@ int guest_physmap_add_entry(struct domain *d,
+ }
+ 
+ int guest_physmap_remove_page(struct domain *d, gfn_t gfn, mfn_t mfn,
+-                              unsigned int page_order, bool skip_mc_inv)
++                              unsigned int page_order)
+ {
+-    return p2m_remove_mapping(d, gfn, (1 << page_order), mfn, skip_mc_inv);
++    return p2m_remove_mapping(d, gfn, (1 << page_order), mfn);
+ }
+ 
+ int set_foreign_p2m_entry(struct domain *d, const struct domain *fd,
+diff --git a/xen/arch/x86/domain.c b/xen/arch/x86/domain.c
+index 3129a04038..d7a8237f01 100644
+--- a/xen/arch/x86/domain.c
++++ b/xen/arch/x86/domain.c
+@@ -992,7 +992,7 @@ int arch_domain_soft_reset(struct domain *d)
+         goto exit_put_gfn;
+     }
+ 
+-    ret = guest_physmap_remove_page(d, gfn, mfn, PAGE_ORDER_4K, false);
++    ret = guest_physmap_remove_page(d, gfn, mfn, PAGE_ORDER_4K);
+     if ( ret )
+     {
+         printk(XENLOG_G_ERR
+diff --git a/xen/arch/x86/hvm/grant_table.c b/xen/arch/x86/hvm/grant_table.c
+index be4d8f05c5..b7a896ea58 100644
+--- a/xen/arch/x86/hvm/grant_table.c
++++ b/xen/arch/x86/hvm/grant_table.c
+@@ -67,7 +67,7 @@ int replace_grant_p2m_mapping(uint64_t addr, mfn_t frame,
+                  type, mfn_x(old_mfn), mfn_x(frame));
+         return GNTST_general_error;
+     }
+-    if ( p2m_remove_page(d, _gfn(gfn), frame, PAGE_ORDER_4K, false) )
++    if ( p2m_remove_page(d, _gfn(gfn), frame, PAGE_ORDER_4K) )
+     {
+         put_gfn(d, gfn);
+         return GNTST_general_error;
+diff --git a/xen/arch/x86/hvm/ioreq.c b/xen/arch/x86/hvm/ioreq.c
+index 73334b7ac3..0bdcca1e1a 100644
+--- a/xen/arch/x86/hvm/ioreq.c
++++ b/xen/arch/x86/hvm/ioreq.c
+@@ -188,7 +188,7 @@ static void hvm_remove_ioreq_gfn(struct ioreq_server *s, bool buf)
+     if ( gfn_eq(iorp->gfn, INVALID_GFN) )
+         return;
+ 
+-    if ( p2m_remove_page(d, iorp->gfn, page_to_mfn(iorp->page), 0, false) )
++    if ( p2m_remove_page(d, iorp->gfn, page_to_mfn(iorp->page), 0) )
+         domain_crash(d);
+     clear_page(iorp->va);
+ }
+diff --git a/xen/arch/x86/include/asm/grant_table.h b/xen/arch/x86/include/asm/grant_table.h
+index b4c4f47f36..5c23cec90c 100644
+--- a/xen/arch/x86/include/asm/grant_table.h
++++ b/xen/arch/x86/include/asm/grant_table.h
+@@ -36,7 +36,7 @@ static inline int replace_grant_host_mapping(uint64_t addr, mfn_t frame,
+     (gfn_eq(gfn, INVALID_GFN)                                            \
+      ? guest_physmap_remove_page((gt)->domain,                           \
+                                  gnttab_get_frame_gfn(gt, st, idx),      \
+-                                 mfn, 0, false)                          \
++                                 mfn, 0)                                 \
+      : 0 /* Handled in add_to_physmap_one(). */)
+ #define gnttab_get_frame_gfn(gt, st, idx) ({                             \
+     mfn_t mfn_ = (st) ? gnttab_status_mfn(gt, idx)                       \
+diff --git a/xen/arch/x86/include/asm/p2m.h b/xen/arch/x86/include/asm/p2m.h
+index 40559ee79f..9f8f9b2f77 100644
+--- a/xen/arch/x86/include/asm/p2m.h
++++ b/xen/arch/x86/include/asm/p2m.h
+@@ -608,7 +608,7 @@ void p2m_final_teardown(struct domain *d);
+ int p2m_add_page(struct domain *d, gfn_t gfn, mfn_t mfn,
+                  unsigned int page_order, p2m_type_t t);
+ int p2m_remove_page(struct domain *d, gfn_t gfn, mfn_t mfn,
+-                    unsigned int page_order, bool skip_mc_inv);
++                    unsigned int page_order);
+ 
+ /* Untyped version for RAM only, for compatibility and PV. */
+ int __must_check guest_physmap_add_page(struct domain *d, gfn_t gfn, mfn_t mfn,
+diff --git a/xen/arch/x86/mm/p2m.c b/xen/arch/x86/mm/p2m.c
+index 51348ace37..0e63f737c6 100644
+--- a/xen/arch/x86/mm/p2m.c
++++ b/xen/arch/x86/mm/p2m.c
+@@ -512,7 +512,7 @@ int p2m_alloc_table(struct p2m_domain *p2m)
+ 
+ static int __must_check
+ p2m_remove_entry(struct p2m_domain *p2m, gfn_t gfn, mfn_t mfn,
+-                 unsigned int page_order, bool skip_mc_inv)
++                 unsigned int page_order)
+ {
+     unsigned long i;
+     p2m_type_t t;
+@@ -548,8 +548,7 @@ p2m_remove_entry(struct p2m_domain *p2m, gfn_t gfn, mfn_t mfn,
+     }
+ 
+     //TODO fix for dma
+-    if (!skip_mc_inv)
+-        ioreq_request_mapcache_invalidate(p2m->domain);
++    ioreq_request_mapcache_invalidate(p2m->domain);
+ 
+     rc = p2m_set_entry(p2m, gfn, INVALID_MFN, page_order, p2m_invalid,
+                        p2m->default_access);
+@@ -576,7 +575,7 @@ p2m_remove_entry(struct p2m_domain *p2m, gfn_t gfn, mfn_t mfn,
+ 
+ int
+ p2m_remove_page(struct domain *d, gfn_t gfn, mfn_t mfn,
+-                unsigned int page_order, bool skip_mc_inv)
++                unsigned int page_order)
+ {
+     struct p2m_domain *p2m = p2m_get_hostp2m(d);
+     int rc;
+@@ -588,7 +587,7 @@ p2m_remove_page(struct domain *d, gfn_t gfn, mfn_t mfn,
+     }
+ 
+     gfn_lock(p2m, gfn, page_order);
+-    rc = p2m_remove_entry(p2m, gfn, mfn, page_order, skip_mc_inv);
++    rc = p2m_remove_entry(p2m, gfn, mfn, page_order);
+     gfn_unlock(p2m, gfn, page_order);
+ 
+     return rc;
+@@ -722,7 +721,7 @@ p2m_add_page(struct domain *d, gfn_t gfn, mfn_t mfn,
+                 P2M_DEBUG("old gfn=%#lx -> mfn %#lx\n",
+                           gfn_x(ogfn) , mfn_x(omfn));
+                 if ( mfn_eq(omfn, mfn_add(mfn, i)) &&
+-                     (rc = p2m_remove_entry(p2m, ogfn, omfn, 0, false)) )
++                     (rc = p2m_remove_entry(p2m, ogfn, omfn, 0)) )
+                     goto out;
+             }
+         }
+@@ -2116,7 +2115,7 @@ int p2m_change_altp2m_gfn(struct domain *d, unsigned int idx,
+     {
+         mfn = ap2m->get_entry(ap2m, old_gfn, &t, &a, 0, NULL, NULL);
+         rc = mfn_valid(mfn)
+-             ? p2m_remove_entry(ap2m, old_gfn, mfn, PAGE_ORDER_4K, false)
++             ? p2m_remove_entry(ap2m, old_gfn, mfn, PAGE_ORDER_4K)
+              : 0;
+         goto out;
+     }
+@@ -2401,7 +2400,7 @@ static int p2m_add_foreign(struct domain *tdom, unsigned long fgfn,
+     {
+         if ( is_special_page(mfn_to_page(prev_mfn)) )
+             /* Special pages are simply unhooked from this phys slot */
+-            rc = p2m_remove_page(tdom, _gfn(gpfn), prev_mfn, 0, false);
++            rc = p2m_remove_page(tdom, _gfn(gpfn), prev_mfn, 0);
+         else
+             /* Normal domain memory is freed, to avoid leaking memory. */
+             rc = guest_remove_page(tdom, gpfn);
+@@ -2523,7 +2522,7 @@ int xenmem_add_to_physmap_one(
+     {
+         if ( is_special_page(mfn_to_page(prev_mfn)) )
+             /* Special pages are simply unhooked from this phys slot. */
+-            rc = p2m_remove_page(d, gpfn, prev_mfn, PAGE_ORDER_4K, false);
++            rc = p2m_remove_page(d, gpfn, prev_mfn, PAGE_ORDER_4K);
+         else if ( !mfn_eq(mfn, prev_mfn) )
+             /* Normal domain memory is freed, to avoid leaking memory. */
+             rc = guest_remove_page(d, gfn_x(gpfn));
+@@ -2531,7 +2530,7 @@ int xenmem_add_to_physmap_one(
+ 
+     /* Unmap from old location, if any. */
+     if ( !rc && old_gpfn != INVALID_M2P_ENTRY && !gfn_eq(_gfn(old_gpfn), gpfn) )
+-        rc = p2m_remove_page(d, _gfn(old_gpfn), mfn, PAGE_ORDER_4K, false);
++        rc = p2m_remove_page(d, _gfn(old_gpfn), mfn, PAGE_ORDER_4K);
+ 
+     /* Map at new location. */
+     if ( !rc )
+diff --git a/xen/arch/x86/mm/physmap.c b/xen/arch/x86/mm/physmap.c
+index ddca0d847a..2d267b42f7 100644
+--- a/xen/arch/x86/mm/physmap.c
++++ b/xen/arch/x86/mm/physmap.c
+@@ -67,14 +67,13 @@ guest_physmap_add_page(struct domain *d, gfn_t gfn, mfn_t mfn,
+ 
+ int
+ guest_physmap_remove_page(struct domain *d, gfn_t gfn,
+-                          mfn_t mfn, unsigned int page_order,
+-                          bool skip_map_cache_inv)
++                          mfn_t mfn, unsigned int page_order)
+ {
+     /* IOMMU for PV guests is handled in get_page_type() and put_page(). */
+     if ( !paging_mode_translate(d) )
+         return 0;
+ 
+-    return p2m_remove_page(d, gfn, mfn, page_order, skip_map_cache_inv);
++    return p2m_remove_page(d, gfn, mfn, page_order);
+ }
+ 
+ int set_identity_p2m_entry(struct domain *d, unsigned long gfn,
+diff --git a/xen/common/grant_table.c b/xen/common/grant_table.c
+index dcd4f63f1b..b896f9af0e 100644
+--- a/xen/common/grant_table.c
++++ b/xen/common/grant_table.c
+@@ -2295,7 +2295,7 @@ gnttab_transfer(
+             goto copyback;
+         }
+ 
+-        rc = guest_physmap_remove_page(d, _gfn(gop.mfn), mfn, 0, false);
++        rc = guest_physmap_remove_page(d, _gfn(gop.mfn), mfn, 0);
+         gnttab_flush_tlb(d);
+         if ( rc )
+         {
+diff --git a/xen/common/memory.c b/xen/common/memory.c
+index 2c9e8775ba..9db9d44e25 100644
+--- a/xen/common/memory.c
++++ b/xen/common/memory.c
+@@ -344,7 +344,7 @@ int guest_remove_page(struct domain *d, unsigned long gmfn)
+             goto obtain_page;
+         }
+ 
+-        rc = guest_physmap_remove_page(d, _gfn(gmfn), mfn, 0, false);
++        rc = guest_physmap_remove_page(d, _gfn(gmfn), mfn, 0);
+         if ( rc )
+             goto out_put_gfn;
+ 
+@@ -417,7 +417,7 @@ int guest_remove_page(struct domain *d, unsigned long gmfn)
+     *dont_flush_p = false;
+ #endif
+ 
+-    rc = guest_physmap_remove_page(d, _gfn(gmfn), mfn, 0, false);
++    rc = guest_physmap_remove_page(d, _gfn(gmfn), mfn, 0);
+ 
+ #ifdef CONFIG_HAS_PASSTHROUGH
+     *dont_flush_p = dont_flush;
+@@ -744,7 +744,7 @@ static long memory_exchange(XEN_GUEST_HANDLE_PARAM(xen_memory_exchange_t) arg)
+             gfn = mfn_to_gfn(d, mfn);
+             /* Pages were unshared above */
+             BUG_ON(SHARED_M2P(gfn_x(gfn)));
+-            if ( guest_physmap_remove_page(d, gfn, mfn, 0, false) )
++            if ( guest_physmap_remove_page(d, gfn, mfn, 0) )
+                 domain_crash(d);
+             free_domheap_page(page);
+         }
+@@ -1638,8 +1638,7 @@ long do_memory_op(unsigned long cmd, XEN_GUEST_HANDLE_PARAM(void) arg)
+         if ( page )
+         {
+             rc = guest_physmap_remove_page(d, _gfn(xrfp.gpfn),
+-                                           page_to_mfn(page), 0,
+-                                           false);
++                                           page_to_mfn(page), 0);
+             put_page(page);
+         }
+         else
+diff --git a/xen/drivers/passthrough/arm/iommu_helpers.c b/xen/drivers/passthrough/arm/iommu_helpers.c
+index 98634ec93a..5cb1987481 100644
+--- a/xen/drivers/passthrough/arm/iommu_helpers.c
++++ b/xen/drivers/passthrough/arm/iommu_helpers.c
+@@ -74,7 +74,7 @@ int __must_check arm_iommu_unmap_page(struct domain *d, dfn_t dfn,
+         return -EINVAL;
+ 
+     return guest_physmap_remove_page(d, _gfn(dfn_x(dfn)), _mfn(dfn_x(dfn)),
+-                                     order, false);
++                                     order);
+ }
+ 
+ /*
+diff --git a/xen/include/xen/p2m-common.h b/xen/include/xen/p2m-common.h
+index d046c147a0..a322e738ef 100644
+--- a/xen/include/xen/p2m-common.h
++++ b/xen/include/xen/p2m-common.h
+@@ -10,7 +10,7 @@ int set_foreign_p2m_entry(struct domain *d, const struct domain *fd,
+ /* Remove a page from a domain's p2m table */
+ int __must_check
+ guest_physmap_remove_page(struct domain *d, gfn_t gfn, mfn_t mfn,
+-                          unsigned int page_order, bool skip_mc_inv);
++                          unsigned int page_order);
+ 
+ /* Map MMIO regions in the p2m: start_gfn and nr describe the range in
+  *  * the guest physical address space to map, starting from the machine
+-- 
+2.17.1
+

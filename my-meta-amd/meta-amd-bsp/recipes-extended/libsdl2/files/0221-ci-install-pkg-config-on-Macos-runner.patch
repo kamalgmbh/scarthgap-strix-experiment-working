@@ -1,0 +1,27 @@
+From 817141c162377e590f2d2e16b3b82dbdd7f71743 Mon Sep 17 00:00:00 2001
+From: Anonymous Maarten <anonymous.maarten@gmail.com>
+Date: Thu, 16 Feb 2023 20:56:51 +0100
+Subject: [PATCH 221/458] ci: install pkg-config on Macos runner
+
+(cherry picked from commit 86f0c694653eb1f1e91213c7faf3080a96c6375b)
+---
+ .github/workflows/main.yml | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/.github/workflows/main.yml b/.github/workflows/main.yml
+index b09ae9447..e7b737c5b 100644
+--- a/.github/workflows/main.yml
++++ b/.github/workflows/main.yml
+@@ -59,7 +59,8 @@ jobs:
+       if: runner.os == 'macOS'
+       run: |
+         brew install \
+-          ninja
++          ninja \
++          pkg-config
+     - uses: actions/checkout@v3
+     - name: Check that versioning is consistent
+       # We only need to run this once: arbitrarily use the Linux/CMake build
+-- 
+2.17.1
+

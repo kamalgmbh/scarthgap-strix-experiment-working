@@ -1,0 +1,74 @@
+From 25b55688e1f20ebb1bb15d0e82079e91cd787e5b Mon Sep 17 00:00:00 2001
+From: Anthony PERARD <anthony.perard@citrix.com>
+Date: Thu, 1 Dec 2022 16:14:59 +0100
+Subject: [PATCH 004/221] tools/include: fix clean and rework COPYING for
+ installed Xen public header
+
+Use actual include directory used to install the public header in
+COPYING file.
+
+Also, move the input file out of "tools/include/xen/" because that
+directory is removed on `make clean`.
+
+We can't used ./configure because $includedir contain another
+variable, so the change is done in Makefile.
+
+Fixes: 4ea75e9a9058 ("Rework COPYING installed in /usr/include/xen/, due to several licences")
+Signed-off-by: Anthony PERARD <anthony.perard@citrix.com>
+Reviewed-by: Jan Beulich <jbeulich@suse.com>
+---
+ tools/include/.gitignore                      | 1 +
+ tools/include/Makefile                        | 1 +
+ tools/include/{xen/COPYING => xen.COPYING.in} | 2 +-
+ tools/include/xen/.gitignore                  | 2 --
+ 4 files changed, 3 insertions(+), 3 deletions(-)
+ create mode 100644 tools/include/.gitignore
+ rename tools/include/{xen/COPYING => xen.COPYING.in} (93%)
+ delete mode 100644 tools/include/xen/.gitignore
+
+diff --git a/tools/include/.gitignore b/tools/include/.gitignore
+new file mode 100644
+index 0000000000..be14e3632d
+--- /dev/null
++++ b/tools/include/.gitignore
+@@ -0,0 +1 @@
++/xen/
+diff --git a/tools/include/Makefile b/tools/include/Makefile
+index f838171e8c..d69aeb54bf 100644
+--- a/tools/include/Makefile
++++ b/tools/include/Makefile
+@@ -24,6 +24,7 @@ xen-foreign:
+ xen-dir:
+ 	mkdir -p xen/libelf acpi
+ 	find xen/ acpi/ -type l -exec rm '{}' +
++	sed -e 's#@includedir@#$(includedir)/xen#g' xen.COPYING.in > xen/COPYING
+ 	ln -s $(XEN_ROOT)/xen/include/public/*.h xen/
+ 	ln -s $(XEN_ROOT)/xen/include/public/*/ xen/
+ 	ln -s ../xen-sys/$(XEN_OS) xen/sys
+diff --git a/tools/include/xen/COPYING b/tools/include/xen.COPYING.in
+similarity index 93%
+rename from tools/include/xen/COPYING
+rename to tools/include/xen.COPYING.in
+index fe3f9b7557..25513fe529 100644
+--- a/tools/include/xen/COPYING
++++ b/tools/include/xen.COPYING.in
+@@ -1,7 +1,7 @@
+ XEN NOTICE
+ ==========
+ 
+-This licence applies to all files within this subdirectory ("/usr/include/xen")
++This licence applies to all files within this subdirectory ("@includedir@")
+ with the exception of "sys/" which may include headers under different
+ licences.
+ 
+diff --git a/tools/include/xen/.gitignore b/tools/include/xen/.gitignore
+deleted file mode 100644
+index 0628b2daf1..0000000000
+--- a/tools/include/xen/.gitignore
++++ /dev/null
+@@ -1,2 +0,0 @@
+-*
+-!COPYING
+-- 
+2.17.1
+

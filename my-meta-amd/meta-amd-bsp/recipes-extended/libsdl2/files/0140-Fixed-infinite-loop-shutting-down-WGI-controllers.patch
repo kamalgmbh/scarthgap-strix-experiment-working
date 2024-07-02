@@ -1,0 +1,30 @@
+From ebc2fb411f178c806119b57ae3c18553d7391a13 Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Sun, 8 Jan 2023 09:32:31 -0800
+Subject: [PATCH 140/458] Fixed infinite loop shutting down WGI controllers
+
+We are guaranteed that the lock will be held during shutdown, so if we are in InvokeRemoved(), it's because we're shutting down controllers and need to remove them from our internal list.
+
+Fixes https://github.com/libsdl-org/SDL/issues/7016
+
+(cherry picked from commit ac99db9fc8d528a79abb98a5641e0fd94aa20a9e)
+---
+ src/joystick/windows/SDL_windows_gaming_input.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/joystick/windows/SDL_windows_gaming_input.c b/src/joystick/windows/SDL_windows_gaming_input.c
+index 02ec81fef..e91fd859e 100644
+--- a/src/joystick/windows/SDL_windows_gaming_input.c
++++ b/src/joystick/windows/SDL_windows_gaming_input.c
+@@ -414,7 +414,7 @@ static HRESULT STDMETHODCALLTYPE IEventHandler_CRawGameControllerVtbl_InvokeRemo
+     SDL_LockJoysticks();
+ 
+     /* Can we get delayed calls to InvokeRemoved() after WGI_JoystickQuit()? */
+-    if (SDL_JoysticksQuitting() || !SDL_JoysticksInitialized()) {
++    if (!SDL_JoysticksInitialized()) {
+         SDL_UnlockJoysticks();
+         return S_OK;
+     }
+-- 
+2.17.1
+

@@ -1,0 +1,74 @@
+From 7d81b255851f528d07e24bf14893f6baf2391dbf Mon Sep 17 00:00:00 2001
+From: Yiwei Zhang <zzyiwei@chromium.org>
+Date: Wed, 17 Jan 2024 01:21:56 -0800
+Subject: [PATCH 02/16] vkr: lock device tracked object list
+
+This is yet another missed piece when tearing down the big ctx lock. We
+have to protect the device level object list from device object creation
+and destroy from multiple rings.
+
+Signed-off-by: Yiwei Zhang <zzyiwei@chromium.org>
+Part-of: <https://gitlab.freedesktop.org/virgl/virglrenderer/-/merge_requests/1332>
+---
+ src/venus/vkr_device.c | 3 +++
+ src/venus/vkr_device.h | 7 +++++++
+ 2 files changed, 10 insertions(+)
+
+diff --git a/src/venus/vkr_device.c b/src/venus/vkr_device.c
+index 36478fa7..cd62fe8f 100644
+--- a/src/venus/vkr_device.c
++++ b/src/venus/vkr_device.c
+@@ -186,6 +186,7 @@ vkr_dispatch_vkCreateDevice(struct vn_dispatch_context *dispatch,
+    mtx_init(&dev->free_sync_mutex, mtx_plain);
+    list_inithead(&dev->free_syncs);
+ 
++   mtx_init(&dev->object_mutex, mtx_plain);
+    list_inithead(&dev->objects);
+ 
+    list_add(&dev->base.track_head, &physical_dev->devices);
+@@ -314,6 +315,8 @@ vkr_device_destroy(struct vkr_context *ctx, struct vkr_device *dev, bool destroy
+          vkr_log("vkDeviceWaitIdle(%p) failed(%d)", dev, (int32_t)result);
+    }
+ 
++   mtx_destroy(&dev->object_mutex);
++
+    if (!list_is_empty(&dev->objects)) {
+       list_for_each_entry_safe (struct vkr_object, obj, &dev->objects, track_head)
+          vkr_device_object_destroy(ctx, dev, obj);
+diff --git a/src/venus/vkr_device.h b/src/venus/vkr_device.h
+index 64f08aa6..189df6f5 100644
+--- a/src/venus/vkr_device.h
++++ b/src/venus/vkr_device.h
+@@ -24,6 +24,7 @@ struct vkr_device {
+    mtx_t free_sync_mutex;
+    struct list_head free_syncs;
+ 
++   mtx_t object_mutex;
+    struct list_head objects;
+ };
+ VKR_DEFINE_OBJECT_CAST(device, VK_OBJECT_TYPE_DEVICE, VkDevice)
+@@ -60,7 +61,10 @@ vkr_device_add_object(struct vkr_context *ctx,
+    vkr_context_add_object(ctx, obj);
+ 
+    assert(vkr_device_should_track_object(obj));
++
++   mtx_lock(&dev->object_mutex);
+    list_add(&obj->track_head, &dev->objects);
++   mtx_unlock(&dev->object_mutex);
+ }
+ 
+ static inline void
+@@ -69,7 +73,10 @@ vkr_device_remove_object(struct vkr_context *ctx,
+                          struct vkr_object *obj)
+ {
+    assert(vkr_device_should_track_object(obj));
++
++   mtx_lock(&dev->object_mutex);
+    list_del(&obj->track_head);
++   mtx_unlock(&dev->object_mutex);
+ 
+    /* this frees obj */
+    vkr_context_remove_object(ctx, obj);
+-- 
+2.17.1
+

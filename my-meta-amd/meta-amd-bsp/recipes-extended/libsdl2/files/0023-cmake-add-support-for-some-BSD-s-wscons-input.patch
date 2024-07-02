@@ -1,0 +1,59 @@
+From a2611edcf31b9c1c6726f449ee8c65be1a87a553 Mon Sep 17 00:00:00 2001
+From: Anonymous Maarten <anonymous.maarten@gmail.com>
+Date: Fri, 25 Nov 2022 02:39:50 +0100
+Subject: [PATCH 023/458] cmake: add support for some BSD's wscons input
+
+---
+ CMakeLists.txt             | 16 ++++++++++++++++
+ include/SDL_config.h.cmake |  1 +
+ 2 files changed, 17 insertions(+)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 0bd63c050..e363270ef 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -1485,6 +1485,18 @@ elseif(UNIX AND NOT APPLE AND NOT RISCOS AND NOT HAIKU)
+               ioctl(0, KDENABIO, 1);
+               return 0;
+           }" HAVE_INPUT_KBIO)
++    elseif(OPENBSD OR NETBSD)
++      check_c_source_compiles("
++          #include <sys/time.h>
++          #include <dev/wscons/wsconsio.h>
++          #include <dev/wscons/wsksymdef.h>
++          #include <dev/wscons/wsksymvar.h>
++          #include <sys/ioctl.h>
++          int main(int argc, char **argv) {
++              struct wskbd_map_data data;
++              ioctl(0, WSKBDIO_GETMAP, &data);
++              return 0;
++          }" HAVE_INPUT_WSCONS)
+     endif()
+ 
+     if(HAVE_INPUT_EVENTS)
+@@ -1506,6 +1518,10 @@ elseif(UNIX AND NOT APPLE AND NOT RISCOS AND NOT HAIKU)
+       set(SDL_INPUT_FBSDKBIO 1)
+     endif()
+ 
++    if(HAVE_INPUT_WSCONS)
++      set(SDL_INPUT_WSCONS 1)
++    endif()
++
+     check_include_file("libudev.h" HAVE_LIBUDEV_H)
+     check_include_file("sys/inotify.h" HAVE_SYS_INOTIFY_H)
+     check_symbol_exists(inotify_init "sys/inotify.h" HAVE_INOTIFY_INIT)
+diff --git a/include/SDL_config.h.cmake b/include/SDL_config.h.cmake
+index 8fcb63d18..9596fb22b 100644
+--- a/include/SDL_config.h.cmake
++++ b/include/SDL_config.h.cmake
+@@ -332,6 +332,7 @@
+ #cmakedefine SDL_INPUT_LINUXEV @SDL_INPUT_LINUXEV@
+ #cmakedefine SDL_INPUT_LINUXKD @SDL_INPUT_LINUXKD@
+ #cmakedefine SDL_INPUT_FBSDKBIO @SDL_INPUT_FBSDKBIO@
++#cmakedefine SDL_INPUT_WSCONS @SDL_INPUT_WSCONS@
+ #cmakedefine SDL_JOYSTICK_ANDROID @SDL_JOYSTICK_ANDROID@
+ #cmakedefine SDL_JOYSTICK_HAIKU @SDL_JOYSTICK_HAIKU@
+ #cmakedefine SDL_JOYSTICK_WGI @SDL_JOYSTICK_WGI@
+-- 
+2.17.1
+

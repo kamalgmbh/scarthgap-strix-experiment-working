@@ -1,0 +1,68 @@
+From 44975d40efcef4af1ff764820b06af7e57d5bc8e Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Tue, 22 Nov 2022 09:18:05 -0800
+Subject: [PATCH 002/458] Update SDL info and Xcode marketing version with
+ version update scripts
+
+---
+ build-scripts/test-versioning.sh | 21 +++++++++++++++++++++
+ build-scripts/update-version.sh  |  4 ++++
+ 2 files changed, 25 insertions(+)
+
+diff --git a/build-scripts/test-versioning.sh b/build-scripts/test-versioning.sh
+index 7d71c9e15..ed7771516 100755
+--- a/build-scripts/test-versioning.sh
++++ b/build-scripts/test-versioning.sh
+@@ -4,6 +4,8 @@
+ 
+ set -eu
+ 
++cd `dirname $0`/..
++
+ ref_major=$(sed -ne 's/^#define SDL_MAJOR_VERSION  *//p' include/SDL_version.h)
+ ref_minor=$(sed -ne 's/^#define SDL_MINOR_VERSION  *//p' include/SDL_version.h)
+ ref_micro=$(sed -ne 's/^#define SDL_PATCHLEVEL  *//p' include/SDL_version.h)
+@@ -139,6 +141,25 @@ else
+     not_ok "Info-Framework.plist CFBundleVersion $version disagrees with SDL_version.h $ref_version"
+ fi
+ 
++version=$(sed -Ene 's/Title SDL (.*)/\1/p' Xcode/SDL/pkg-support/SDL.info)
++
++if [ "$ref_version" = "$version" ]; then
++    ok "SDL.info Title $version"
++else
++    not_ok "SDL.info Title $version disagrees with SDL_version.h $ref_version"
++fi
++
++marketing=$(sed -Ene 's/.*MARKETING_VERSION = (.*);/\1/p' Xcode/SDL/SDL.xcodeproj/project.pbxproj)
++
++ref="$ref_version
++$ref_version"
++
++if [ "$ref" = "$marketing" ]; then
++    ok "project.pbxproj MARKETING_VERSION is consistent"
++else
++    not_ok "project.pbxproj MARKETING_VERSION is inconsistent, expected $ref, got $marketing"
++fi
++
+ # For simplicity this assumes we'll never break ABI before SDL 3.
+ dylib_compat=$(sed -Ene 's/.*DYLIB_COMPATIBILITY_VERSION = (.*);$/\1/p' Xcode/SDL/SDL.xcodeproj/project.pbxproj)
+ 
+diff --git a/build-scripts/update-version.sh b/build-scripts/update-version.sh
+index 82174becf..9b25c2afc 100755
+--- a/build-scripts/update-version.sh
++++ b/build-scripts/update-version.sh
+@@ -30,6 +30,10 @@ echo "Updating version to '$NEWVERSION' ..."
+ # !!! FIXME: This first one is a kinda scary search/replace that might fail later if another X.Y.Z version is added to the file.
+ perl -w -pi -e 's/(\<string\>)\d+\.\d+\.\d+/${1}'$NEWVERSION'/;' Xcode/SDL/Info-Framework.plist
+ 
++perl -w -pi -e 's/(Title SDL )\d+\.\d+\.\d+/${1}'$NEWVERSION'/;' Xcode/SDL/pkg-support/SDL.info
++
++perl -w -pi -e 's/(MARKETING_VERSION\s*=\s*)\d+\.\d+\.\d+/${1}'$NEWVERSION'/;' Xcode/SDL/SDL.xcodeproj/project.pbxproj
++
+ DYVER=`expr $MINOR \* 100 + 1`
+ perl -w -pi -e 's/(DYLIB_CURRENT_VERSION\s*=\s*)\d+\.\d+\.\d+/${1}'$DYVER'.0.0/;' Xcode/SDL/SDL.xcodeproj/project.pbxproj
+ 
+-- 
+2.17.1
+

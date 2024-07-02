@@ -1,0 +1,35 @@
+From 4d3fab71395a3b40329570c793023c7333da95b6 Mon Sep 17 00:00:00 2001
+From: Lei Huang <Lei.Huang@amd.com>
+Date: Thu, 7 Dec 2023 13:45:59 +0800
+Subject: [PATCH 453/458] bug fix for crash when destroy windows
+
+[Why]
+egl_data is not a SDL_Surface
+
+[How]
+Need free by SDL_free
+
+Jira ID: SWDEV-436384
+
+Change-Id: I5931e7f891291f979509c318a6b242f94190f4df
+---
+ src/video/wayland/SDL_waylandwindow.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/video/wayland/SDL_waylandwindow.c b/src/video/wayland/SDL_waylandwindow.c
+index df55ad278..8420ec724 100644
+--- a/src/video/wayland/SDL_waylandwindow.c
++++ b/src/video/wayland/SDL_waylandwindow.c
+@@ -2453,7 +2453,8 @@ void Wayland_DestroyWindow(_THIS, SDL_Window *window)
+         WAYLAND_wl_display_flush(data->display);
+     }
+     egl_data = SDL_SetWindowData(window, SDL_WINDOWEGLSURFACEDATA, NULL);
+-    SDL_FreeSurface(egl_data);
++    if (egl_data)
++        SDL_free(egl_data);
+     window->driverdata = NULL;
+ }
+ 
+-- 
+2.17.1
+

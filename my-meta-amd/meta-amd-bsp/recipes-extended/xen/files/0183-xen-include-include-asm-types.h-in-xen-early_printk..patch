@@ -1,0 +1,31 @@
+From 38525f6f73f906699f77a1af86c16b4eaad48e04 Mon Sep 17 00:00:00 2001
+From: Oleksii Kurochko <oleksii.kurochko@gmail.com>
+Date: Mon, 9 Jan 2023 14:29:49 +0100
+Subject: [PATCH 183/221] xen/include: include <asm/types.h> in
+ <xen/early_printk.h>
+
+<asm/types.h> should be included because second argument of
+early_puts has type 'size_t' which is defined in <asm/types.h>
+
+Signed-off-by: Oleksii Kurochko <oleksii.kurochko@gmail.com>
+Acked-by: Julien Grall <jgrall@amazon.com>
+---
+ xen/include/xen/early_printk.h | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/xen/include/xen/early_printk.h b/xen/include/xen/early_printk.h
+index 0f76c3a74f..abb34687da 100644
+--- a/xen/include/xen/early_printk.h
++++ b/xen/include/xen/early_printk.h
+@@ -4,6 +4,8 @@
+ #ifndef __XEN_EARLY_PRINTK_H__
+ #define __XEN_EARLY_PRINTK_H__
+ 
++#include <asm/types.h>
++
+ #ifdef CONFIG_EARLY_PRINTK
+ void early_puts(const char *s, size_t nr);
+ #else
+-- 
+2.17.1
+

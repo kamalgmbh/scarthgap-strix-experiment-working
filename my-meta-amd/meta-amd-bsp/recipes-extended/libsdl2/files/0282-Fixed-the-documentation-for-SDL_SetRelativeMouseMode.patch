@@ -1,0 +1,35 @@
+From d9c07d9ef7d1a5b367e1a3dafce6ce009bbd395a Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Wed, 8 Mar 2023 22:32:54 -0800
+Subject: [PATCH 282/458] Fixed the documentation for
+ SDL_SetRelativeMouseMode()
+
+(cherry picked from commit fb0c3197e0e4696551822815bdce0e187a0b06fc)
+---
+ include/SDL_mouse.h | 10 +++-------
+ 1 file changed, 3 insertions(+), 7 deletions(-)
+
+diff --git a/include/SDL_mouse.h b/include/SDL_mouse.h
+index db3cf853a..aa0757573 100644
+--- a/include/SDL_mouse.h
++++ b/include/SDL_mouse.h
+@@ -198,13 +198,9 @@ extern DECLSPEC int SDLCALL SDL_WarpMouseGlobal(int x, int y);
+ /**
+  * Set relative mouse mode.
+  *
+- * While the mouse is in relative mode, the cursor is hidden, and the driver
+- * will try to report continuous motion in the current window. Only relative
+- * motion events will be delivered, the mouse position will not change.
+- *
+- * Note that this function will not be able to provide continuous relative
+- * motion when used over Microsoft Remote Desktop, instead motion is limited
+- * to the bounds of the screen.
++ * While the mouse is in relative mode, the cursor is hidden, the mouse
++ * position is constrained to the window, and SDL will report continuous
++ * relative mouse motion even if the mouse is at the edge of the window.
+  *
+  * This function will flush any pending mouse motion.
+  *
+-- 
+2.17.1
+

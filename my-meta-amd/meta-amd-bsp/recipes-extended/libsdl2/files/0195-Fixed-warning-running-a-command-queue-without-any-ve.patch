@@ -1,0 +1,27 @@
+From 3fa5a2f794e7e7814c0e19b494af9e32abd75ea5 Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Mon, 6 Feb 2023 11:22:00 -0800
+Subject: [PATCH 195/458] Fixed warning running a command queue without any
+ vertex operations
+
+(cherry picked from commit f8b41919dac0fb95553f910d02faafc6d7205692)
+---
+ src/render/direct3d/SDL_render_d3d.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/render/direct3d/SDL_render_d3d.c b/src/render/direct3d/SDL_render_d3d.c
+index 75ca3b45a..e995a38f6 100644
+--- a/src/render/direct3d/SDL_render_d3d.c
++++ b/src/render/direct3d/SDL_render_d3d.c
+@@ -1108,7 +1108,7 @@ static int D3D_RunCommandQueue(SDL_Renderer *renderer, SDL_RenderCommand *cmd, v
+         return -1;
+     }
+ 
+-    if (vertices) {
++    if (vertsize > 0) {
+         /* upload the new VBO data for this set of commands. */
+         vbo = data->vertexBuffers[vboidx];
+         if (data->vertexBufferSize[vboidx] < vertsize) {
+-- 
+2.17.1
+

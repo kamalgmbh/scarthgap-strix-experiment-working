@@ -1,0 +1,117 @@
+From 1069c8931d74b6534f725a068030d39a66c60a2c Mon Sep 17 00:00:00 2001
+From: "Ryan C. Gordon" <icculus@icculus.org>
+Date: Tue, 24 Jan 2023 22:13:25 -0500
+Subject: [PATCH 176/458] wikiheaders: Add a `\threadsafety` tag to document
+ threading details.
+
+Reference Issue #7140.
+
+(cherry picked from commit 01cba48d18f9002e5aae66d4b009f5f0195dc8d7)
+---
+ build-scripts/wikiheaders.pl | 38 ++++++++++++++++++++++++++++++++++++
+ include/SDL_render.h         |  5 +++++
+ 2 files changed, 43 insertions(+)
+
+diff --git a/build-scripts/wikiheaders.pl b/build-scripts/wikiheaders.pl
+index 5aeeaf0d3..79214c2ca 100755
+--- a/build-scripts/wikiheaders.pl
++++ b/build-scripts/wikiheaders.pl
+@@ -415,6 +415,7 @@ my @standard_wiki_sections = (
+     'Function Parameters',
+     'Return Value',
+     'Remarks',
++    'Thread Safety',
+     'Version',
+     'Code Examples',
+     'Related Functions'
+@@ -729,6 +730,7 @@ if ($copy_direction == 1) {  # --copy-to-headers
+         my $remarks = %$sectionsref{'Remarks'};
+         my $params = %$sectionsref{'Function Parameters'};
+         my $returns = %$sectionsref{'Return Value'};
++        my $threadsafety = %$sectionsref{'Thread Safety'};
+         my $version = %$sectionsref{'Version'};
+         my $related = %$sectionsref{'Related Functions'};
+         my $deprecated = %$sectionsref{'Deprecated'};
+@@ -821,6 +823,21 @@ if ($copy_direction == 1) {  # --copy-to-headers
+             }
+         }
+ 
++        if (defined $threadsafety) {
++            # !!! FIXME: lots of code duplication in all of these.
++            $str .= "\n" if $addblank; $addblank = 1;
++            my $v = dewikify($wikitype, $threadsafety);
++            my $whitespacelen = length("\\threadsafety") + 1;
++            my $whitespace = ' ' x $whitespacelen;
++            $v = wordwrap($v, -$whitespacelen);
++            my @desclines = split /\n/, $v;
++            my $firstline = shift @desclines;
++            $str .= "\\threadsafety $firstline\n";
++            foreach (@desclines) {
++                $str .= "${whitespace}$_\n";
++            }
++        }
++
+         if (defined $version) {
+             # !!! FIXME: lots of code duplication in all of these.
+             $str .= "\n" if $addblank; $addblank = 1;
+@@ -1047,6 +1064,21 @@ if ($copy_direction == 1) {  # --copy-to-headers
+                 }
+                 $desc =~ s/[\s\n]+\Z//ms;
+                 $sections{'Version'} = wordwrap(wikify($wikitype, $desc)) . "\n";
++            } elsif ($l =~ /\A\\threadsafety\s+(.*)\Z/) {
++                my $desc = $1;
++                while (@doxygenlines) {
++                    my $subline = $doxygenlines[0];
++                    $subline =~ s/\A\s*//;
++                    last if $subline =~ /\A\\/;  # some sort of doxygen command, assume we're past this thing.
++                    shift @doxygenlines;  # dump this line from the array; we're using it.
++                    if ($subline eq '') {  # empty line, make sure it keeps the newline char.
++                        $desc .= "\n";
++                    } else {
++                        $desc .= " $subline";
++                    }
++                }
++                $desc =~ s/[\s\n]+\Z//ms;
++                $sections{'Thread Safety'} = wordwrap(wikify($wikitype, $desc)) . "\n";
+             } elsif ($l =~ /\A\\sa\s+(.*)\Z/) {
+                 my $sa = $1;
+                 $sa =~ s/\(\)\Z//;  # Convert "SDL_Func()" to "SDL_Func"
+@@ -1239,6 +1271,7 @@ if ($copy_direction == 1) {  # --copy-to-headers
+         my $params = %$sectionsref{'Function Parameters'};
+         my $returns = %$sectionsref{'Return Value'};
+         my $version = %$sectionsref{'Version'};
++        my $threadsafety = %$sectionsref{'Thread Safety'};
+         my $related = %$sectionsref{'Related Functions'};
+         my $examples = %$sectionsref{'Code Examples'};
+         my $deprecated = %$sectionsref{'Deprecated'};
+@@ -1346,6 +1379,11 @@ if ($copy_direction == 1) {  # --copy-to-headers
+             $dewikify_manpage_code_indent = 1;
+         }
+ 
++        if (defined $threadsafety) {
++            $str .= ".SH THREAD SAFETY\n";
++            $str .= dewikify($wikitype, $threadsafety) . "\n";
++        }
++
+         if (defined $version) {
+             $str .= ".SH AVAILABILITY\n";
+             $str .= dewikify($wikitype, $version) . "\n";
+diff --git a/include/SDL_render.h b/include/SDL_render.h
+index c72950142..2ef0689fb 100644
+--- a/include/SDL_render.h
++++ b/include/SDL_render.h
+@@ -1733,6 +1733,11 @@ extern DECLSPEC int SDLCALL SDL_RenderReadPixels(SDL_Renderer * renderer,
+  *
+  * \since This function is available since SDL 2.0.0.
+  *
++ * \threadsafety You may only call this function on the main thread. If
++ *               this happens to work on a background thread on any given
++ *               platform or backend, it's purely by luck and you should
++ *               not rely on it to work next time.
++ *
+  * \sa SDL_RenderClear
+  * \sa SDL_RenderDrawLine
+  * \sa SDL_RenderDrawLines
+-- 
+2.17.1
+

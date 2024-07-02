@@ -1,0 +1,38 @@
+From e8ae155585150139440dc93c6d612eb900680cfe Mon Sep 17 00:00:00 2001
+From: Frank Praznik <frank.praznik@gmail.com>
+Date: Thu, 12 Jan 2023 15:36:35 -0500
+Subject: [PATCH 151/458] wayland: Perform a round trip when maximizing and
+ restoring windows
+
+Perform a round trip when maximizing and restoring windows so the changes have already taken effect when the associated functions return.
+
+(cherry picked from commit 50f2eb7d41fbba7c82630e55ead4ecf9c32f4c69)
+---
+ src/video/wayland/SDL_waylandwindow.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/video/wayland/SDL_waylandwindow.c b/src/video/wayland/SDL_waylandwindow.c
+index c9f1d7a65..0307378b6 100644
+--- a/src/video/wayland/SDL_waylandwindow.c
++++ b/src/video/wayland/SDL_waylandwindow.c
+@@ -1781,7 +1781,7 @@ void Wayland_RestoreWindow(_THIS, SDL_Window *window)
+             xdg_toplevel_unset_maximized(wind->shell_surface.xdg.roleobj.toplevel);
+         }
+ 
+-    WAYLAND_wl_display_flush(viddata->display);
++    WAYLAND_wl_display_roundtrip(viddata->display);
+ }
+ 
+ void Wayland_SetWindowBordered(_THIS, SDL_Window *window, SDL_bool bordered)
+@@ -1860,7 +1860,7 @@ void Wayland_MaximizeWindow(_THIS, SDL_Window *window)
+         xdg_toplevel_set_maximized(wind->shell_surface.xdg.roleobj.toplevel);
+     }
+ 
+-    WAYLAND_wl_display_flush(viddata->display);
++    WAYLAND_wl_display_roundtrip(viddata->display);
+ }
+ 
+ void Wayland_MinimizeWindow(_THIS, SDL_Window *window)
+-- 
+2.17.1
+

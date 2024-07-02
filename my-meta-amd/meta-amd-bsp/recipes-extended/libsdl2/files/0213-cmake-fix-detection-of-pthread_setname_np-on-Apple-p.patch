@@ -1,0 +1,29 @@
+From 1194f52a5c7a9f3170a6d9456d93c1ef72978500 Mon Sep 17 00:00:00 2001
+From: Ozkan Sezer <sezeroz@gmail.com>
+Date: Mon, 13 Feb 2023 11:55:40 +0300
+Subject: [PATCH 213/458] cmake: fix detection of pthread_setname_np() on Apple
+ platforms.
+
+---
+ cmake/sdlchecks.cmake | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/cmake/sdlchecks.cmake b/cmake/sdlchecks.cmake
+index 76f619c98..830fefcb1 100644
+--- a/cmake/sdlchecks.cmake
++++ b/cmake/sdlchecks.cmake
+@@ -1019,7 +1019,11 @@ macro(CheckPTHREAD)
+         check_c_source_compiles("
+             #include <pthread.h>
+             int main(int argc, char **argv) {
++              #ifdef __APPLE__
++              pthread_setname_np(pthread_self());
++              #else
+               pthread_setname_np(pthread_self(), \"\");
++              #endif
+               return 0;
+             }" HAVE_PTHREAD_SETNAME_NP)
+         if (HAVE_PTHREAD_NP_H)
+-- 
+2.17.1
+

@@ -1,0 +1,25 @@
+From dc94cca8dd5d8996533499ca44409f918c84a3cd Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Sat, 3 Jun 2023 11:57:08 -0700
+Subject: [PATCH 416/458] Fixed typo in cherry-pick (thanks @HadesD!)
+
+---
+ src/joystick/hidapi/SDL_hidapi_xbox360.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/joystick/hidapi/SDL_hidapi_xbox360.c b/src/joystick/hidapi/SDL_hidapi_xbox360.c
+index 09d7ccb31..843819f37 100644
+--- a/src/joystick/hidapi/SDL_hidapi_xbox360.c
++++ b/src/joystick/hidapi/SDL_hidapi_xbox360.c
+@@ -84,7 +84,7 @@ static SDL_bool HIDAPI_DriverXbox360_IsSupportedDevice(SDL_HIDAPI_Device *device
+         /* This is the chatpad or other input interface, not the Xbox 360 interface */
+         return SDL_FALSE;
+     }
+-#def __MACOSX__
++#ifdef __MACOSX__
+     if (vendor_id == USB_VENDOR_MICROSOFT && product_id == USB_PRODUCT_XBOX360_WIRED_CONTROLLER && version == 1) {
+         /* This is the Steam Virtual Gamepad, which isn't supported by this driver */
+         return SDL_FALSE;
+-- 
+2.17.1
+

@@ -1,0 +1,461 @@
+From 92f72682e7b9926001f100e57f91f1981d3cabec Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Tue, 23 May 2023 08:44:49 -0700
+Subject: [PATCH 391/458] Document the Android SDK versions checked in Java
+ code
+
+(cherry picked from commit b48b1ce50042168c5b9b310fa495cb355903c241)
+---
+ .../app/HIDDeviceBLESteamController.java      |  4 +--
+ .../java/org/libsdl/app/HIDDeviceManager.java |  6 ++--
+ .../java/org/libsdl/app/HIDDeviceUSB.java     |  6 ++--
+ .../main/java/org/libsdl/app/SDLActivity.java | 32 ++++++++---------
+ .../java/org/libsdl/app/SDLAudioManager.java  | 34 +++++++++----------
+ .../org/libsdl/app/SDLControllerManager.java  |  8 ++---
+ .../main/java/org/libsdl/app/SDLSurface.java  |  4 +--
+ 7 files changed, 47 insertions(+), 47 deletions(-)
+
+diff --git a/android-project/app/src/main/java/org/libsdl/app/HIDDeviceBLESteamController.java b/android-project/app/src/main/java/org/libsdl/app/HIDDeviceBLESteamController.java
+index 65c5a4237..ee5521fd5 100644
+--- a/android-project/app/src/main/java/org/libsdl/app/HIDDeviceBLESteamController.java
++++ b/android-project/app/src/main/java/org/libsdl/app/HIDDeviceBLESteamController.java
+@@ -186,7 +186,7 @@ class HIDDeviceBLESteamController extends BluetoothGattCallback implements HIDDe
+     // Because on Chromebooks we show up as a dual-mode device, it will attempt to connect TRANSPORT_AUTO, which will use TRANSPORT_BREDR instead
+     // of TRANSPORT_LE.  Let's force ourselves to connect low energy.
+     private BluetoothGatt connectGatt(boolean managed) {
+-        if (Build.VERSION.SDK_INT >= 23) {
++        if (Build.VERSION.SDK_INT >= 23 /* Android 6.0 (M) */) {
+             try {
+                 return mDevice.connectGatt(mManager.getContext(), managed, this, TRANSPORT_LE);
+             } catch (Exception e) {
+@@ -429,7 +429,7 @@ class HIDDeviceBLESteamController extends BluetoothGattCallback implements HIDDe
+                     }
+                 });
+             }
+-        } 
++        }
+         else if (newState == 0) {
+             mIsConnected = false;
+         }
+diff --git a/android-project/app/src/main/java/org/libsdl/app/HIDDeviceManager.java b/android-project/app/src/main/java/org/libsdl/app/HIDDeviceManager.java
+index 2a60fb46d..6f7013b2f 100644
+--- a/android-project/app/src/main/java/org/libsdl/app/HIDDeviceManager.java
++++ b/android-project/app/src/main/java/org/libsdl/app/HIDDeviceManager.java
+@@ -357,13 +357,13 @@ public class HIDDeviceManager {
+     private void initializeBluetooth() {
+         Log.d(TAG, "Initializing Bluetooth");
+ 
+-        if (Build.VERSION.SDK_INT <= 30 &&
++        if (Build.VERSION.SDK_INT <= 30 /* Android 11.0 (R) */ &&
+             mContext.getPackageManager().checkPermission(android.Manifest.permission.BLUETOOTH, mContext.getPackageName()) != PackageManager.PERMISSION_GRANTED) {
+             Log.d(TAG, "Couldn't initialize Bluetooth, missing android.permission.BLUETOOTH");
+             return;
+         }
+ 
+-        if (!mContext.getPackageManager().hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE) || (Build.VERSION.SDK_INT < 18)) {
++        if (!mContext.getPackageManager().hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE) || (Build.VERSION.SDK_INT < 18 /* Android 4.3 (JELLY_BEAN_MR2) */)) {
+             Log.d(TAG, "Couldn't initialize Bluetooth, this version of Android does not support Bluetooth LE");
+             return;
+         }
+@@ -577,7 +577,7 @@ public class HIDDeviceManager {
+             try {
+                 final int FLAG_MUTABLE = 0x02000000; // PendingIntent.FLAG_MUTABLE, but don't require SDK 31
+                 int flags;
+-                if (Build.VERSION.SDK_INT >= 31) {
++                if (Build.VERSION.SDK_INT >= 31 /* Android 12.0 (S) */) {
+                     flags = FLAG_MUTABLE;
+                 } else {
+                     flags = 0;
+diff --git a/android-project/app/src/main/java/org/libsdl/app/HIDDeviceUSB.java b/android-project/app/src/main/java/org/libsdl/app/HIDDeviceUSB.java
+index d20fe80bc..bfe0cf954 100644
+--- a/android-project/app/src/main/java/org/libsdl/app/HIDDeviceUSB.java
++++ b/android-project/app/src/main/java/org/libsdl/app/HIDDeviceUSB.java
+@@ -52,7 +52,7 @@ class HIDDeviceUSB implements HIDDevice {
+     @Override
+     public String getSerialNumber() {
+         String result = null;
+-        if (Build.VERSION.SDK_INT >= 21) {
++        if (Build.VERSION.SDK_INT >= 21 /* Android 5.0 (LOLLIPOP) */) {
+             try {
+                 result = mDevice.getSerialNumber();
+             }
+@@ -74,7 +74,7 @@ class HIDDeviceUSB implements HIDDevice {
+     @Override
+     public String getManufacturerName() {
+         String result = null;
+-        if (Build.VERSION.SDK_INT >= 21) {
++        if (Build.VERSION.SDK_INT >= 21 /* Android 5.0 (LOLLIPOP) */) {
+             result = mDevice.getManufacturerName();
+         }
+         if (result == null) {
+@@ -86,7 +86,7 @@ class HIDDeviceUSB implements HIDDevice {
+     @Override
+     public String getProductName() {
+         String result = null;
+-        if (Build.VERSION.SDK_INT >= 21) {
++        if (Build.VERSION.SDK_INT >= 21 /* Android 5.0 (LOLLIPOP) */) {
+             result = mDevice.getProductName();
+         }
+         if (result == null) {
+diff --git a/android-project/app/src/main/java/org/libsdl/app/SDLActivity.java b/android-project/app/src/main/java/org/libsdl/app/SDLActivity.java
+index 24ba23b8c..d3f8a5fcc 100644
+--- a/android-project/app/src/main/java/org/libsdl/app/SDLActivity.java
++++ b/android-project/app/src/main/java/org/libsdl/app/SDLActivity.java
+@@ -170,7 +170,7 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
+ */
+ 
+     public static boolean mIsResumedCalled, mHasFocus;
+-    public static final boolean mHasMultiWindow = (Build.VERSION.SDK_INT >= 24);
++    public static final boolean mHasMultiWindow = (Build.VERSION.SDK_INT >= 24  /* Android 7.0 (N) */);
+ 
+     // Cursor types
+     // private static final int SDL_SYSTEM_CURSOR_NONE = -1;
+@@ -224,9 +224,9 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
+ 
+     protected static SDLGenericMotionListener_API12 getMotionListener() {
+         if (mMotionListener == null) {
+-            if (Build.VERSION.SDK_INT >= 26) {
++            if (Build.VERSION.SDK_INT >= 26 /* Android 8.0 (O) */) {
+                 mMotionListener = new SDLGenericMotionListener_API26();
+-            } else if (Build.VERSION.SDK_INT >= 24) {
++            } else if (Build.VERSION.SDK_INT >= 24 /* Android 7.0 (N) */) {
+                 mMotionListener = new SDLGenericMotionListener_API24();
+             } else {
+                 mMotionListener = new SDLGenericMotionListener_API12();
+@@ -404,7 +404,7 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
+         SDLActivity.onNativeOrientationChanged(mCurrentOrientation);
+ 
+         try {
+-            if (Build.VERSION.SDK_INT < 24) {
++            if (Build.VERSION.SDK_INT < 24 /* Android 7.0 (N) */) {
+                 mCurrentLocale = getContext().getResources().getConfiguration().locale;
+             } else {
+                 mCurrentLocale = getContext().getResources().getConfiguration().getLocales().get(0);
+@@ -768,7 +768,7 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
+                 }
+                 break;
+             case COMMAND_CHANGE_WINDOW_STYLE:
+-                if (Build.VERSION.SDK_INT >= 19) {
++                if (Build.VERSION.SDK_INT >= 19 /* Android 4.4 (KITKAT) */) {
+                     if (context instanceof Activity) {
+                         Window window = ((Activity) context).getWindow();
+                         if (window != null) {
+@@ -843,7 +843,7 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
+         msg.obj = data;
+         boolean result = commandHandler.sendMessage(msg);
+ 
+-        if (Build.VERSION.SDK_INT >= 19) {
++        if (Build.VERSION.SDK_INT >= 19 /* Android 4.4 (KITKAT) */) {
+             if (command == COMMAND_CHANGE_WINDOW_STYLE) {
+                 // Ensure we don't return until the resize has actually happened,
+                 // or 500ms have passed.
+@@ -1095,7 +1095,7 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
+         // thus SDK version 27.  If we are in DeX mode and not API 27 or higher, as a result,
+         // we should stick to relative mode.
+         //
+-        if ((Build.VERSION.SDK_INT < 27) && isDeXMode()) {
++        if (Build.VERSION.SDK_INT < 27 /* Android 8.1 (O_MR1) */ && isDeXMode()) {
+             return false;
+         }
+ 
+@@ -1185,7 +1185,7 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
+      * This method is called by SDL using JNI.
+      */
+     public static boolean isDeXMode() {
+-        if (Build.VERSION.SDK_INT < 24) {
++        if (Build.VERSION.SDK_INT < 24 /* Android 7.0 (N) */) {
+             return false;
+         }
+         try {
+@@ -1622,7 +1622,7 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
+     private final Runnable rehideSystemUi = new Runnable() {
+         @Override
+         public void run() {
+-            if (Build.VERSION.SDK_INT >= 19) {
++            if (Build.VERSION.SDK_INT >= 19 /* Android 4.4 (KITKAT) */) {
+                 int flags = View.SYSTEM_UI_FLAG_FULLSCREEN |
+                         View.SYSTEM_UI_FLAG_HIDE_NAVIGATION |
+                         View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY |
+@@ -1675,7 +1675,7 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
+         Bitmap bitmap = Bitmap.createBitmap(colors, width, height, Bitmap.Config.ARGB_8888);
+         ++mLastCursorID;
+ 
+-        if (Build.VERSION.SDK_INT >= 24) {
++        if (Build.VERSION.SDK_INT >= 24 /* Android 7.0 (N) */) {
+             try {
+                 mCursors.put(mLastCursorID, PointerIcon.create(bitmap, hotSpotX, hotSpotY));
+             } catch (Exception e) {
+@@ -1691,7 +1691,7 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
+      * This method is called by SDL using JNI.
+      */
+     public static void destroyCustomCursor(int cursorID) {
+-        if (Build.VERSION.SDK_INT >= 24) {
++        if (Build.VERSION.SDK_INT >= 24 /* Android 7.0 (N) */) {
+             try {
+                 mCursors.remove(cursorID);
+             } catch (Exception e) {
+@@ -1705,7 +1705,7 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
+      */
+     public static boolean setCustomCursor(int cursorID) {
+ 
+-        if (Build.VERSION.SDK_INT >= 24) {
++        if (Build.VERSION.SDK_INT >= 24 /* Android 7.0 (N) */) {
+             try {
+                 mSurface.setPointerIcon(mCursors.get(cursorID));
+             } catch (Exception e) {
+@@ -1760,7 +1760,7 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
+             cursor_type = 1002; //PointerIcon.TYPE_HAND;
+             break;
+         }
+-        if (Build.VERSION.SDK_INT >= 24) {
++        if (Build.VERSION.SDK_INT >= 24 /* Android 7.0 (N) */) {
+             try {
+                 mSurface.setPointerIcon(PointerIcon.getSystemIcon(SDL.getContext(), cursor_type));
+             } catch (Exception e) {
+@@ -1774,7 +1774,7 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
+      * This method is called by SDL using JNI.
+      */
+     public static void requestPermission(String permission, int requestCode) {
+-        if (Build.VERSION.SDK_INT < 23) {
++        if (Build.VERSION.SDK_INT < 23 /* Android 6.0 (M) */) {
+             nativePermissionResult(requestCode, true);
+             return;
+         }
+@@ -1803,7 +1803,7 @@ public class SDLActivity extends Activity implements View.OnSystemUiVisibilityCh
+             i.setData(Uri.parse(url));
+ 
+             int flags = Intent.FLAG_ACTIVITY_NO_HISTORY | Intent.FLAG_ACTIVITY_MULTIPLE_TASK;
+-            if (Build.VERSION.SDK_INT >= 21) {
++            if (Build.VERSION.SDK_INT >= 21 /* Android 5.0 (LOLLIPOP) */) {
+                 flags |= Intent.FLAG_ACTIVITY_NEW_DOCUMENT;
+             } else {
+                 flags |= Intent.FLAG_ACTIVITY_CLEAR_WHEN_TASK_RESET;
+@@ -2007,7 +2007,7 @@ class SDLInputConnection extends BaseInputConnection {
+ 
+     @Override
+     public boolean deleteSurroundingText(int beforeLength, int afterLength) {
+-        if (Build.VERSION.SDK_INT <= 29) {
++        if (Build.VERSION.SDK_INT <= 29 /* Android 10.0 (Q) */) {
+             // Workaround to capture backspace key. Ref: http://stackoverflow.com/questions>/14560344/android-backspace-in-webview-baseinputconnection
+             // and https://bugzilla.libsdl.org/show_bug.cgi?id=2265
+             if (beforeLength > 0 && afterLength == 0) {
+diff --git a/android-project/app/src/main/java/org/libsdl/app/SDLAudioManager.java b/android-project/app/src/main/java/org/libsdl/app/SDLAudioManager.java
+index c8b9ff0da..7c821a409 100644
+--- a/android-project/app/src/main/java/org/libsdl/app/SDLAudioManager.java
++++ b/android-project/app/src/main/java/org/libsdl/app/SDLAudioManager.java
+@@ -29,7 +29,7 @@ public class SDLAudioManager {
+         mAudioRecord = null;
+         mAudioDeviceCallback = null;
+ 
+-        if(Build.VERSION.SDK_INT >= 24)
++        if(Build.VERSION.SDK_INT >= 24 /* Android 7.0 (N) */)
+         {
+             mAudioDeviceCallback = new AudioDeviceCallback() {
+                 @Override
+@@ -79,14 +79,14 @@ public class SDLAudioManager {
+         Log.v(TAG, "Opening " + (isCapture ? "capture" : "playback") + ", requested " + desiredFrames + " frames of " + desiredChannels + " channel " + getAudioFormatString(audioFormat) + " audio at " + sampleRate + " Hz");
+ 
+         /* On older devices let's use known good settings */
+-        if (Build.VERSION.SDK_INT < 21) {
++        if (Build.VERSION.SDK_INT < 21 /* Android 5.0 (LOLLIPOP) */) {
+             if (desiredChannels > 2) {
+                 desiredChannels = 2;
+             }
+         }
+ 
+         /* AudioTrack has sample rate limitation of 48000 (fixed in 5.0.2) */
+-        if (Build.VERSION.SDK_INT < 22) {
++        if (Build.VERSION.SDK_INT < 22 /* Android 5.1 (LOLLIPOP_MR1) */) {
+             if (sampleRate < 8000) {
+                 sampleRate = 8000;
+             } else if (sampleRate > 48000) {
+@@ -95,7 +95,7 @@ public class SDLAudioManager {
+         }
+ 
+         if (audioFormat == AudioFormat.ENCODING_PCM_FLOAT) {
+-            int minSDKVersion = (isCapture ? 23 : 21);
++            int minSDKVersion = (isCapture ? 23 /* Android 6.0 (M) */ : 21 /* Android 5.0 (LOLLIPOP) */);
+             if (Build.VERSION.SDK_INT < minSDKVersion) {
+                 audioFormat = AudioFormat.ENCODING_PCM_16BIT;
+             }
+@@ -156,7 +156,7 @@ public class SDLAudioManager {
+                 channelConfig = AudioFormat.CHANNEL_OUT_5POINT1 | AudioFormat.CHANNEL_OUT_BACK_CENTER;
+                 break;
+             case 8:
+-                if (Build.VERSION.SDK_INT >= 23) {
++                if (Build.VERSION.SDK_INT >= 23 /* Android 6.0 (M) */) {
+                     channelConfig = AudioFormat.CHANNEL_OUT_7POINT1_SURROUND;
+                 } else {
+                     Log.v(TAG, "Requested " + desiredChannels + " channels, getting 5.1 surround");
+@@ -237,7 +237,7 @@ public class SDLAudioManager {
+                     return null;
+                 }
+ 
+-                if (Build.VERSION.SDK_INT >= 24 && deviceId != 0) {
++                if (Build.VERSION.SDK_INT >= 24 /* Android 7.0 (N) */ && deviceId != 0) {
+                     mAudioRecord.setPreferredDevice(getOutputAudioDeviceInfo(deviceId));
+                 }
+ 
+@@ -264,7 +264,7 @@ public class SDLAudioManager {
+                     return null;
+                 }
+ 
+-                if (Build.VERSION.SDK_INT >= 24 && deviceId != 0) {
++                if (Build.VERSION.SDK_INT >= 24 /* Android 7.0 (N) */ && deviceId != 0) {
+                     mAudioTrack.setPreferredDevice(getInputAudioDeviceInfo(deviceId));
+                 }
+ 
+@@ -283,7 +283,7 @@ public class SDLAudioManager {
+     }
+ 
+     private static AudioDeviceInfo getInputAudioDeviceInfo(int deviceId) {
+-        if (Build.VERSION.SDK_INT >= 24) {
++        if (Build.VERSION.SDK_INT >= 24 /* Android 7.0 (N) */) {
+             AudioManager audioManager = (AudioManager) mContext.getSystemService(Context.AUDIO_SERVICE);
+             return Arrays.stream(audioManager.getDevices(AudioManager.GET_DEVICES_INPUTS))
+                     .filter(deviceInfo -> deviceInfo.getId() == deviceId)
+@@ -295,7 +295,7 @@ public class SDLAudioManager {
+     }
+ 
+     private static AudioDeviceInfo getOutputAudioDeviceInfo(int deviceId) {
+-        if (Build.VERSION.SDK_INT >= 24) {
++        if (Build.VERSION.SDK_INT >= 24 /* Android 7.0 (N) */) {
+             AudioManager audioManager = (AudioManager) mContext.getSystemService(Context.AUDIO_SERVICE);
+             return Arrays.stream(audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS))
+                     .filter(deviceInfo -> deviceInfo.getId() == deviceId)
+@@ -307,14 +307,14 @@ public class SDLAudioManager {
+     }
+ 
+     private static void registerAudioDeviceCallback() {
+-        if (Build.VERSION.SDK_INT >= 24) {
++        if (Build.VERSION.SDK_INT >= 24 /* Android 7.0 (N) */) {
+             AudioManager audioManager = (AudioManager) mContext.getSystemService(Context.AUDIO_SERVICE);
+             audioManager.registerAudioDeviceCallback(mAudioDeviceCallback, null);
+         }
+     }
+ 
+     private static void unregisterAudioDeviceCallback(Context context) {
+-        if (Build.VERSION.SDK_INT >= 24) {
++        if (Build.VERSION.SDK_INT >= 24 /* Android 7.0 (N) */) {
+             AudioManager audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
+             audioManager.unregisterAudioDeviceCallback(mAudioDeviceCallback);
+         }
+@@ -324,7 +324,7 @@ public class SDLAudioManager {
+      * This method is called by SDL using JNI.
+      */
+     public static int[] getAudioOutputDevices() {
+-        if (Build.VERSION.SDK_INT >= 24) {
++        if (Build.VERSION.SDK_INT >= 24 /* Android 7.0 (N) */) {
+             AudioManager audioManager = (AudioManager) mContext.getSystemService(Context.AUDIO_SERVICE);
+             return Arrays.stream(audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)).mapToInt(AudioDeviceInfo::getId).toArray();
+         } else {
+@@ -336,7 +336,7 @@ public class SDLAudioManager {
+      * This method is called by SDL using JNI.
+      */
+     public static int[] getAudioInputDevices() {
+-        if (Build.VERSION.SDK_INT >= 24) {
++        if (Build.VERSION.SDK_INT >= 24 /* Android 7.0 (N) */) {
+             AudioManager audioManager = (AudioManager) mContext.getSystemService(Context.AUDIO_SERVICE);
+             return Arrays.stream(audioManager.getDevices(AudioManager.GET_DEVICES_INPUTS)).mapToInt(AudioDeviceInfo::getId).toArray();
+         } else {
+@@ -360,7 +360,7 @@ public class SDLAudioManager {
+             return;
+         }
+ 
+-        if (android.os.Build.VERSION.SDK_INT < 21) {
++        if (android.os.Build.VERSION.SDK_INT < 21 /* Android 5.0 (LOLLIPOP) */) {
+             Log.e(TAG, "Attempted to make an incompatible audio call with uninitialized audio! (floating-point output is supported since Android 5.0 Lollipop)");
+             return;
+         }
+@@ -443,7 +443,7 @@ public class SDLAudioManager {
+ 
+     /** This method is called by SDL using JNI. */
+     public static int captureReadFloatBuffer(float[] buffer, boolean blocking) {
+-        if (Build.VERSION.SDK_INT < 23) {
++        if (Build.VERSION.SDK_INT < 23 /* Android 6.0 (M) */) {
+             return 0;
+         } else {
+             return mAudioRecord.read(buffer, 0, buffer.length, blocking ? AudioRecord.READ_BLOCKING : AudioRecord.READ_NON_BLOCKING);
+@@ -452,7 +452,7 @@ public class SDLAudioManager {
+ 
+     /** This method is called by SDL using JNI. */
+     public static int captureReadShortBuffer(short[] buffer, boolean blocking) {
+-        if (Build.VERSION.SDK_INT < 23) {
++        if (Build.VERSION.SDK_INT < 23 /* Android 6.0 (M) */) {
+             return mAudioRecord.read(buffer, 0, buffer.length);
+         } else {
+             return mAudioRecord.read(buffer, 0, buffer.length, blocking ? AudioRecord.READ_BLOCKING : AudioRecord.READ_NON_BLOCKING);
+@@ -461,7 +461,7 @@ public class SDLAudioManager {
+ 
+     /** This method is called by SDL using JNI. */
+     public static int captureReadByteBuffer(byte[] buffer, boolean blocking) {
+-        if (Build.VERSION.SDK_INT < 23) {
++        if (Build.VERSION.SDK_INT < 23 /* Android 6.0 (M) */) {
+             return mAudioRecord.read(buffer, 0, buffer.length);
+         } else {
+             return mAudioRecord.read(buffer, 0, buffer.length, blocking ? AudioRecord.READ_BLOCKING : AudioRecord.READ_NON_BLOCKING);
+diff --git a/android-project/app/src/main/java/org/libsdl/app/SDLControllerManager.java b/android-project/app/src/main/java/org/libsdl/app/SDLControllerManager.java
+index 85ecbded4..d6913f157 100644
+--- a/android-project/app/src/main/java/org/libsdl/app/SDLControllerManager.java
++++ b/android-project/app/src/main/java/org/libsdl/app/SDLControllerManager.java
+@@ -42,7 +42,7 @@ public class SDLControllerManager
+ 
+     public static void initialize() {
+         if (mJoystickHandler == null) {
+-            if (Build.VERSION.SDK_INT >= 19) {
++            if (Build.VERSION.SDK_INT >= 19 /* Android 4.4 (KITKAT) */) {
+                 mJoystickHandler = new SDLJoystickHandler_API19();
+             } else {
+                 mJoystickHandler = new SDLJoystickHandler_API16();
+@@ -50,7 +50,7 @@ public class SDLControllerManager
+         }
+ 
+         if (mHapticHandler == null) {
+-            if (Build.VERSION.SDK_INT >= 26) {
++            if (Build.VERSION.SDK_INT >= 26 /* Android 8.0 (O) */) {
+                 mHapticHandler = new SDLHapticHandler_API26();
+             } else {
+                 mHapticHandler = new SDLHapticHandler();
+@@ -809,7 +809,7 @@ class SDLGenericMotionListener_API26 extends SDLGenericMotionListener_API24 {
+ 
+     @Override
+     public boolean supportsRelativeMouse() {
+-        return (!SDLActivity.isDeXMode() || (Build.VERSION.SDK_INT >= 27));
++        return (!SDLActivity.isDeXMode() || Build.VERSION.SDK_INT >= 27 /* Android 8.1 (O_MR1) */);
+     }
+ 
+     @Override
+@@ -819,7 +819,7 @@ class SDLGenericMotionListener_API26 extends SDLGenericMotionListener_API24 {
+ 
+     @Override
+     public boolean setRelativeMouseEnabled(boolean enabled) {
+-        if (!SDLActivity.isDeXMode() || (Build.VERSION.SDK_INT >= 27)) {
++        if (!SDLActivity.isDeXMode() || Build.VERSION.SDK_INT >= 27 /* Android 8.1 (O_MR1) */) {
+             if (enabled) {
+                 SDLActivity.getContentView().requestPointerCapture();
+             } else {
+diff --git a/android-project/app/src/main/java/org/libsdl/app/SDLSurface.java b/android-project/app/src/main/java/org/libsdl/app/SDLSurface.java
+index dcd26d495..0857e4b6f 100644
+--- a/android-project/app/src/main/java/org/libsdl/app/SDLSurface.java
++++ b/android-project/app/src/main/java/org/libsdl/app/SDLSurface.java
+@@ -116,7 +116,7 @@ public class SDLSurface extends SurfaceView implements SurfaceHolder.Callback,
+         int nDeviceHeight = height;
+         try
+         {
+-            if (Build.VERSION.SDK_INT >= 17) {
++            if (Build.VERSION.SDK_INT >= 17 /* Android 4.2 (JELLY_BEAN_MR1) */) {
+                 DisplayMetrics realMetrics = new DisplayMetrics();
+                 mDisplay.getRealMetrics( realMetrics );
+                 nDeviceWidth = realMetrics.widthPixels;
+@@ -163,7 +163,7 @@ public class SDLSurface extends SurfaceView implements SurfaceHolder.Callback,
+ 
+         // Don't skip in MultiWindow.
+         if (skip) {
+-            if (Build.VERSION.SDK_INT >= 24) {
++            if (Build.VERSION.SDK_INT >= 24 /* Android 7.0 (N) */) {
+                 if (SDLActivity.mSingleton.isInMultiWindowMode()) {
+                     Log.v("SDL", "Don't skip in Multi-Window");
+                     skip = false;
+-- 
+2.17.1
+

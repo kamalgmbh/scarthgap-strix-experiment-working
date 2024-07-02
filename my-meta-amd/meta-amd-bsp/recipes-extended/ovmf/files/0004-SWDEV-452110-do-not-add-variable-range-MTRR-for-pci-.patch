@@ -1,0 +1,36 @@
+From 3805edc7142cbe6cedcdeb461102d9a8da0a3d8b Mon Sep 17 00:00:00 2001
+From: Xenia Ragiadakou <xenia.ragiadakou@amd.com>
+Date: Wed, 17 Apr 2024 10:05:36 +0300
+Subject: [PATCH 4/6] SWDEV-452110: do not add variable-range MTRR for pci mmio
+ regions
+
+Signed-off-by: Xenia Ragiadakou <xenia.ragiadakou@amd.com>
+Change-Id: I6518b8cde44806bf3bf0e4093d6eeed6acf36ac6
+---
+ MdeModulePkg/Bus/Pci/PciHostBridgeDxe/PciHostBridge.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/MdeModulePkg/Bus/Pci/PciHostBridgeDxe/PciHostBridge.c b/MdeModulePkg/Bus/Pci/PciHostBridgeDxe/PciHostBridge.c
+index d573e532ba..8bb9bb7e45 100644
+--- a/MdeModulePkg/Bus/Pci/PciHostBridgeDxe/PciHostBridge.c
++++ b/MdeModulePkg/Bus/Pci/PciHostBridgeDxe/PciHostBridge.c
+@@ -548,6 +548,7 @@ InitializePciHostBridge (
+                    EFI_MEMORY_UC
+                    );
+         ASSERT_EFI_ERROR (Status);
++        if (0) {
+         Status = gDS->SetMemorySpaceAttributes (
+                         HostAddress,
+                         MemApertures[MemApertureIndex]->Limit - MemApertures[MemApertureIndex]->Base + 1,
+@@ -556,7 +557,7 @@ InitializePciHostBridge (
+         if (EFI_ERROR (Status)) {
+           DEBUG ((DEBUG_WARN, "PciHostBridge driver failed to set EFI_MEMORY_UC to MMIO aperture - %r.\n", Status));
+         }
+-
++        }
+         if (ResourceAssigned) {
+           Status = gDS->AllocateMemorySpace (
+                           EfiGcdAllocateAddress,
+-- 
+2.17.1
+

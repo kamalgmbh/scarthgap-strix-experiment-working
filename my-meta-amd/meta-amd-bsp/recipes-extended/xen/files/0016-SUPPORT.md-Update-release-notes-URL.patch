@@ -1,0 +1,26 @@
+From d75f1e9b74314cea91ce435730d4e3539ecca77d Mon Sep 17 00:00:00 2001
+From: Julien Grall <julien@xen.org>
+Date: Thu, 16 Nov 2023 21:44:21 +0000
+Subject: [PATCH 016/106] SUPPORT.md: Update release notes URL
+
+Signed-off-by: Julien Grall <julien@xen.org>
+---
+ SUPPORT.md | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/SUPPORT.md b/SUPPORT.md
+index 75917e7a58..30ca5b15ed 100644
+--- a/SUPPORT.md
++++ b/SUPPORT.md
+@@ -15,7 +15,7 @@ for the definitions of the support status levels etc.
+     Security-Support-Until: 2026-11-16
+ 
+ Release Notes
+-: <a href="https://wiki.xenproject.org/wiki/Xen_Project_X.YY_Release_Notes">RN</a>
++: <a href="https://wiki.xenproject.org/wiki/Xen_Project_4.18_Release_Notes">RN</a>
+ 
+ # Feature Support
+ 
+-- 
+2.25.1
+

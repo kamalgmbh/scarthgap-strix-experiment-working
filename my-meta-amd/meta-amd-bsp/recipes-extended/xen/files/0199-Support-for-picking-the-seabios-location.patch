@@ -1,0 +1,56 @@
+From a1048ef774f74d99db6f7604233fa0f59c931e48 Mon Sep 17 00:00:00 2001
+From: Raghavendra Prasad Mallela <raghavendraprasad.mallela@amd.com>
+Date: Thu, 25 May 2023 16:00:32 +0530
+Subject: [PATCH 199/221] Support for picking the seabios location
+
+Currently XEN will pull the upstream seabios code. This patch
+will add a support to pick the seabios location if available
+in the system. This solves the problem of having a patch in
+seabios. Added a new variable SEABIOS_UPSTREAM_LOC which needs
+to be set with local seabios directory path.
+
+Signed-off-by: Raghavendra Prasad Mallela <raghavendraprasad.mallela@amd.com>
+Change-Id: Ief99455dad15993538d288820437554d17d1591f
+---
+ Config.mk               | 3 +++
+ tools/firmware/Makefile | 8 +++++++-
+ 2 files changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/Config.mk b/Config.mk
+index 10eb443b17..b15e47278b 100644
+--- a/Config.mk
++++ b/Config.mk
+@@ -252,4 +252,7 @@ QEMU_TRADITIONAL_LOC ?= $(call or,$(wildcard $(QEMU_TRADITIONAL_INTREE)),\
+ QEMU_UPSTREAM_LOC ?= $(call or,$(wildcard $(QEMU_UPSTREAM_INTREE)),\
+                                $(QEMU_UPSTREAM_URL))
+ 
++# Specifies which seabios to be used.
++SEABIOS_UPSTREAM_LOC = $(XEN_ROOT)/tools/seabios
++
+ CONFIG_TESTS       ?= y
+diff --git a/tools/firmware/Makefile b/tools/firmware/Makefile
+index 345037b93b..8e3b51a382 100644
+--- a/tools/firmware/Makefile
++++ b/tools/firmware/Makefile
+@@ -24,11 +24,17 @@ ovmf-dir:
+ 	cp ovmf-makefile ovmf-dir/Makefile;
+ 
+ seabios-dir:
+-	GIT=$(GIT) $(XEN_ROOT)/scripts/git-checkout.sh $(SEABIOS_UPSTREAM_URL) $(SEABIOS_UPSTREAM_REVISION) seabios-dir
++	if test -d $(SEABIOS_UPSTREAM_LOC) ; then \
++		ln -sf $(basename $(SEABIOS_UPSTREAM_LOC)) seabios-dir; \
++	else \
++		GIT=$(GIT) $(XEN_ROOT)/scripts/git-checkout.sh $(SEABIOS_UPSTREAM_URL) $(SEABIOS_UPSTREAM_REVISION) seabios-dir; \
++	fi
++
+ 	cp seabios-config seabios-dir/.config;
+ 	$(MAKE) -C seabios-dir olddefconfig CC=$(SEABIOSCC) LD=$(SEABIOSLD)
+ 	rm -f seabios-dir/.version
+ 	echo '$(SEABIOS_UPSTREAM_REVISION)' > seabios-dir/.version
++	echo '$(SEABIOS_UPSTREAM_URL)' > seabios-dir/.url
+ 
+ .PHONY: all
+ all: $(SUBDIRS-y)
+-- 
+2.17.1
+

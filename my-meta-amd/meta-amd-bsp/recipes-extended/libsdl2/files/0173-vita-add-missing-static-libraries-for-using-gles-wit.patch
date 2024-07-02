@@ -1,0 +1,47 @@
+From e927e5d44036aad47f98c503780146e94cfa4ea6 Mon Sep 17 00:00:00 2001
+From: Anonymous Maarten <anonymous.maarten@gmail.com>
+Date: Tue, 24 Jan 2023 04:52:44 +0100
+Subject: [PATCH 173/458] vita: add missing static libraries for using gles
+ with pib
+
+---
+ CMakeLists.txt | 16 +++-------------
+ 1 file changed, 3 insertions(+), 13 deletions(-)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 0f105d978..6a941a1d4 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -2485,6 +2485,9 @@ elseif(VITA)
+         set(SDL_VIDEO_OPENGL_ES2 1)
+         list(APPEND EXTRA_LIBS
+           pib
++          libScePiglet_stub_weak
++          taihen_stub_weak
++          SceShaccCg_stub_weak
+         )
+         set(HAVE_VIDEO_VITA_PIB ON)
+         set(SDL_VIDEO_VITA_PIB 1)
+@@ -2551,19 +2554,6 @@ elseif(VITA)
+       SceProcessmgr_stub
+       m
+     )
+-    if(HAVE_VITA_PIB)
+-        list(PREPEND EXTRA_LIBS
+-          pib
+-          libScePiglet_stub
+-          SceShaccCg_stub
+-          taihen_stub
+-        )
+-    endif()
+-    if(HAVE_VITA_PVR)
+-        list(PREPEND EXTRA_LIBS
+-          SceIme_stub
+-        )
+-    endif()
+   endif()
+ 
+   set(HAVE_ARMSIMD TRUE)
+-- 
+2.17.1
+

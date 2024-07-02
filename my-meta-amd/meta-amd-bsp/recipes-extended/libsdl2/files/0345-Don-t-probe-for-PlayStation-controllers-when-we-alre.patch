@@ -1,0 +1,34 @@
+From 22685556e5d9fc2e2a7023075e51b69fe770e64a Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Thu, 30 Mar 2023 07:36:40 -0700
+Subject: [PATCH 345/458] Don't probe for PlayStation controllers when we
+ already know the controller type
+
+Fixes https://github.com/libsdl-org/SDL/issues/7556
+
+(cherry picked from commit 655a07bdd88d6bd19fe97c3abd39a2e2eef252ec)
+---
+ src/joystick/hidapi/SDL_hidapijoystick.c | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/src/joystick/hidapi/SDL_hidapijoystick.c b/src/joystick/hidapi/SDL_hidapijoystick.c
+index 3045f3bd7..baf085d69 100644
+--- a/src/joystick/hidapi/SDL_hidapijoystick.c
++++ b/src/joystick/hidapi/SDL_hidapijoystick.c
+@@ -140,6 +140,13 @@ void HIDAPI_DumpPacket(const char *prefix, const Uint8 *data, int size)
+ 
+ SDL_bool HIDAPI_SupportsPlaystationDetection(Uint16 vendor, Uint16 product)
+ {
++    /* If we already know the controller is a different type, don't try to detect it.
++     * This fixes a hang with the HORIPAD for Nintendo Switch (0x0f0d/0x00c1)
++     */
++    if (SDL_GetGamepadTypeFromVIDPID(vendor, product, NULL, SDL_FALSE) != SDL_GAMEPAD_TYPE_UNKNOWN) {
++        return SDL_FALSE;
++    }
++
+     switch (vendor) {
+     case USB_VENDOR_DRAGONRISE:
+         return SDL_TRUE;
+-- 
+2.17.1
+

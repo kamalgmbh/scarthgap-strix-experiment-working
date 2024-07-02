@@ -1,0 +1,80 @@
+From 3201304f01ac27a1dc77635cd9800f1497101f96 Mon Sep 17 00:00:00 2001
+From: Stefano Stabellini <stefano.stabellini@amd.com>
+Date: Fri, 19 May 2023 13:34:00 -0700
+Subject: [PATCH 200/221] xen/irq: fix races between send_cleanup_vector and
+ _clear_irq_vector
+
+It is possible that send_cleanup_vector and _clear_irq_vector are
+running at the same time on different CPUs. In that case we have a race
+as both _clear_irq_vector and irq_move_cleanup_interrupt are trying to
+clear old_vector.
+
+This patch fixes 3 races:
+
+1) As irq_move_cleanup_interrupt is running on multiple CPUs at the
+same time, and also _clear_irq_vector is running, it is possible that
+only some per_cpu(vector_irq, cpu)[old_vector] are valid but not all.
+So, turn the ASSERT in _clear_irq_vector into an if.
+
+2) It is possible that _clear_irq_vector is running at the same time as
+release_old_vec, called from irq_move_cleanup_interrupt. At the moment,
+it is possible for _clear_irq_vector to read a valid old_cpu_mask but an
+invalid old_vector (because it is being set to invalid by
+release_old_vec). To avoid this problem in release_old_vec move clearing
+old_cpu_mask before setting old_vector to invalid. This way, we know that
+in _clear_irq_vector if old_vector is invalid also old_cpu_mask is zero
+and we don't enter the loop.
+
+3) It is possible that release_old_vec is running twice at the same time
+for the same old_vector. Change the code in release_old_vec to make it
+OK to call it twice. Remove both ASSERTs. With those gone, it should be
+possible now to call release_old_vec twice in a row for the same
+old_vector.
+
+Signed-off-by: Stefano Stabellini <stefano.stabellini@amd.com>
+Change-Id: Ie8e4822648f5f21099c680fc33b96737decde3f4
+---
+ xen/arch/x86/irq.c | 17 +++++++----------
+ 1 file changed, 7 insertions(+), 10 deletions(-)
+
+diff --git a/xen/arch/x86/irq.c b/xen/arch/x86/irq.c
+index 20150b1c7f..d9c139cf1b 100644
+--- a/xen/arch/x86/irq.c
++++ b/xen/arch/x86/irq.c
+@@ -112,16 +112,11 @@ static void release_old_vec(struct irq_desc *desc)
+ {
+     unsigned int vector = desc->arch.old_vector;
+ 
+-    desc->arch.old_vector = IRQ_VECTOR_UNASSIGNED;
+     cpumask_clear(desc->arch.old_cpu_mask);
++    desc->arch.old_vector = IRQ_VECTOR_UNASSIGNED;
+ 
+-    if ( !valid_irq_vector(vector) )
+-        ASSERT_UNREACHABLE();
+-    else if ( desc->arch.used_vectors )
+-    {
+-        ASSERT(test_bit(vector, desc->arch.used_vectors));
++    if ( desc->arch.used_vectors )
+         clear_bit(vector, desc->arch.used_vectors);
+-    }
+ }
+ 
+ static void _trace_irq_mask(uint32_t event, int irq, int vector,
+@@ -230,9 +225,11 @@ static void _clear_irq_vector(struct irq_desc *desc)
+ 
+         for_each_cpu(cpu, tmp_mask)
+         {
+-            ASSERT(per_cpu(vector_irq, cpu)[old_vector] == irq);
+-            TRACE_3D(TRC_HW_IRQ_MOVE_FINISH, irq, old_vector, cpu);
+-            per_cpu(vector_irq, cpu)[old_vector] = ~irq;
++            if ( per_cpu(vector_irq, cpu)[old_vector] == irq )
++            {
++                TRACE_3D(TRC_HW_IRQ_MOVE_FINISH, irq, old_vector, cpu);
++                per_cpu(vector_irq, cpu)[old_vector] = ~irq;
++            }
+         }
+ 
+         release_old_vec(desc);
+-- 
+2.17.1
+

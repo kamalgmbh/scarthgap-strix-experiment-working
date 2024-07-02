@@ -1,0 +1,42 @@
+From fcd7d658dce17d2e15079a74cc301330727acafe Mon Sep 17 00:00:00 2001
+From: pionere <pionere@freemail.hu>
+Date: Tue, 29 Nov 2022 11:18:30 +0100
+Subject: [PATCH 038/458] thread: fix inconsistent return values -
+ SDL_CreateMutex returns NULL when the creation fails (ngage) - SDL_SemValue
+ returns 0 when the semaphore is NULL (n3ds)
+
+(cherry picked from commit 6875e1c262ae968a4fb52b367cf6912d9c76d4c9)
+---
+ src/thread/n3ds/SDL_syssem.c      | 3 ++-
+ src/thread/ngage/SDL_sysmutex.cpp | 1 +
+ 2 files changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/thread/n3ds/SDL_syssem.c b/src/thread/n3ds/SDL_syssem.c
+index ee0b49fcd..0621e8a2c 100644
+--- a/src/thread/n3ds/SDL_syssem.c
++++ b/src/thread/n3ds/SDL_syssem.c
+@@ -114,7 +114,8 @@ Uint32
+ SDL_SemValue(SDL_sem *sem)
+ {
+     if (sem == NULL) {
+-        return SDL_InvalidParamError("sem");
++        SDL_InvalidParamError("sem");
++        return 0;
+     }
+     return sem->semaphore.current_count;
+ }
+diff --git a/src/thread/ngage/SDL_sysmutex.cpp b/src/thread/ngage/SDL_sysmutex.cpp
+index e6f5bfbf6..387887153 100644
+--- a/src/thread/ngage/SDL_sysmutex.cpp
++++ b/src/thread/ngage/SDL_sysmutex.cpp
+@@ -48,6 +48,7 @@ SDL_CreateMutex(void)
+     TInt status = CreateUnique(NewMutex, &rmutex, NULL);
+     if (status != KErrNone) {
+         SDL_SetError("Couldn't create mutex.");
++        return NULL;
+     }
+     SDL_mutex* mutex = new /*(ELeave)*/ SDL_mutex;
+     mutex->handle = rmutex.Handle();
+-- 
+2.17.1
+

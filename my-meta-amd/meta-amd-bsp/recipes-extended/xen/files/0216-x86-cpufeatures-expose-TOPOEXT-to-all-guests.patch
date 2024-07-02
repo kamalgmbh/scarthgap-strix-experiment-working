@@ -1,0 +1,35 @@
+From 2554d6f77edafd475cc90932a8e87ccc1bc37438 Mon Sep 17 00:00:00 2001
+From: Xenia Ragiadakou <xenia.ragiadakou@amd.com>
+Date: Fri, 16 Jun 2023 12:25:45 +0300
+Subject: [PATCH 216/221] x86/cpufeatures: expose TOPOEXT to all guests
+
+If the Topology Extensions cpufeature is set then cache topology information
+should be gathered using cpuid function 0x8000001d.
+Expose feature to all guests so that the guest uses the appropriate cpuid
+function to retrieve cache topology information.
+
+Fixes a divide by zero failure triggered when launching dom0 on PHX1.
+
+Signed-off-by: Xenia Ragiadakou <xenia.ragiadakou@amd.com>
+Change-Id: I9bbdd95d3bf7a901bbb92c24f3437a9f85461a34
+Signed-off-by: Ramesh Babu Nalluri <rameshbabu.nalluri@amd.com>
+---
+ xen/include/public/arch-x86/cpufeatureset.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/xen/include/public/arch-x86/cpufeatureset.h b/xen/include/public/arch-x86/cpufeatureset.h
+index 7915f5826f..b7de9abf23 100644
+--- a/xen/include/public/arch-x86/cpufeatureset.h
++++ b/xen/include/public/arch-x86/cpufeatureset.h
+@@ -165,7 +165,7 @@ XEN_CPUFEATURE(LWP,           3*32+15) /*   Light Weight Profiling */
+ XEN_CPUFEATURE(FMA4,          3*32+16) /*A  4 operands MAC instructions */
+ XEN_CPUFEATURE(NODEID_MSR,    3*32+19) /*   NodeId MSR */
+ XEN_CPUFEATURE(TBM,           3*32+21) /*A  trailing bit manipulations */
+-XEN_CPUFEATURE(TOPOEXT,       3*32+22) /*   topology extensions CPUID leafs */
++XEN_CPUFEATURE(TOPOEXT,       3*32+22) /*A  topology extensions CPUID leafs */
+ XEN_CPUFEATURE(DBEXT,         3*32+26) /*A  data breakpoint extension */
+ XEN_CPUFEATURE(MONITORX,      3*32+29) /*   MONITOR extension (MONITORX/MWAITX) */
+ 
+-- 
+2.17.1
+

@@ -1,0 +1,74 @@
+From 9670f233cc42089689212374d3c2cc691cb7f5ea Mon Sep 17 00:00:00 2001
+From: ds-sloth <72112344+ds-sloth@users.noreply.github.com>
+Date: Sun, 22 Jan 2023 12:27:52 -0500
+Subject: [PATCH 168/458] Support MIN/MAX blend on OpenGL + ES
+
+---
+ src/render/opengl/SDL_render_gl.c     |  4 ++++
+ src/render/opengles/SDL_render_gles.c | 14 ++++++++++++++
+ 2 files changed, 18 insertions(+)
+
+diff --git a/src/render/opengl/SDL_render_gl.c b/src/render/opengl/SDL_render_gl.c
+index 26386b169..e96d136f5 100644
+--- a/src/render/opengl/SDL_render_gl.c
++++ b/src/render/opengl/SDL_render_gl.c
+@@ -375,6 +375,10 @@ static GLenum GetBlendEquation(SDL_BlendOperation operation)
+         return GL_FUNC_SUBTRACT;
+     case SDL_BLENDOPERATION_REV_SUBTRACT:
+         return GL_FUNC_REVERSE_SUBTRACT;
++    case SDL_BLENDOPERATION_MINIMUM:
++        return GL_MIN;
++    case SDL_BLENDOPERATION_MAXIMUM:
++        return GL_MAX;
+     default:
+         return GL_INVALID_ENUM;
+     }
+diff --git a/src/render/opengles/SDL_render_gles.c b/src/render/opengles/SDL_render_gles.c
+index b4b789a75..0b6f1edfe 100644
+--- a/src/render/opengles/SDL_render_gles.c
++++ b/src/render/opengles/SDL_render_gles.c
+@@ -97,6 +97,7 @@ typedef struct
+     SDL_bool GL_OES_blend_func_separate_supported;
+     SDL_bool GL_OES_blend_equation_separate_supported;
+     SDL_bool GL_OES_blend_subtract_supported;
++    SDL_bool GL_EXT_blend_minmax_supported;
+ 
+     GLES_DrawStateCache drawstate;
+ } GLES_RenderData;
+@@ -263,6 +264,10 @@ static GLenum GetBlendEquation(SDL_BlendOperation operation)
+         return GL_FUNC_SUBTRACT_OES;
+     case SDL_BLENDOPERATION_REV_SUBTRACT:
+         return GL_FUNC_REVERSE_SUBTRACT_OES;
++    case SDL_BLENDOPERATION_MINIMUM:
++        return GL_MIN_EXT;
++    case SDL_BLENDOPERATION_MAXIMUM:
++        return GL_MAX_EXT;
+     default:
+         return GL_INVALID_ENUM;
+     }
+@@ -295,6 +300,12 @@ static SDL_bool GLES_SupportsBlendMode(SDL_Renderer *renderer, SDL_BlendMode ble
+     if (colorOperation != SDL_BLENDOPERATION_ADD && !data->GL_OES_blend_subtract_supported) {
+         return SDL_FALSE;
+     }
++    if (colorOperation == SDL_BLENDOPERATION_MINIMUM && !data->GL_EXT_blend_minmax_supported) {
++        return SDL_FALSE;
++    }
++    if (colorOperation == SDL_BLENDOPERATION_MAXIMUM && !data->GL_EXT_blend_minmax_supported) {
++        return SDL_FALSE;
++    }
+     return SDL_TRUE;
+ }
+ 
+@@ -1161,6 +1172,9 @@ static SDL_Renderer *GLES_CreateRenderer(SDL_Window *window, Uint32 flags)
+     if (SDL_GL_ExtensionSupported("GL_OES_blend_subtract")) {
+         data->GL_OES_blend_subtract_supported = SDL_TRUE;
+     }
++    if (SDL_GL_ExtensionSupported("GL_EXT_blend_minmax")) {
++        data->GL_EXT_blend_minmax_supported = SDL_TRUE;
++    }
+ 
+     /* Set up parameters for rendering */
+     data->glDisable(GL_DEPTH_TEST);
+-- 
+2.17.1
+

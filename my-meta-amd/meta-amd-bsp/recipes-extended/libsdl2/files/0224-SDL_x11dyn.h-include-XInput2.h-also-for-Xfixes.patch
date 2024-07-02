@@ -1,0 +1,26 @@
+From da6bce4f76f3c7d42008913db54f82329a8bdf1b Mon Sep 17 00:00:00 2001
+From: Ozkan Sezer <sezeroz@gmail.com>
+Date: Sat, 11 Feb 2023 23:51:28 +0300
+Subject: [PATCH 224/458] SDL_x11dyn.h: include XInput2.h also for Xfixes
+
+Fixes https://github.com/libsdl-org/SDL/issues/7343
+---
+ src/video/x11/SDL_x11dyn.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/video/x11/SDL_x11dyn.h b/src/video/x11/SDL_x11dyn.h
+index 6059b0141..a18e41f24 100644
+--- a/src/video/x11/SDL_x11dyn.h
++++ b/src/video/x11/SDL_x11dyn.h
+@@ -52,7 +52,7 @@
+ #if SDL_VIDEO_DRIVER_X11_XDBE
+ #include <X11/extensions/Xdbe.h>
+ #endif
+-#if SDL_VIDEO_DRIVER_X11_XINPUT2
++#if SDL_VIDEO_DRIVER_X11_XINPUT2 || SDL_VIDEO_DRIVER_X11_XFIXES
+ #include <X11/extensions/XInput2.h>
+ #endif
+ #if SDL_VIDEO_DRIVER_X11_XFIXES
+-- 
+2.17.1
+

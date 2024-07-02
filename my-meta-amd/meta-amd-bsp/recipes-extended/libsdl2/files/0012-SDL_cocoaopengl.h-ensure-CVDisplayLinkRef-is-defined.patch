@@ -1,0 +1,28 @@
+From e12c831b15b40e405ef1bf75dad4377f2ab8012f Mon Sep 17 00:00:00 2001
+From: Joshua Root <jmr@macports.org>
+Date: Thu, 24 Nov 2022 06:32:49 +1100
+Subject: [PATCH 012/458] SDL_cocoaopengl.h: ensure CVDisplayLinkRef is defined
+
+The typedef seems to be pulled in coincidentally with newer SDKs, but
+older ones need to import the header explicitly.
+
+(cherry picked from commit d2910904fb4062c313636c7595e971f1bf248075)
+---
+ src/video/cocoa/SDL_cocoaopengl.h | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/src/video/cocoa/SDL_cocoaopengl.h b/src/video/cocoa/SDL_cocoaopengl.h
+index 7b900dee6..fe8a8e51c 100644
+--- a/src/video/cocoa/SDL_cocoaopengl.h
++++ b/src/video/cocoa/SDL_cocoaopengl.h
+@@ -27,6 +27,7 @@
+ 
+ #include "SDL_atomic.h"
+ #import <Cocoa/Cocoa.h>
++#import <QuartzCore/CVDisplayLink.h>
+ 
+ /* We still support OpenGL as long as Apple offers it, deprecated or not, so disable deprecation warnings about it. */
+ #ifdef __clang__
+-- 
+2.17.1
+

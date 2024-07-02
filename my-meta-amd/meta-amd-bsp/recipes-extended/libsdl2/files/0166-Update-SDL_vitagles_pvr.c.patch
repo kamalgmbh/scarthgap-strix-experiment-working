@@ -1,0 +1,63 @@
+From eabd88ed28b60244627ce94174482749fa3fa561 Mon Sep 17 00:00:00 2001
+From: raphasamp <123300172+raphasamp@users.noreply.github.com>
+Date: Sun, 22 Jan 2023 08:09:24 -0300
+Subject: [PATCH 166/458] Update SDL_vitagles_pvr.c
+
+This was broken unintentionally during #6545.(cherry picked from commit 9211c0b639ad32865efa4980d07fc24f3f4a1577)
+---
+ src/video/vita/SDL_vitagles_pvr.c | 29 +++++++++++++++--------------
+ 1 file changed, 15 insertions(+), 14 deletions(-)
+
+diff --git a/src/video/vita/SDL_vitagles_pvr.c b/src/video/vita/SDL_vitagles_pvr.c
+index 9719890b1..c76f9c000 100644
+--- a/src/video/vita/SDL_vitagles_pvr.c
++++ b/src/video/vita/SDL_vitagles_pvr.c
+@@ -42,30 +42,31 @@ int VITA_GLES_LoadLibrary(_THIS, const char *path)
+     char *default_path = "app0:module";
+     char target_path[MAX_PATH];
+ 
+-    if (skip_init == NULL) // we don't care about actual value {
++    if (skip_init == NULL) { // we don't care about actual value 
++    
+         if (override != NULL) {
+             default_path = override;
+         }
+ 
+-    sceKernelLoadStartModule("vs0:sys/external/libfios2.suprx", 0, NULL, 0, NULL, NULL);
+-    sceKernelLoadStartModule("vs0:sys/external/libc.suprx", 0, NULL, 0, NULL, NULL);
++        sceKernelLoadStartModule("vs0:sys/external/libfios2.suprx", 0, NULL, 0, NULL, NULL);
++        sceKernelLoadStartModule("vs0:sys/external/libc.suprx", 0, NULL, 0, NULL, NULL);
+ 
+-    SDL_snprintf(target_path, MAX_PATH, "%s/%s", default_path, "libgpu_es4_ext.suprx");
+-    sceKernelLoadStartModule(target_path, 0, NULL, 0, NULL, NULL);
++        SDL_snprintf(target_path, MAX_PATH, "%s/%s", default_path, "libgpu_es4_ext.suprx");
++        sceKernelLoadStartModule(target_path, 0, NULL, 0, NULL, NULL);
+ 
+-    SDL_snprintf(target_path, MAX_PATH, "%s/%s", default_path, "libIMGEGL.suprx");
+-    sceKernelLoadStartModule(target_path, 0, NULL, 0, NULL, NULL);
++        SDL_snprintf(target_path, MAX_PATH, "%s/%s", default_path, "libIMGEGL.suprx");
++        sceKernelLoadStartModule(target_path, 0, NULL, 0, NULL, NULL);
+ 
+-    PVRSRVInitializeAppHint(&hint);
++        PVRSRVInitializeAppHint(&hint);
+ 
+-    SDL_snprintf(hint.szGLES1, MAX_PATH, "%s/%s", default_path, "libGLESv1_CM.suprx");
+-    SDL_snprintf(hint.szGLES2, MAX_PATH, "%s/%s", default_path, "libGLESv2.suprx");
+-    SDL_snprintf(hint.szWindowSystem, MAX_PATH, "%s/%s", default_path, "libpvrPSP2_WSEGL.suprx");
++        SDL_snprintf(hint.szGLES1, MAX_PATH, "%s/%s", default_path, "libGLESv1_CM.suprx");
++        SDL_snprintf(hint.szGLES2, MAX_PATH, "%s/%s", default_path, "libGLESv2.suprx");
++        SDL_snprintf(hint.szWindowSystem, MAX_PATH, "%s/%s", default_path, "libpvrPSP2_WSEGL.suprx");
+ 
+-    PVRSRVCreateVirtualAppHint(&hint);
+-}
++        PVRSRVCreateVirtualAppHint(&hint);
++    }
+ 
+-return SDL_EGL_LoadLibrary(_this, path, (NativeDisplayType)0, 0);
++    return SDL_EGL_LoadLibrary(_this, path, (NativeDisplayType)0, 0);
+ }
+ 
+ SDL_GLContext
+-- 
+2.17.1
+

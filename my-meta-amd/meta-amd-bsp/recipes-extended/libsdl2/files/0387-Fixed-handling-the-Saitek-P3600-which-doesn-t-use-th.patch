@@ -1,0 +1,28 @@
+From 7b2b99a996f75dd78b7c38017d6cba49208d041f Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Mon, 22 May 2023 12:41:03 -0700
+Subject: [PATCH 387/458] Fixed handling the Saitek P3600, which doesn't use
+ the Xbox 360 controller protocol
+
+(cherry picked from commit cf0abf99118f1ea5ba423ce62950e5840db2c649)
+---
+ src/joystick/controller_list.h | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/joystick/controller_list.h b/src/joystick/controller_list.h
+index 4d00ae198..c7871c25e 100644
+--- a/src/joystick/controller_list.h
++++ b/src/joystick/controller_list.h
+@@ -171,7 +171,8 @@ static const ControllerDescription_t arrControllers[] = {
+ 	{ MAKE_CONTROLLER_ID( 0x046d, 0xc21f ), k_eControllerType_XBox360Controller, NULL },	// Logitech Gamepad F710
+ 	{ MAKE_CONTROLLER_ID( 0x046d, 0xc242 ), k_eControllerType_XBox360Controller, NULL },	// Logitech Chillstream Controller
+ 	{ MAKE_CONTROLLER_ID( 0x056e, 0x2004 ), k_eControllerType_XBox360Controller, NULL },	// Elecom JC-U3613M
+-	{ MAKE_CONTROLLER_ID( 0x06a3, 0xf51a ), k_eControllerType_XBox360Controller, NULL },	// Saitek P3600
++// This isn't actually an Xbox 360 controller, it just looks like one
++//	{ MAKE_CONTROLLER_ID( 0x06a3, 0xf51a ), k_eControllerType_XBox360Controller, NULL },	// Saitek P3600
+ 	{ MAKE_CONTROLLER_ID( 0x0738, 0x4716 ), k_eControllerType_XBox360Controller, NULL },	// Mad Catz Wired Xbox 360 Controller
+ 	{ MAKE_CONTROLLER_ID( 0x0738, 0x4718 ), k_eControllerType_XBox360Controller, NULL },	// Mad Catz Street Fighter IV FightStick SE
+ 	{ MAKE_CONTROLLER_ID( 0x0738, 0x4726 ), k_eControllerType_XBox360Controller, NULL },	// Mad Catz Xbox 360 Controller
+-- 
+2.17.1
+

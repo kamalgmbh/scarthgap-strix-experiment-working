@@ -1,0 +1,41 @@
+From b8d5fa4aef86c760bac0aa464f4834755f630a35 Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Tue, 3 Jan 2023 12:47:40 -0800
+Subject: [PATCH 131/458] Improved handling of binding buttons and axes
+
+(cherry picked from commit 71f3bf90edce26083056215124e65881f6c6ad26)
+---
+ test/controllermap.c | 8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)
+
+diff --git a/test/controllermap.c b/test/controllermap.c
+index 2f3c5bd47..cfd7d58be 100644
+--- a/test/controllermap.c
++++ b/test/controllermap.c
+@@ -501,9 +501,7 @@ WatchJoystick(SDL_Joystick *joystick)
+                     }
+                 }
+                 break;
+-            case SDL_JOYBALLMOTION:
+-                break;
+-            case SDL_JOYBUTTONDOWN:
++            case SDL_JOYBUTTONUP:
+                 if (event.jbutton.which == nJoystickID) {
+                     SDL_GameControllerExtendedBind binding;
+ 
+@@ -546,10 +544,10 @@ WatchJoystick(SDL_Joystick *joystick)
+ 
+         SDL_Delay(15);
+ 
+-        /* Wait 100 ms for joystick events to stop coming in,
++        /* Wait 30 ms for joystick events to stop coming in,
+            in case a controller sends multiple events for a single control (e.g. axis and button for trigger)
+         */
+-        if (s_unPendingAdvanceTime && SDL_GetTicks() - s_unPendingAdvanceTime >= 100) {
++        if (s_unPendingAdvanceTime && SDL_GetTicks() - s_unPendingAdvanceTime >= 30) {
+             SetCurrentBinding(s_iCurrentBinding + 1);
+         }
+     }
+-- 
+2.17.1
+

@@ -1,0 +1,35 @@
+From 094b92869ca0ada78c1eccaf994d0b10d81d7d6a Mon Sep 17 00:00:00 2001
+From: Xenia Ragiadakou <xenia.ragiadakou@amd.com>
+Date: Tue, 11 Apr 2023 14:23:42 -0700
+Subject: [PATCH 22/49] xen/pvh: disable cpu power management
+
+Signed-off-by: Xenia Ragiadakou <xenia.ragiadakou@amd.com>
+---
+ arch/x86/xen/enlighten_pvh.c | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/arch/x86/xen/enlighten_pvh.c b/arch/x86/xen/enlighten_pvh.c
+index 1782030123e3..11665991c24b 100644
+--- a/arch/x86/xen/enlighten_pvh.c
++++ b/arch/x86/xen/enlighten_pvh.c
+@@ -1,5 +1,7 @@
+ // SPDX-License-Identifier: GPL-2.0
+ #include <linux/acpi.h>
++#include <linux/cpufreq.h>
++#include <linux/cpuidle.h>
+ #include <linux/export.h>
+ 
+ #include <xen/hvc-console.h>
+@@ -60,6 +62,9 @@ void __init xen_pvh_init(struct boot_params *boot_params)
+ 					 sizeof(op.u.dom0_console)),
+ 				     &boot_params->screen_info);
+ 	}
++
++	disable_cpufreq();
++	disable_cpuidle();
+ }
+ 
+ void __init mem_map_via_hcall(struct boot_params *boot_params_p)
+-- 
+2.17.1
+

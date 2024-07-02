@@ -1,0 +1,68 @@
+From 49899ad8ec886814d25d2a8b427b0b36171ead21 Mon Sep 17 00:00:00 2001
+From: Pierre-Eric Pelloux-Prayer <Pierre-eric.Pelloux-prayer@amd.com>
+Date: Fri, 17 May 2024 04:08:45 -0400
+Subject: [PATCH 46/70] Revert "fixup! xen: init and update dynamically hva to
+ guest physical mappings"
+
+This reverts commit f34c3fc6f129f70b142095a9190db727e2c9b256.
+
+Reason for revert: seems to cause hangs on STX
+
+Change-Id: I6511dedd97bec4d6a7a5c34d47455bbb18bafa89
+---
+ softmmu/physmem.c | 22 +++++++---------------
+ 1 file changed, 7 insertions(+), 15 deletions(-)
+
+diff --git a/softmmu/physmem.c b/softmmu/physmem.c
+index 1eac6ba9fe..cd19b10466 100644
+--- a/softmmu/physmem.c
++++ b/softmmu/physmem.c
+@@ -2648,19 +2648,15 @@ static MemTxResult flatview_write_continue(FlatView *fv, hwaddr addr,
+         } else {
+             /* RAM case */
+             ram_ptr = qemu_ram_ptr_length(mr->ram_block, addr1, &l, false);
+-
++            memmove(ram_ptr, buf, l);
++            invalidate_and_set_dirty(mr, addr1, l);
+ #ifdef DYN_HVA_MAPPING
+             if (xen_enabled() && mr->is_hostmem) {
+                 unsigned long hva = (unsigned long)ram_ptr & TARGET_PAGE_MASK;
+-                unsigned int npages = DIV_ROUND_UP(len, TARGET_PAGE_SIZE);
++                unsigned int npages = DIV_ROUND_UP(l, TARGET_PAGE_SIZE);
+                 xen_update_hva(hva, npages);
+-                break;
+-            } else
+-#endif
+-            {
+-                memmove(ram_ptr, buf, l);
+-                invalidate_and_set_dirty(mr, addr1, l);
+             }
++#endif
+         }
+ 
+         if (release_lock) {
+@@ -2727,18 +2723,14 @@ MemTxResult flatview_read_continue(FlatView *fv, hwaddr addr,
+         } else {
+             /* RAM case */
+             ram_ptr = qemu_ram_ptr_length(mr->ram_block, addr1, &l, false);
+-
++            memcpy(buf, ram_ptr, l);
+ #ifdef DYN_HVA_MAPPING
+             if (xen_enabled() && mr->is_hostmem) {
+                 unsigned long hva = (unsigned long)ram_ptr & TARGET_PAGE_MASK;
+-                unsigned int npages = DIV_ROUND_UP(len, TARGET_PAGE_SIZE);
++                unsigned int npages = DIV_ROUND_UP(l, TARGET_PAGE_SIZE);
+                 xen_update_hva(hva, npages);
+-                break;
+-            } else
+-#endif
+-            {
+-                memcpy(buf, ram_ptr, l);
+             }
++#endif
+         }
+ 
+         if (release_lock) {
+-- 
+2.17.1
+

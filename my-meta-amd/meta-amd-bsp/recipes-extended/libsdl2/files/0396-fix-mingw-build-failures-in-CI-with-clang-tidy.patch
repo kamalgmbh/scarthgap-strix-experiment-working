@@ -1,0 +1,37 @@
+From 9dea06f5b5f8e94674a641b8be260c8128bb33b1 Mon Sep 17 00:00:00 2001
+From: Ozkan Sezer <sezeroz@gmail.com>
+Date: Fri, 26 May 2023 23:55:04 +0300
+Subject: [PATCH 396/458] fix mingw build failures in CI with clang-tidy.
+
+(cherry-picked from commit a8a72de6fbcf9afe8a6e8760f31a79a0ed6fed1a)
+---
+ include/SDL_stdinc.h | 9 +++++++++
+ 1 file changed, 9 insertions(+)
+
+diff --git a/include/SDL_stdinc.h b/include/SDL_stdinc.h
+index 0f903f879..f46a728f6 100644
+--- a/include/SDL_stdinc.h
++++ b/include/SDL_stdinc.h
+@@ -716,10 +716,19 @@ size_t strlcpy(char* dst, const char* src, size_t size);
+ size_t strlcat(char* dst, const char* src, size_t size);
+ #endif
+ 
++#ifndef HAVE_WCSLCPY
++size_t wcslcpy(wchar_t *dst, const wchar_t *src, size_t size);
++#endif
++
++#ifndef HAVE_WCSLCAT
++size_t wcslcat(wchar_t *dst, const wchar_t *src, size_t size);
++#endif
++
+ /* Starting LLVM 16, the analyser errors out if these functions do not have
+    their prototype defined (clang-diagnostic-implicit-function-declaration) */
+ #include <stdlib.h>
+ #include <string.h>
++#include <stdio.h>
+ 
+ #define SDL_malloc malloc
+ #define SDL_calloc calloc
+-- 
+2.17.1
+

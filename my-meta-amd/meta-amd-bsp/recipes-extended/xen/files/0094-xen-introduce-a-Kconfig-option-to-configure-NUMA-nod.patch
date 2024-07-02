@@ -1,0 +1,86 @@
+From c243c0bb2a77e1328842436ca654f808701161c6 Mon Sep 17 00:00:00 2001
+From: Wei Chen <wei.chen@arm.com>
+Date: Mon, 12 Dec 2022 12:15:28 +0100
+Subject: [PATCH 094/221] xen: introduce a Kconfig option to configure NUMA
+ nodes number
+
+Currently the maximum number of NUMA nodes is a hardcoded value.
+This provides little flexibility unless changing the code.
+
+Introduce a new Kconfig option to change the maximum number of
+NUMA nodes conveniently. Also considering that not all
+architectures support NUMA, this Kconfig option is only visible
+on NUMA enabled architectures. Architectures not supporting NUMA
+still use 1 for MAX_NUMNODES.
+
+As NODES_SHIFT is currently unused, we're taking this
+opportunity to remove it.
+
+Signed-off-by: Wei Chen <wei.chen@arm.com>
+Acked-by: Jan Beulich <jbeulich@suse.com>
+---
+ xen/arch/Kconfig                | 11 +++++++++++
+ xen/arch/x86/include/asm/numa.h |  2 --
+ xen/include/xen/numa.h          | 11 ++++++-----
+ 3 files changed, 17 insertions(+), 7 deletions(-)
+
+diff --git a/xen/arch/Kconfig b/xen/arch/Kconfig
+index f16eb0df43..7028f7b74f 100644
+--- a/xen/arch/Kconfig
++++ b/xen/arch/Kconfig
+@@ -17,3 +17,14 @@ config NR_CPUS
+ 	  For CPU cores which support Simultaneous Multi-Threading or similar
+ 	  technologies, this the number of logical threads which Xen will
+ 	  support.
++
++config NR_NUMA_NODES
++	int "Maximum number of NUMA nodes supported"
++	range 2 64
++	default "64"
++	depends on NUMA
++	help
++	  Controls the build-time size of various arrays and bitmaps
++	  associated with multiple-nodes management. It is the upper bound of
++	  the number of NUMA nodes that the scheduler, memory allocation and
++	  other NUMA-aware components can handle.
+diff --git a/xen/arch/x86/include/asm/numa.h b/xen/arch/x86/include/asm/numa.h
+index 2ca3475271..7866afa408 100644
+--- a/xen/arch/x86/include/asm/numa.h
++++ b/xen/arch/x86/include/asm/numa.h
+@@ -3,8 +3,6 @@
+ 
+ #include <xen/cpumask.h>
+ 
+-#define NODES_SHIFT 6
+-
+ typedef u8 nodeid_t;
+ 
+ extern int srat_rev;
+diff --git a/xen/include/xen/numa.h b/xen/include/xen/numa.h
+index 04ecaf7769..71a5f837b3 100644
+--- a/xen/include/xen/numa.h
++++ b/xen/include/xen/numa.h
+@@ -3,14 +3,15 @@
+ 
+ #include <asm/numa.h>
+ 
+-#ifndef NODES_SHIFT
+-#define NODES_SHIFT     0
+-#endif
+-
+ #define NUMA_NO_NODE     0xFF
+ #define NUMA_NO_DISTANCE 0xFF
+ 
+-#define MAX_NUMNODES    (1 << NODES_SHIFT)
++#ifdef CONFIG_NR_NUMA_NODES
++#define MAX_NUMNODES CONFIG_NR_NUMA_NODES
++#else
++#define MAX_NUMNODES 1
++#endif
++
+ #define NR_NODE_MEMBLKS (MAX_NUMNODES * 2)
+ 
+ #define vcpu_to_node(v) (cpu_to_node((v)->processor))
+-- 
+2.17.1
+

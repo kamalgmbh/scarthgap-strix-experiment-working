@@ -1,0 +1,352 @@
+From 0b7a9a8e9fa1f54b7c2f8f77635190dcbda49814 Mon Sep 17 00:00:00 2001
+From: pionere <pionere@freemail.hu>
+Date: Tue, 29 Nov 2022 17:30:03 +0100
+Subject: [PATCH 041/458] thread: code style
+
+(cherry picked from commit 461a38ff1af1d749426c8e2c6f2a56e2b31c1a45)
+---
+ src/thread/ngage/SDL_syssem.cpp     |  4 ++--
+ src/thread/ngage/SDL_systhread.cpp  |  9 +++------
+ src/thread/ps2/SDL_syssem.c         |  4 ++--
+ src/thread/pthread/SDL_syssem.c     | 18 +++++++++++-------
+ src/thread/stdcpp/SDL_syscond.cpp   |  8 ++++----
+ src/thread/stdcpp/SDL_sysmutex.cpp  |  2 +-
+ src/thread/vita/SDL_syscond.c       |  4 ++--
+ src/thread/vita/SDL_sysmutex.c      |  4 ++--
+ src/thread/vita/SDL_syssem.c        | 16 ++++++++--------
+ src/thread/windows/SDL_syscond_cv.c |  2 +-
+ src/thread/windows/SDL_sysmutex.c   |  6 +++---
+ src/thread/windows/SDL_syssem.c     |  8 ++++----
+ 12 files changed, 43 insertions(+), 42 deletions(-)
+
+diff --git a/src/thread/ngage/SDL_syssem.cpp b/src/thread/ngage/SDL_syssem.cpp
+index be3b53d2f..64cbb97c0 100644
+--- a/src/thread/ngage/SDL_syssem.cpp
++++ b/src/thread/ngage/SDL_syssem.cpp
+@@ -74,7 +74,7 @@ static void WaitAll(SDL_sem *sem)
+     RSemaphore sema;
+     sema.SetHandle(sem->handle);
+     sema.Wait();
+-    while(sem->count < 0) {
++    while (sem->count < 0) {
+         sema.Wait();
+     }
+ }
+@@ -96,7 +96,7 @@ SDL_CreateSemaphore(Uint32 initial_value)
+ void
+ SDL_DestroySemaphore(SDL_sem * sem)
+ {
+-    if (sem) {
++    if (sem != NULL) {
+         RSemaphore sema;
+         sema.SetHandle(sem->handle);
+         sema.Signal(sema.Count());
+diff --git a/src/thread/ngage/SDL_systhread.cpp b/src/thread/ngage/SDL_systhread.cpp
+index dcb870df3..6965e4316 100644
+--- a/src/thread/ngage/SDL_systhread.cpp
++++ b/src/thread/ngage/SDL_systhread.cpp
+@@ -54,13 +54,11 @@ CreateUnique(TInt (*aFunc)(const TDesC& aName, TAny*, TAny*), TAny* aPtr1, TAny*
+ {
+     TBuf<16> name;
+     TInt     status = KErrNone;
+-    do
+-    {
++    do {
+         object_count++;
+         name.Format(_L("SDL_%x"), object_count);
+         status = aFunc(name, aPtr1, aPtr2);
+-    }
+-    while(status == KErrAlreadyExists);
++    } while (status == KErrAlreadyExists);
+     return status;
+ }
+ 
+@@ -73,8 +71,7 @@ SDL_SYS_CreateThread(SDL_Thread *thread)
+     if (status != KErrNone) {
+         delete(((RThread*)(thread->handle)));
+         thread->handle = NULL;
+-        SDL_SetError("Not enough resources to create thread");
+-        return -1;
++        return SDL_SetError("Not enough resources to create thread");
+     }
+ 
+     rthread.Resume();
+diff --git a/src/thread/ps2/SDL_syssem.c b/src/thread/ps2/SDL_syssem.c
+index 7dc875695..1c33e63c5 100644
+--- a/src/thread/ps2/SDL_syssem.c
++++ b/src/thread/ps2/SDL_syssem.c
+@@ -85,7 +85,7 @@ int SDL_SemWaitTimeout(SDL_sem *sem, Uint32 timeout)
+     int ret;
+     struct timer_alarm_t alarm;
+     InitializeTimerAlarm(&alarm);
+-    
++
+     if (sem == NULL) {
+         return SDL_InvalidParamError("sem");
+     }
+@@ -107,7 +107,7 @@ int SDL_SemWaitTimeout(SDL_sem *sem, Uint32 timeout)
+     if (ret < 0) {
+         return SDL_MUTEX_TIMEDOUT;
+     }
+-    return 0; //Wait condition satisfied.
++    return 0; // Wait condition satisfied.
+ }
+ 
+ int SDL_SemTryWait(SDL_sem *sem)
+diff --git a/src/thread/pthread/SDL_syssem.c b/src/thread/pthread/SDL_syssem.c
+index 8321807cc..12a5b9611 100644
+--- a/src/thread/pthread/SDL_syssem.c
++++ b/src/thread/pthread/SDL_syssem.c
+@@ -46,7 +46,7 @@ SDL_sem *
+ SDL_CreateSemaphore(Uint32 initial_value)
+ {
+     SDL_sem *sem = (SDL_sem *) SDL_malloc(sizeof(SDL_sem));
+-    if (sem) {
++    if (sem != NULL) {
+         if (sem_init(&sem->sem, 0, initial_value) < 0) {
+             SDL_SetError("sem_init() failed");
+             SDL_free(sem);
+@@ -61,7 +61,7 @@ SDL_CreateSemaphore(Uint32 initial_value)
+ void
+ SDL_DestroySemaphore(SDL_sem * sem)
+ {
+-    if (sem) {
++    if (sem != NULL) {
+         sem_destroy(&sem->sem);
+         SDL_free(sem);
+     }
+@@ -180,11 +180,15 @@ Uint32
+ SDL_SemValue(SDL_sem * sem)
+ {
+     int ret = 0;
+-    if (sem) {
+-        sem_getvalue(&sem->sem, &ret);
+-        if (ret < 0) {
+-            ret = 0;
+-        }
++
++    if (sem == NULL) {
++        SDL_InvalidParamError("sem");
++        return 0;
++    }
++
++    sem_getvalue(&sem->sem, &ret);
++    if (ret < 0) {
++        ret = 0;
+     }
+     return (Uint32) ret;
+ }
+diff --git a/src/thread/stdcpp/SDL_syscond.cpp b/src/thread/stdcpp/SDL_syscond.cpp
+index 95e82d074..3b9530adf 100644
+--- a/src/thread/stdcpp/SDL_syscond.cpp
++++ b/src/thread/stdcpp/SDL_syscond.cpp
+@@ -59,7 +59,7 @@ extern "C"
+ void
+ SDL_DestroyCond(SDL_cond * cond)
+ {
+-    if (cond) {
++    if (cond != NULL) {
+         delete cond;
+     }
+ }
+@@ -115,11 +115,11 @@ extern "C"
+ int
+ SDL_CondWaitTimeout(SDL_cond * cond, SDL_mutex * mutex, Uint32 ms)
+ {
+-    if (!cond) {
++    if (cond == NULL) {
+         return SDL_InvalidParamError("cond");
+     }
+ 
+-    if (!mutex) {
++    if (mutex == NULL) {
+         return SDL_InvalidParamError("mutex");
+     }
+ 
+@@ -132,7 +132,7 @@ SDL_CondWaitTimeout(SDL_cond * cond, SDL_mutex * mutex, Uint32 ms)
+             cpp_lock.release();
+             return 0;
+         } else {
+-            auto wait_result = cond->cpp_cond.wait_for (
++            auto wait_result = cond->cpp_cond.wait_for(
+                 cpp_lock,
+                 std::chrono::duration<Uint32, std::milli>(ms)
+                 );
+diff --git a/src/thread/stdcpp/SDL_sysmutex.cpp b/src/thread/stdcpp/SDL_sysmutex.cpp
+index 828801046..b949daa3d 100644
+--- a/src/thread/stdcpp/SDL_sysmutex.cpp
++++ b/src/thread/stdcpp/SDL_sysmutex.cpp
+@@ -54,7 +54,7 @@ extern "C"
+ void
+ SDL_DestroyMutex(SDL_mutex * mutex)
+ {
+-    if (mutex) {
++    if (mutex != NULL) {
+         delete mutex;
+     }
+ }
+diff --git a/src/thread/vita/SDL_syscond.c b/src/thread/vita/SDL_syscond.c
+index 7a2dfe630..4f2627660 100644
+--- a/src/thread/vita/SDL_syscond.c
++++ b/src/thread/vita/SDL_syscond.c
+@@ -46,7 +46,7 @@ SDL_CreateCond(void)
+     SDL_cond *cond;
+ 
+     cond = (SDL_cond *) SDL_malloc(sizeof(SDL_cond));
+-    if (cond) {
++    if (cond != NULL) {
+         cond->lock = SDL_CreateMutex();
+         cond->wait_sem = SDL_CreateSemaphore(0);
+         cond->wait_done = SDL_CreateSemaphore(0);
+@@ -65,7 +65,7 @@ SDL_CreateCond(void)
+ void
+ SDL_DestroyCond(SDL_cond * cond)
+ {
+-    if (cond) {
++    if (cond != NULL) {
+         if (cond->wait_sem) {
+             SDL_DestroySemaphore(cond->wait_sem);
+         }
+diff --git a/src/thread/vita/SDL_sysmutex.c b/src/thread/vita/SDL_sysmutex.c
+index 6327182cc..1ca7d3b9c 100644
+--- a/src/thread/vita/SDL_sysmutex.c
++++ b/src/thread/vita/SDL_sysmutex.c
+@@ -42,7 +42,7 @@ SDL_CreateMutex(void)
+ 
+     /* Allocate mutex memory */
+     mutex = (SDL_mutex *) SDL_malloc(sizeof(*mutex));
+-    if (mutex) {
++    if (mutex != NULL) {
+ 
+         res = sceKernelCreateLwMutex(
+             &mutex->lock,
+@@ -65,7 +65,7 @@ SDL_CreateMutex(void)
+ void
+ SDL_DestroyMutex(SDL_mutex * mutex)
+ {
+-    if (mutex) {
++    if (mutex != NULL) {
+         sceKernelDeleteLwMutex(&mutex->lock);
+         SDL_free(mutex);
+     }
+diff --git a/src/thread/vita/SDL_syssem.c b/src/thread/vita/SDL_syssem.c
+index 781e9e906..1067d4a3a 100644
+--- a/src/thread/vita/SDL_syssem.c
++++ b/src/thread/vita/SDL_syssem.c
+@@ -80,7 +80,7 @@ void SDL_DestroySemaphore(SDL_sem *sem)
+ int SDL_SemWaitTimeout(SDL_sem *sem, Uint32 timeout)
+ {
+     Uint32 *pTimeout;
+-       unsigned int res;
++    unsigned int res;
+ 
+     if (sem == NULL) {
+         return SDL_InvalidParamError("sem");
+@@ -102,13 +102,13 @@ int SDL_SemWaitTimeout(SDL_sem *sem, Uint32 timeout)
+     }
+ 
+     res = sceKernelWaitSema(sem->semid, 1, pTimeout);
+-       switch (res) {
+-               case SCE_KERNEL_OK:
+-                       return 0;
+-               case SCE_KERNEL_ERROR_WAIT_TIMEOUT:
+-                       return SDL_MUTEX_TIMEDOUT;
+-               default:
+-                       return SDL_SetError("WaitForSingleObject() failed");
++    switch (res) {
++    case SCE_KERNEL_OK:
++        return 0;
++    case SCE_KERNEL_ERROR_WAIT_TIMEOUT:
++        return SDL_MUTEX_TIMEDOUT;
++    default:
++        return SDL_SetError("WaitForSingleObject() failed");
+     }
+ }
+ 
+diff --git a/src/thread/windows/SDL_syscond_cv.c b/src/thread/windows/SDL_syscond_cv.c
+index 99ff9cafc..eee769de8 100644
+--- a/src/thread/windows/SDL_syscond_cv.c
++++ b/src/thread/windows/SDL_syscond_cv.c
+@@ -98,7 +98,7 @@ SDL_CreateCond_cv(void)
+ static void
+ SDL_DestroyCond_cv(SDL_cond * cond)
+ {
+-    if (cond) {
++    if (cond != NULL) {
+         /* There are no kernel allocated resources */
+         SDL_free(cond);
+     }
+diff --git a/src/thread/windows/SDL_sysmutex.c b/src/thread/windows/SDL_sysmutex.c
+index 247738476..1355a2b0f 100644
+--- a/src/thread/windows/SDL_sysmutex.c
++++ b/src/thread/windows/SDL_sysmutex.c
+@@ -75,7 +75,7 @@ SDL_CreateMutex_srw(void)
+ static void
+ SDL_DestroyMutex_srw(SDL_mutex * mutex)
+ {
+-    if (mutex) {
++    if (mutex != NULL) {
+         /* There are no kernel allocated resources */
+         SDL_free(mutex);
+     }
+@@ -177,7 +177,7 @@ SDL_CreateMutex_cs(void)
+ 
+     /* Allocate mutex memory */
+     mutex = (SDL_mutex_cs *) SDL_malloc(sizeof(*mutex));
+-    if (mutex) {
++    if (mutex != NULL) {
+         /* Initialize */
+         /* On SMP systems, a non-zero spin count generally helps performance */
+ #if __WINRT__
+@@ -196,7 +196,7 @@ static void
+ SDL_DestroyMutex_cs(SDL_mutex * mutex_)
+ {
+     SDL_mutex_cs *mutex = (SDL_mutex_cs *)mutex_;
+-    if (mutex) {
++    if (mutex != NULL) {
+         DeleteCriticalSection(&mutex->cs);
+         SDL_free(mutex);
+     }
+diff --git a/src/thread/windows/SDL_syssem.c b/src/thread/windows/SDL_syssem.c
+index e80d25653..657679966 100644
+--- a/src/thread/windows/SDL_syssem.c
++++ b/src/thread/windows/SDL_syssem.c
+@@ -99,7 +99,7 @@ SDL_CreateSemaphore_atom(Uint32 initial_value)
+     SDL_sem_atom *sem;
+ 
+     sem = (SDL_sem_atom *) SDL_malloc(sizeof(*sem));
+-    if (sem) {
++    if (sem != NULL) {
+         sem->count = initial_value;
+     } else {
+         SDL_OutOfMemory();
+@@ -110,7 +110,7 @@ SDL_CreateSemaphore_atom(Uint32 initial_value)
+ static void
+ SDL_DestroySemaphore_atom(SDL_sem * sem)
+ {
+-    if (sem) {
++    if (sem != NULL) {
+         SDL_free(sem);
+     }
+ }
+@@ -272,7 +272,7 @@ SDL_CreateSemaphore_kern(Uint32 initial_value)
+ 
+     /* Allocate sem memory */
+     sem = (SDL_sem_kern *) SDL_malloc(sizeof(*sem));
+-    if (sem) {
++    if (sem != NULL) {
+         /* Create the semaphore, with max value 32K */
+ #if __WINRT__
+         sem->id = CreateSemaphoreEx(NULL, initial_value, 32 * 1024, NULL, 0, SEMAPHORE_ALL_ACCESS);
+@@ -296,7 +296,7 @@ static void
+ SDL_DestroySemaphore_kern(SDL_sem * _sem)
+ {
+     SDL_sem_kern *sem = (SDL_sem_kern *)_sem;
+-    if (sem) {
++    if (sem != NULL) {
+         if (sem->id) {
+             CloseHandle(sem->id);
+             sem->id = 0;
+-- 
+2.17.1
+

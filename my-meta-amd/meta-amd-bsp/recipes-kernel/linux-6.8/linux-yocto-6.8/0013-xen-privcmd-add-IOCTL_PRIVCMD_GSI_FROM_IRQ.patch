@@ -1,0 +1,173 @@
+From b25847ad3d9e958cc31ffd731e9cd5194b4b7539 Mon Sep 17 00:00:00 2001
+From: jiqichen <Jiqian.Chen@amd.com>
+Date: Mon, 30 Jan 2023 14:28:44 +0800
+Subject: [PATCH 13/49] xen: privcmd: add IOCTL_PRIVCMD_GSI_FROM_IRQ
+
+When hypervisor get an interrupt, it needs interrupt's
+gsi number instead of irq number. Gsi number is unique
+in xen, but irq number is only unique in one domain.
+So, we need to record the relationship between irq and
+gsi when dom0 initialized pci devices, and provide syscall
+IOCTL_PRIVCMD_GSI_FROM_IRQ to translate irq to gsi. So
+that, we can map pirq successfully in hypervisor side.
+
+Signed-off-by: Chen Jiqian <Jiqian.Chen@amd.com>
+Change-Id: I6d707f264b59d2eb88cdfa0156e0945bf8da1744
+---
+ arch/x86/pci/xen.c               |  4 ++++
+ drivers/xen/events/events_base.c | 37 ++++++++++++++++++++++++++++++++
+ drivers/xen/privcmd.c            | 19 ++++++++++++++++
+ include/uapi/xen/privcmd.h       |  7 ++++++
+ include/xen/events.h             |  5 +++++
+ 5 files changed, 72 insertions(+)
+
+diff --git a/arch/x86/pci/xen.c b/arch/x86/pci/xen.c
+index 97f9dc64ad54..d1a9c9123b79 100644
+--- a/arch/x86/pci/xen.c
++++ b/arch/x86/pci/xen.c
+@@ -143,6 +143,10 @@ static int acpi_register_gsi_xen_pvh(struct device *dev, u32 gsi,
+ 	else if (rc)
+ 		printk(KERN_ERR "Failed to setup GSI :%u, err_code:%d\n", gsi, rc);
+ 
++	rc = xen_pvh_add_gsi_irq_map(gsi, irq);
++	if (rc == -EEXIST)
++		printk(KERN_INFO "Already map the GSI :%u and IRQ: %d\n", gsi, irq);
++
+ 	return irq;
+ }
+ 
+diff --git a/drivers/xen/events/events_base.c b/drivers/xen/events/events_base.c
+index 4d018ef52563..cd75234471cd 100644
+--- a/drivers/xen/events/events_base.c
++++ b/drivers/xen/events/events_base.c
+@@ -953,6 +953,43 @@ int xen_irq_from_gsi(unsigned gsi)
+ }
+ EXPORT_SYMBOL_GPL(xen_irq_from_gsi);
+ 
++int xen_gsi_from_irq(unsigned irq)
++{
++	struct irq_info *info;
++
++	list_for_each_entry(info, &xen_irq_list_head, list) {
++		if (info->type != IRQT_PIRQ)
++			continue;
++
++		if (info->irq == irq)
++			return info->u.pirq.gsi;
++	}
++
++	return -1;
++}
++EXPORT_SYMBOL_GPL(xen_gsi_from_irq);
++
++int xen_pvh_add_gsi_irq_map(unsigned gsi, unsigned irq)
++{
++	int tmp_irq;
++	struct irq_info *info;
++
++	tmp_irq = xen_irq_from_gsi(gsi);
++	if (tmp_irq != -1)
++		return -EEXIST;
++
++	info = kzalloc(sizeof(*info), GFP_KERNEL);
++	if (info == NULL)
++		panic("Unable to allocate metadata for GSI%d\n", gsi);
++
++	info->type = IRQT_PIRQ;
++	info->irq = irq;
++	info->u.pirq.gsi = gsi;
++	list_add_tail(&info->list, &xen_irq_list_head);
++
++	return 0;
++}
++
+ static void __unbind_from_irq(struct irq_info *info, unsigned int irq)
+ {
+ 	evtchn_port_t evtchn;
+diff --git a/drivers/xen/privcmd.c b/drivers/xen/privcmd.c
+index 67dfa4778864..cc1f235cd314 100644
+--- a/drivers/xen/privcmd.c
++++ b/drivers/xen/privcmd.c
+@@ -45,6 +45,7 @@
+ #include <xen/page.h>
+ #include <xen/xen-ops.h>
+ #include <xen/balloon.h>
++#include <xen/events.h>
+ 
+ #include "privcmd.h"
+ 
+@@ -1486,6 +1487,21 @@ static inline void privcmd_ioeventfd_exit(void)
+ }
+ #endif /* CONFIG_XEN_PRIVCMD_EVENTFD */
+ 
++static long privcmd_ioctl_gsi_from_irq(struct file *file, void __user *udata)
++{
++	struct privcmd_gsi_from_irq kdata;
++
++	if (copy_from_user(&kdata, udata, sizeof(kdata)))
++		return -EFAULT;
++
++	kdata.gsi = xen_gsi_from_irq(kdata.irq);
++
++	if (copy_to_user(udata, &kdata, sizeof(kdata)))
++		return -EFAULT;
++
++	return 0;
++}
++
+ static long privcmd_ioctl(struct file *file,
+ 			  unsigned int cmd, unsigned long data)
+ {
+@@ -1527,6 +1543,9 @@ static long privcmd_ioctl(struct file *file,
+ 
+ 	case IOCTL_PRIVCMD_IOEVENTFD:
+ 		ret = privcmd_ioctl_ioeventfd(file, udata);
++
++	case IOCTL_PRIVCMD_GSI_FROM_IRQ:
++		ret = privcmd_ioctl_gsi_from_irq(file, udata);
+ 		break;
+ 
+ 	default:
+diff --git a/include/uapi/xen/privcmd.h b/include/uapi/xen/privcmd.h
+index 8b8c5d1420fe..7b5ccb670c77 100644
+--- a/include/uapi/xen/privcmd.h
++++ b/include/uapi/xen/privcmd.h
+@@ -126,6 +126,11 @@ struct privcmd_ioeventfd {
+ 	__u8 pad[2];
+ };
+ 
++struct privcmd_gsi_from_irq {
++	__u32 irq;
++	__u32 gsi;
++};
++
+ /*
+  * @cmd: IOCTL_PRIVCMD_HYPERCALL
+  * @arg: &privcmd_hypercall_t
+@@ -157,5 +162,7 @@ struct privcmd_ioeventfd {
+ 	_IOW('P', 8, struct privcmd_irqfd)
+ #define IOCTL_PRIVCMD_IOEVENTFD					\
+ 	_IOW('P', 9, struct privcmd_ioeventfd)
++#define IOCTL_PRIVCMD_GSI_FROM_IRQ				\
++	_IOC(_IOC_NONE, 'P', 8, sizeof(struct privcmd_gsi_from_irq))
+ 
+ #endif /* __LINUX_PUBLIC_PRIVCMD_H__ */
+diff --git a/include/xen/events.h b/include/xen/events.h
+index 3b07409f8032..411298ae7fb0 100644
+--- a/include/xen/events.h
++++ b/include/xen/events.h
+@@ -127,6 +127,11 @@ int xen_pirq_from_irq(unsigned irq);
+ /* Return the irq allocated to the gsi */
+ int xen_irq_from_gsi(unsigned gsi);
+ 
++/* Return the gsi from irq */
++int xen_gsi_from_irq(unsigned irq);
++
++int xen_pvh_add_gsi_irq_map(unsigned gsi, unsigned irq);
++
+ /* Determine whether to ignore this IRQ if it is passed to a guest. */
+ int xen_test_irq_shared(int irq);
+ 
+-- 
+2.17.1
+

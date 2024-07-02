@@ -1,0 +1,38 @@
+From 511bab5bbf76b48a81afcce759b34b9da69f33db Mon Sep 17 00:00:00 2001
+From: "Ryan C. Gordon" <icculus@icculus.org>
+Date: Tue, 22 Nov 2022 13:05:08 -0500
+Subject: [PATCH 005/458] .wikiheaders-options: Move SDL2 documentation to a
+ subdirectory.
+
+SDL3 will be the main thing now.
+---
+ .wikiheaders-options | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/.wikiheaders-options b/.wikiheaders-options
+index 31ccd4335..f6b64fdb9 100644
+--- a/.wikiheaders-options
++++ b/.wikiheaders-options
+@@ -1,7 +1,7 @@
+-projectfullname = SDL_mixer
+-projectshortname = SDL_mixer
++projectfullname = SDL2
++projectshortname = SDL2
+ incsubdir = include
+-wikisubdir =
++wikisubdir = SDL2
+ apiprefixregex = (SDL_|SDLK_|KMOD_|AUDIO_)
+ mainincludefname = SDL.h
+ versionfname = include/SDL_version.h
+@@ -10,6 +10,7 @@ versionminorregex = \A\#define\s+SDL_MINOR_VERSION\s+(\d+)\Z
+ versionpatchregex = \A\#define\s+SDL_PATCHLEVEL\s+(\d+)\Z
+ selectheaderregex = \ASDL.*?\.h\Z
+ projecturl = https://libsdl.org/
+-wikiurl = https://wiki.libsdl.org
++wikiurl = https://wiki.libsdl.org/SDL2
+ bugreporturl = https://github.com/libsdl-org/sdlwiki/issues/new
+ warn_about_missing = 0
++wikipreamble = (This is the legacy documentation for stable SDL2, the current stable version; SDL3 is the current development version.)
+-- 
+2.17.1
+

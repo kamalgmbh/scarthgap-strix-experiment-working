@@ -1,0 +1,41 @@
+From b6d051e226fdd9be7bad5f405e7c0a8dc7272932 Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Mon, 22 May 2023 11:54:46 -0700
+Subject: [PATCH 386/458] Fixed reporting backspace key if there is no text in
+ the edit buffer (thanks @312937!)
+
+This workaround isn't necessary at API 30 and above.
+
+Fixes https://github.com/libsdl-org/SDL/issues/7039
+
+(cherry picked from commit c971795954bc85086cd20cfc71b45a311b7ba0d1)
+---
+ .../src/main/java/org/libsdl/app/SDLActivity.java    | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)
+
+diff --git a/android-project/app/src/main/java/org/libsdl/app/SDLActivity.java b/android-project/app/src/main/java/org/libsdl/app/SDLActivity.java
+index e9d23d3dd..24ba23b8c 100644
+--- a/android-project/app/src/main/java/org/libsdl/app/SDLActivity.java
++++ b/android-project/app/src/main/java/org/libsdl/app/SDLActivity.java
+@@ -2007,6 +2007,18 @@ class SDLInputConnection extends BaseInputConnection {
+ 
+     @Override
+     public boolean deleteSurroundingText(int beforeLength, int afterLength) {
++        if (Build.VERSION.SDK_INT <= 29) {
++            // Workaround to capture backspace key. Ref: http://stackoverflow.com/questions>/14560344/android-backspace-in-webview-baseinputconnection
++            // and https://bugzilla.libsdl.org/show_bug.cgi?id=2265
++            if (beforeLength > 0 && afterLength == 0) {
++                // backspace(s)
++                while (beforeLength-- > 0) {
++                    nativeGenerateScancodeForUnichar('\b');
++                }
++                return true;
++           }
++        }
++
+         if (!super.deleteSurroundingText(beforeLength, afterLength)) {
+             return false;
+         }
+-- 
+2.17.1
+

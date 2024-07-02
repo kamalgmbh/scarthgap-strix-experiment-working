@@ -1,0 +1,39 @@
+From 6bbc7fb7397da72afe45bd4690c30601986980a6 Mon Sep 17 00:00:00 2001
+From: Huang Rui <ray.huang@amd.com>
+Date: Sun, 27 Aug 2023 19:36:02 +0800
+Subject: [PATCH 14/70] virtio-gpu: Configure new feature flag
+ context_create_with_flags for virglrenderer
+
+Configure a new feature flag (context_create_with_flags) for
+virglrenderer.
+
+Originally-by: Antonio Caggiano <antonio.caggiano@collabora.com>
+Signed-off-by: Huang Rui <ray.huang@amd.com>
+---
+ meson.build | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
+
+diff --git a/meson.build b/meson.build
+index 30447cfaef..386fa22568 100644
+--- a/meson.build
++++ b/meson.build
+@@ -776,6 +776,16 @@ if not get_option('virglrenderer').auto() or have_system or have_vhost_user_gpu
+                      method: 'pkg-config',
+                      required: get_option('virglrenderer'),
+                      kwargs: static_kwargs)
++  if virgl.found()
++    config_host_data.set('HAVE_VIRGL_D3D_INFO_EXT',
++                         cc.has_member('struct virgl_renderer_resource_info_ext', 'd3d_tex2d',
++                                       prefix: '#include <virglrenderer.h>',
++                                       dependencies: virgl))
++    config_host_data.set('HAVE_VIRGL_CONTEXT_CREATE_WITH_FLAGS',
++                         cc.has_function('virgl_renderer_context_create_with_flags',
++                                         prefix: '#include <virglrenderer.h>',
++                                         dependencies: virgl))
++  endif
+ endif
+ blkio = not_found
+ if not get_option('blkio').auto() or have_block
+-- 
+2.17.1
+

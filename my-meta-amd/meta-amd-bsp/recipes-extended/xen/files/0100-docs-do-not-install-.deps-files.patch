@@ -1,0 +1,33 @@
+From 96993519424c3fef49fd00d80a271d986767a3cd Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Marek=20Marczykowski-G=C3=B3recki?=
+ <marmarek@invisiblethingslab.com>
+Date: Mon, 12 Dec 2022 12:29:09 +0100
+Subject: [PATCH 100/221] docs: do not install .deps files
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+It isn't really part of the documentation. Furthermore, entries there
+are in not determined order, which breaks build reproducibility.
+
+Signed-off-by: Marek Marczykowski-Górecki <marmarek@invisiblethingslab.com>
+Acked-by: Andrew Cooper <andrew.cooper3@citrix.com>
+---
+ docs/Makefile | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/docs/Makefile b/docs/Makefile
+index 8de1efb6f5..966a104490 100644
+--- a/docs/Makefile
++++ b/docs/Makefile
+@@ -178,6 +178,7 @@ $(foreach i,$(MAN_SECTIONS),$(eval $(call GENERATE_MANPAGE_RULES,$(i))))
+ install-html: html txt figs
+ 	$(INSTALL_DIR) $(DESTDIR)$(docdir)
+ 	[ ! -d html ] || cp -R html $(DESTDIR)$(docdir)
++	rm -f $(DESTDIR)$(docdir)/html/hypercall/*/.deps
+ 
+ .PHONY: install
+ install: install-man-pages install-html
+-- 
+2.17.1
+

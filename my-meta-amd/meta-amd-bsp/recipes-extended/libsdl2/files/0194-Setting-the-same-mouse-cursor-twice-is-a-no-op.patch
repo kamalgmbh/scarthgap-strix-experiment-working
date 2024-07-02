@@ -1,0 +1,30 @@
+From af5efadd9fd8b26d075c92a57df40428846b234e Mon Sep 17 00:00:00 2001
+From: Sean Ridenour <kewlpc@gmail.com>
+Date: Sat, 4 Feb 2023 10:29:59 -0700
+Subject: [PATCH 194/458] Setting the same mouse cursor twice is a no-op
+
+This fixes extremely poor event polling performance on MacOS when using
+Dear ImGui, which sets the mouse cursor every frame.
+---
+ src/events/SDL_mouse.c | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/src/events/SDL_mouse.c b/src/events/SDL_mouse.c
+index 3cd82b66b..a359c8e38 100644
+--- a/src/events/SDL_mouse.c
++++ b/src/events/SDL_mouse.c
+@@ -1333,6 +1333,11 @@ void SDL_SetCursor(SDL_Cursor *cursor)
+ {
+     SDL_Mouse *mouse = SDL_GetMouse();
+ 
++    /* Return immediately if setting the cursor to the currently set one (fixes #7151) */
++    if (cursor == mouse->cur_cursor) {
++        return;
++    }
++
+     /* Set the new cursor */
+     if (cursor) {
+         /* Make sure the cursor is still valid for this mouse */
+-- 
+2.17.1
+

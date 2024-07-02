@@ -1,0 +1,53 @@
+From 32999798e0232cdeda777a32ce2fe6b78ec2bb4e Mon Sep 17 00:00:00 2001
+From: "Ryan C. Gordon" <icculus@icculus.org>
+Date: Wed, 17 May 2023 19:53:36 -0400
+Subject: [PATCH 371/458] dynapi: Accept a comma-separated list of libraries to
+ attempt to load.
+
+First one to load and have the necessary symbol is the one we accept,
+if any. Once we accept one, we won't try loading others.
+
+Fixes #7613.
+---
+ src/dynapi/SDL_dynapi.c | 20 +++++++++++++++++---
+ 1 file changed, 17 insertions(+), 3 deletions(-)
+
+diff --git a/src/dynapi/SDL_dynapi.c b/src/dynapi/SDL_dynapi.c
+index 72542ab49..43a07b981 100644
+--- a/src/dynapi/SDL_dynapi.c
++++ b/src/dynapi/SDL_dynapi.c
+@@ -441,14 +441,28 @@ extern SDL_NORETURN void SDL_ExitProcess(int exitcode);
+ 
+ static void SDL_InitDynamicAPILocked(void)
+ {
+-    const char *libname = SDL_getenv_REAL(SDL_DYNAMIC_API_ENVVAR);
++    char *libname = SDL_getenv_REAL(SDL_DYNAMIC_API_ENVVAR);
+     SDL_DYNAPI_ENTRYFN entry = NULL; /* funcs from here by default. */
+     SDL_bool use_internal = SDL_TRUE;
+ 
+     if (libname) {
+-        entry = (SDL_DYNAPI_ENTRYFN)get_sdlapi_entry(libname, "SDL_DYNAPI_entry");
++        while (*libname && !entry) {
++            char *ptr = libname;
++            while (SDL_TRUE) {
++                const char ch = *ptr;
++                if ((ch == ',') || (ch == '\0')) {
++                    *ptr = '\0';
++                    entry = (SDL_DYNAPI_ENTRYFN)get_sdlapi_entry(libname, "SDL_DYNAPI_entry");
++                    *ptr = ch;
++                    libname = (ch == '\0') ? ptr : (ptr + 1);
++                    break;
++                } else {
++                    ptr++;
++                }
++            }
++        }
+         if (!entry) {
+-            dynapi_warn("Couldn't load overriding SDL library. Please fix or remove the " SDL_DYNAMIC_API_ENVVAR " environment variable. Using the default SDL.");
++            dynapi_warn("Couldn't load an overriding SDL library. Please fix or remove the " SDL_DYNAMIC_API_ENVVAR " environment variable. Using the default SDL.");
+             /* Just fill in the function pointers from this library, later. */
+         }
+     }
+-- 
+2.17.1
+

@@ -1,0 +1,36 @@
+From 7c4f5e1defdcadbacaf1a99e4a80ec4c56fc70b6 Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Mon, 20 Feb 2023 17:14:18 -0800
+Subject: [PATCH 232/458] Fixed rumble caps for the Nintendo Joy-Con
+ controllers
+
+(cherry picked from commit 02cea5fca107991774792c431efc96319ef2d060)
+---
+ src/joystick/hidapi/SDL_hidapi_switch.c | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/joystick/hidapi/SDL_hidapi_switch.c b/src/joystick/hidapi/SDL_hidapi_switch.c
+index bfc697692..f3d7e2be2 100644
+--- a/src/joystick/hidapi/SDL_hidapi_switch.c
++++ b/src/joystick/hidapi/SDL_hidapi_switch.c
+@@ -1546,11 +1546,15 @@ static Uint32 HIDAPI_DriverSwitch_GetJoystickCapabilities(SDL_HIDAPI_Device *dev
+     SDL_DriverSwitch_Context *ctx = (SDL_DriverSwitch_Context *)device->context;
+     Uint32 result = 0;
+ 
+-    if (ctx->m_eControllerType == k_eSwitchDeviceInfoControllerType_ProController && !ctx->m_bInputOnly) {
++    if ((ctx->m_eControllerType == k_eSwitchDeviceInfoControllerType_ProController && !ctx->m_bInputOnly) ||
++        ctx->m_eControllerType == k_eSwitchDeviceInfoControllerType_JoyConLeft ||
++        ctx->m_eControllerType == k_eSwitchDeviceInfoControllerType_JoyConRight) {
+         /* Doesn't have an RGB LED, so don't return SDL_JOYCAP_LED here */
+         result |= SDL_JOYCAP_RUMBLE;
++    } else if (ctx->m_eControllerType == k_eSwitchDeviceInfoControllerType_JoyConLeft ||
++               ctx->m_eControllerType == k_eSwitchDeviceInfoControllerType_JoyConRight) {
++        result |= SDL_JOYCAP_RUMBLE;
+     }
+-
+     return result;
+ }
+ 
+-- 
+2.17.1
+

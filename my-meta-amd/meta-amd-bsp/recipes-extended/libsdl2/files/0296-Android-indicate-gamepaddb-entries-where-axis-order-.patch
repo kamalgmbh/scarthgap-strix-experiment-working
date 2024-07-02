@@ -1,0 +1,246 @@
+From dca3fd8307c2c9ebda8d8ea623bbbf19649f5e22 Mon Sep 17 00:00:00 2001
+From: Rudolf Polzer <divVerent@gmail.com>
+Date: Sat, 11 Mar 2023 12:02:17 -0500
+Subject: [PATCH 296/458] Android: indicate gamepaddb entries where axis order
+ changed.
+
+Axis order was changed in 6f1f586086a18ab32ddccc05e4616aac02774a1b to improve
+default mappings.
+
+(cherry picked from commit de3909a190f6e1a3f11776ce42927f99b0381675)
+---
+ .../org/libsdl/app/SDLControllerManager.java  | 44 ++++++++++++++++++-
+ src/core/android/SDL_android.c                |  6 +--
+ src/joystick/SDL_gamecontrollerdb.h           | 20 ++++-----
+ src/joystick/android/SDL_sysjoystick.c        | 21 +--------
+ src/joystick/android/SDL_sysjoystick_c.h      |  2 +-
+ 5 files changed, 58 insertions(+), 35 deletions(-)
+
+diff --git a/android-project/app/src/main/java/org/libsdl/app/SDLControllerManager.java b/android-project/app/src/main/java/org/libsdl/app/SDLControllerManager.java
+index cc6cc3b59..583287cab 100644
+--- a/android-project/app/src/main/java/org/libsdl/app/SDLControllerManager.java
++++ b/android-project/app/src/main/java/org/libsdl/app/SDLControllerManager.java
+@@ -24,7 +24,7 @@ public class SDLControllerManager
+     public static native int nativeAddJoystick(int device_id, String name, String desc,
+                                                int vendor_id, int product_id,
+                                                boolean is_accelerometer, int button_mask,
+-                                               int naxes, int nhats, int nballs);
++                                               int naxes, int axis_mask, int nhats, nballs);
+     public static native int nativeRemoveJoystick(int device_id);
+     public static native int nativeAddHaptic(int device_id, String name);
+     public static native int nativeRemoveHaptic(int device_id);
+@@ -236,7 +236,7 @@ class SDLJoystickHandler_API16 extends SDLJoystickHandler {
+                     mJoysticks.add(joystick);
+                     SDLControllerManager.nativeAddJoystick(joystick.device_id, joystick.name, joystick.desc,
+                             getVendorId(joystickDevice), getProductId(joystickDevice), false,
+-                            getButtonMask(joystickDevice), joystick.axes.size(), joystick.hats.size()/2, 0);
++                            getButtonMask(joystickDevice), joystick.axes.size(), getAxisMask(joystick.axes), joystick.hats.size()/2, 0);
+                 }
+             }
+         }
+@@ -317,6 +317,9 @@ class SDLJoystickHandler_API16 extends SDLJoystickHandler {
+     public int getVendorId(InputDevice joystickDevice) {
+         return 0;
+     }
++    public int getAxisMask(List<InputDevice.MotionRange> ranges) {
++        return -1;
++    }
+     public int getButtonMask(InputDevice joystickDevice) {
+         return -1;
+     }
+@@ -334,6 +337,43 @@ class SDLJoystickHandler_API19 extends SDLJoystickHandler_API16 {
+         return joystickDevice.getVendorId();
+     }
+ 
++    @Override
++    public int getAxisMask(List<InputDevice.MotionRange> ranges) {
++        // For compatibility, keep computing the axis mask like before,
++        // only really distinguishing 2, 4 and 6 axes.
++        int axis_mask = 0;
++        if (ranges.size() >= 2) {
++            // ((1 << SDL_GAMEPAD_AXIS_LEFTX) | (1 << SDL_GAMEPAD_AXIS_LEFTY))
++            axis_mask |= 0x0003;
++        }
++        if (ranges.size() >= 4) {
++            // ((1 << SDL_GAMEPAD_AXIS_RIGHTX) | (1 << SDL_GAMEPAD_AXIS_RIGHTY))
++            axis_mask |= 0x000c;
++        }
++        if (ranges.size() >= 6) {
++            // ((1 << SDL_GAMEPAD_AXIS_LEFT_TRIGGER) | (1 << SDL_GAMEPAD_AXIS_RIGHT_TRIGGER))
++            axis_mask |= 0x0030;
++        }
++        // Also add an indicator bit for whether the sorting order has changed.
++        // This serves to disable outdated gamecontrollerdb.txt mappings.
++        boolean have_z = false;
++        boolean have_past_z_before_rz = false;
++        for (InputDevice.MotionRange range : ranges) {
++            int axis = range.getAxis();
++            if (axis == MotionEvent.AXIS_Z) {
++                have_z = true;
++            } else if (axis > MotionEvent.AXIS_Z && axis < MotionEvent.AXIS_RZ) {
++                have_past_z_before_rz = true;
++            }
++        }
++        if (have_z && have_past_z_before_rz) {
++            // If both these exist, the compare() function changed sorting order.
++            // Set a bit to indicate this fact.
++            axis_mask |= 0x8000;
++        }
++        return axis_mask;
++    }
++
+     @Override
+     public int getButtonMask(InputDevice joystickDevice) {
+         int button_mask = 0;
+diff --git a/src/core/android/SDL_android.c b/src/core/android/SDL_android.c
+index 248e3c329..2913970df 100644
+--- a/src/core/android/SDL_android.c
++++ b/src/core/android/SDL_android.c
+@@ -258,7 +258,7 @@ JNIEXPORT void JNICALL SDL_JAVA_CONTROLLER_INTERFACE(onNativeHat)(
+ JNIEXPORT jint JNICALL SDL_JAVA_CONTROLLER_INTERFACE(nativeAddJoystick)(
+     JNIEnv *env, jclass jcls,
+     jint device_id, jstring device_name, jstring device_desc, jint vendor_id, jint product_id,
+-    jboolean is_accelerometer, jint button_mask, jint naxes, jint nhats, jint nballs);
++    jboolean is_accelerometer, jint button_mask, jint naxes, jint axis_mask, jint nhats, jint nballs);
+ 
+ JNIEXPORT jint JNICALL SDL_JAVA_CONTROLLER_INTERFACE(nativeRemoveJoystick)(
+     JNIEnv *env, jclass jcls,
+@@ -994,13 +994,13 @@ JNIEXPORT jint JNICALL SDL_JAVA_CONTROLLER_INTERFACE(nativeAddJoystick)(
+     JNIEnv *env, jclass jcls,
+     jint device_id, jstring device_name, jstring device_desc,
+     jint vendor_id, jint product_id, jboolean is_accelerometer,
+-    jint button_mask, jint naxes, jint nhats, jint nballs)
++    jint button_mask, jint naxes, jint axis_mask, jint nhats, jint nballs)
+ {
+     int retval;
+     const char *name = (*env)->GetStringUTFChars(env, device_name, NULL);
+     const char *desc = (*env)->GetStringUTFChars(env, device_desc, NULL);
+ 
+-    retval = Android_AddJoystick(device_id, name, desc, vendor_id, product_id, is_accelerometer ? SDL_TRUE : SDL_FALSE, button_mask, naxes, nhats, nballs);
++    retval = Android_AddJoystick(device_id, name, desc, vendor_id, product_id, is_accelerometer ? SDL_TRUE : SDL_FALSE, button_mask, naxes, axis_mask, nhats, nballs);
+ 
+     (*env)->ReleaseStringUTFChars(env, device_name, name);
+     (*env)->ReleaseStringUTFChars(env, device_desc, desc);
+diff --git a/src/joystick/SDL_gamecontrollerdb.h b/src/joystick/SDL_gamecontrollerdb.h
+index 36daba60b..9bd26c6a4 100644
+--- a/src/joystick/SDL_gamecontrollerdb.h
++++ b/src/joystick/SDL_gamecontrollerdb.h
+@@ -914,12 +914,12 @@ static const char *s_ControllerMappings[] = {
+     "05000000c82d000030320000ffff0f00,8BitDo Zero 2,a:b0,b:b1,back:b4,leftshoulder:b9,leftx:a0,lefty:a1,rightshoulder:b10,start:b6,x:b2,y:b3,hint:SDL_GAMECONTROLLER_USE_BUTTON_LABELS:=1,",
+     "05000000c82d000030320000ffff0f00,8BitDo Zero 2,a:b1,b:b0,back:b4,leftshoulder:b9,leftx:a0,lefty:a1,rightshoulder:b10,start:b6,x:b3,y:b2,hint:!SDL_GAMECONTROLLER_USE_BUTTON_LABELS:=1,",
+     "05000000b404000011240000dfff3f00,Flydigi Vader 2,a:b0,b:b1,back:b4,dpdown:b12,dpleft:b13,dpright:b14,dpup:b11,leftshoulder:b9,leftstick:b7,lefttrigger:a4,leftx:a0,lefty:a1,paddle1:b17,paddle2:b18,rightshoulder:b10,rightstick:b8,righttrigger:a5,rightx:a2,righty:a3,start:b6,x:b2,y:b3,",
+-    "05000000d6020000e5890000dfff3f00,GPD XD Plus,a:b0,b:b1,back:b4,dpdown:b12,dpleft:b13,dpright:b14,dpup:b11,leftshoulder:b9,leftstick:b7,lefttrigger:a2,leftx:a0,lefty:a1,rightshoulder:b10,rightstick:b8,righttrigger:a3,rightx:a4,righty:a5,start:b6,x:b2,y:b3,",
++    "05000000d6020000e5890000dfff3f80,GPD XD Plus,a:b0,b:b1,back:b4,dpdown:b12,dpleft:b13,dpright:b14,dpup:b11,leftshoulder:b9,leftstick:b7,lefttrigger:a2,leftx:a0,lefty:a1,rightshoulder:b10,rightstick:b8,righttrigger:a3,rightx:a4,righty:a5,start:b6,x:b2,y:b3,",
+     "0500000031366332860c44aadfff0f00,GS Gamepad,a:b0,b:b1,back:b4,dpdown:b12,dpleft:b13,dpright:b14,dpup:b11,leftshoulder:b9,leftstick:b7,lefttrigger:b15,leftx:a0,lefty:a1,rightshoulder:b10,rightstick:b8,righttrigger:b16,rightx:a2,righty:a3,start:b6,x:b2,y:b3,",
+     "05000000bc20000000550000ffff3f00,GameSir G3w,a:b0,b:b1,back:b4,dpdown:b12,dpleft:b13,dpright:b14,dpup:b11,leftshoulder:b9,leftstick:b7,lefttrigger:a5,leftx:a0,lefty:a1,rightshoulder:b10,rightstick:b8,righttrigger:a4,rightx:a2,righty:a3,start:b6,x:b2,y:b3,",
+     "050000005509000003720000cf7f3f00,NVIDIA Controller v01.01,a:b0,b:b1,dpdown:b12,dpleft:b13,dpright:b14,dpup:b11,leftshoulder:b9,leftstick:b7,lefttrigger:a4,leftx:a0,lefty:a1,rightshoulder:b10,rightstick:b8,righttrigger:a5,rightx:a2,righty:a3,start:b6,x:b2,y:b3,",
+     "050000005509000010720000ffff3f00,NVIDIA Controller v01.03,a:b0,b:b1,dpdown:b12,dpleft:b13,dpright:b14,dpup:b11,leftshoulder:b9,leftstick:b7,lefttrigger:a4,leftx:a0,lefty:a1,rightshoulder:b10,rightstick:b8,righttrigger:a5,rightx:a2,righty:a3,start:b6,x:b2,y:b3,",
+-    "050000005509000014720000df7f3f00,NVIDIA Controller v01.04,a:b0,b:b1,back:b4,dpdown:b12,dpleft:b13,dpright:b14,dpup:b11,leftshoulder:b9,leftstick:b7,lefttrigger:a2,leftx:a0,lefty:a1,rightshoulder:b10,rightstick:b8,righttrigger:a3,rightx:a4,righty:a5,start:b6,x:b2,y:b3,",
++    "050000005509000014720000df7f3f80,NVIDIA Controller v01.04,a:b0,b:b1,back:b4,dpdown:b12,dpleft:b13,dpright:b14,dpup:b11,leftshoulder:b9,leftstick:b7,lefttrigger:a2,leftx:a0,lefty:a1,rightshoulder:b10,rightstick:b8,righttrigger:a3,rightx:a4,righty:a5,start:b6,x:b2,y:b3,",
+     "050000007e05000009200000ffff0f00,Nintendo Switch Pro Controller,a:b1,b:b0,back:b4,dpdown:b12,dpleft:b13,dpright:b14,dpup:b11,guide:b5,leftshoulder:b9,leftstick:b7,lefttrigger:b15,leftx:a0,lefty:a1,rightshoulder:b10,rightstick:b8,righttrigger:b16,rightx:a2,righty:a3,start:b6,x:b3,y:b2,sdk>=:29,hint:SDL_GAMECONTROLLER_USE_BUTTON_LABELS:=1,",
+     "050000007e05000009200000ffff0f00,Nintendo Switch Pro Controller,a:b0,b:b1,back:b4,dpdown:b12,dpleft:b13,dpright:b14,dpup:b11,guide:b5,leftshoulder:b9,leftstick:b7,lefttrigger:b15,leftx:a0,lefty:a1,rightshoulder:b10,rightstick:b8,righttrigger:b16,rightx:a2,righty:a3,start:b6,x:b2,y:b3,sdk>=:29,hint:!SDL_GAMECONTROLLER_USE_BUTTON_LABELS:=1,",
+     "050000007e05000009200000ffff0f00,Nintendo Switch Pro Controller,a:b0,b:b1,back:b15,dpdown:b12,dpleft:b13,dpright:b14,dpup:b11,guide:b5,leftshoulder:b3,leftstick:b4,lefttrigger:b9,leftx:a0,lefty:a1,rightshoulder:b18,rightstick:b6,righttrigger:b10,rightx:a2,righty:a3,start:b16,x:b17,y:b2,sdk<=:28,hint:SDL_GAMECONTROLLER_USE_BUTTON_LABELS:=1,",  /* Extremely slow in Bluetooth mode on Android */
+@@ -927,11 +927,11 @@ static const char *s_ControllerMappings[] = {
+     "050000004c05000068020000dfff3f00,PS3 Controller,a:b0,b:b1,back:b4,dpdown:b12,dpleft:b13,dpright:b14,dpup:b11,leftshoulder:b9,leftstick:b7,lefttrigger:a4,leftx:a0,lefty:a1,rightshoulder:b10,rightstick:b8,righttrigger:a5,rightx:a2,righty:a3,start:b6,x:b2,y:b3,",
+     "030000004c050000cc09000000006800,PS4 Controller,a:b0,b:b1,back:b4,dpdown:b12,dpleft:b13,dpright:b14,dpup:b11,guide:b5,leftshoulder:b9,leftstick:b7,lefttrigger:a4,leftx:a0,lefty:a1,rightshoulder:b10,rightstick:b8,righttrigger:a5,rightx:a2,righty:a3,start:b6,x:b2,y:b3,",
+     "050000004c050000c405000000783f00,PS4 Controller,a:b0,b:b1,back:b4,dpdown:b12,dpleft:b13,dpright:b14,dpup:b11,guide:b5,leftshoulder:b9,leftstick:b7,lefttrigger:a4,leftx:a0,lefty:a1,rightshoulder:b10,rightstick:b8,righttrigger:a5,rightx:a2,righty:a3,start:b6,x:b2,y:b3,",
+-    "050000004c050000c4050000fffe3f00,PS4 Controller,a:b1,b:b17,back:b15,dpdown:b12,dpleft:b13,dpright:b14,dpup:b11,guide:b5,leftshoulder:b3,leftstick:b4,lefttrigger:+a2,leftx:a0,lefty:a1,rightshoulder:b18,rightstick:b6,righttrigger:+a3,rightx:a4,righty:a5,start:b16,x:b0,y:b2,",
++    "050000004c050000c4050000fffe3f80,PS4 Controller,a:b1,b:b17,back:b15,dpdown:b12,dpleft:b13,dpright:b14,dpup:b11,guide:b5,leftshoulder:b3,leftstick:b4,lefttrigger:+a2,leftx:a0,lefty:a1,rightshoulder:b18,rightstick:b6,righttrigger:+a3,rightx:a4,righty:a5,start:b16,x:b0,y:b2,",
+     "050000004c050000c4050000ffff3f00,PS4 Controller,a:b0,b:b1,back:b4,dpdown:b12,dpleft:b13,dpright:b14,dpup:b11,guide:b5,leftshoulder:b9,leftstick:b7,lefttrigger:a4,leftx:a0,lefty:a1,rightshoulder:b10,rightstick:b8,righttrigger:a5,rightx:a2,righty:a3,start:b6,x:b2,y:b3,",
+-    "050000004c050000cc090000fffe3f00,PS4 Controller,a:b1,b:b17,back:b15,dpdown:b12,dpleft:b13,dpright:b14,dpup:b11,guide:b5,leftshoulder:b3,leftstick:b4,lefttrigger:a2,leftx:a0,lefty:a1,rightshoulder:b18,rightstick:b6,righttrigger:a3,rightx:a4,righty:a5,start:b16,x:b0,y:b2,",
++    "050000004c050000cc090000fffe3f80,PS4 Controller,a:b1,b:b17,back:b15,dpdown:b12,dpleft:b13,dpright:b14,dpup:b11,guide:b5,leftshoulder:b3,leftstick:b4,lefttrigger:a2,leftx:a0,lefty:a1,rightshoulder:b18,rightstick:b6,righttrigger:a3,rightx:a4,righty:a5,start:b16,x:b0,y:b2,",
+     "050000004c050000cc090000ffff3f00,PS4 Controller,a:b0,b:b1,back:b4,dpdown:b12,dpleft:b13,dpright:b14,dpup:b11,guide:b5,leftshoulder:b9,leftstick:b7,lefttrigger:a4,leftx:a0,lefty:a1,rightshoulder:b10,rightstick:b8,righttrigger:a5,rightx:a2,righty:a3,start:b6,x:b2,y:b3,",
+-    "050000004c050000e60c0000fffe3f00,PS5 Controller,a:b1,b:b17,back:b15,dpdown:b12,dpleft:b13,dpright:b14,dpup:b11,guide:b5,leftshoulder:b3,leftstick:b4,lefttrigger:a2,leftx:a0,lefty:a1,rightshoulder:b18,rightstick:b6,righttrigger:a3,rightx:a4,righty:a5,start:b16,x:b0,y:b2,",
++    "050000004c050000e60c0000fffe3f80,PS5 Controller,a:b1,b:b17,back:b15,dpdown:b12,dpleft:b13,dpright:b14,dpup:b11,guide:b5,leftshoulder:b3,leftstick:b4,lefttrigger:a2,leftx:a0,lefty:a1,rightshoulder:b18,rightstick:b6,righttrigger:a3,rightx:a4,righty:a5,start:b16,x:b0,y:b2,",
+     "050000004c050000e60c0000ffff3f00,PS5 Controller,a:b0,b:b1,back:b4,dpdown:b12,dpleft:b13,dpright:b14,dpup:b11,guide:b5,leftshoulder:b9,leftstick:b7,lefttrigger:a4,leftx:a0,lefty:a1,rightshoulder:b10,rightstick:b8,righttrigger:a5,rightx:a2,righty:a3,start:b6,x:b2,y:b3,",
+     "05000000f8270000bf0b0000ffff3f00,Razer Kishi,a:b0,b:b1,back:b4,dpdown:b12,dpleft:b13,dpright:b14,dpup:b11,guide:b5,leftshoulder:b9,leftstick:b7,lefttrigger:a4,leftx:a0,lefty:a1,rightshoulder:b10,rightstick:b8,righttrigger:a5,rightx:a2,righty:a3,start:b6,x:b2,y:b3,",
+     "050000003215000005070000ffff3f00,Razer Raiju Mobile,a:b0,b:b1,back:b4,dpdown:b12,dpleft:b13,dpright:b14,dpup:b11,leftshoulder:b9,leftstick:b7,lefttrigger:a4,leftx:a0,lefty:a1,rightshoulder:b10,rightstick:b8,righttrigger:a5,rightx:a2,righty:a3,start:b6,x:b2,y:b3,",
+@@ -939,17 +939,17 @@ static const char *s_ControllerMappings[] = {
+     "050000003215000000090000bf7f3f00,Razer Serval,a:b0,b:b1,dpdown:b12,dpleft:b13,dpright:b14,dpup:b11,guide:b5,leftshoulder:b9,leftstick:b7,lefttrigger:a4,leftx:a0,lefty:a1,rightshoulder:b10,rightstick:b8,righttrigger:a5,rightx:a2,righty:a3,x:b2,y:b3,",
+     "050000004f0400000ed00000fffe3f00,ThrustMaster eSwap PRO Controller,a:b0,b:b1,back:b4,dpdown:b12,dpleft:b13,dpright:b14,dpup:b11,leftshoulder:b9,leftstick:b7,lefttrigger:a4,leftx:a0,lefty:a1,rightshoulder:b10,righttrigger:a5,rightx:a2,righty:a3,start:b6,x:b2,y:b3,",
+     "050000005e0400008e02000000783f00,Xbox 360 Controller,a:b0,b:b1,back:b4,dpdown:b12,dpleft:b13,dpright:b14,dpup:b11,guide:b5,leftshoulder:b9,leftstick:b7,lefttrigger:a4,leftx:a0,lefty:a1,rightshoulder:b10,rightstick:b8,righttrigger:a5,rightx:a2,righty:a3,start:b6,x:b2,y:b3,",
+-    "050000005e040000000b000000783f00,Xbox One Elite 2 Controller,a:b0,b:b1,back:b4,dpdown:b12,dpleft:b13,dpright:b14,dpup:b11,guide:b5,leftshoulder:b9,leftstick:b7,lefttrigger:a4,leftx:a0,lefty:a1,rightshoulder:b10,rightstick:b8,righttrigger:a5,rightx:a2,righty:a3,start:b6,x:b2,y:b3,",
++    "050000005e040000000b000000783f80,Xbox One Elite 2 Controller,a:b0,b:b1,back:b4,dpdown:b12,dpleft:b13,dpright:b14,dpup:b11,guide:b5,leftshoulder:b9,leftstick:b7,lefttrigger:a4,leftx:a0,lefty:a1,rightshoulder:b10,rightstick:b8,righttrigger:a5,rightx:a2,righty:a3,start:b6,x:b2,y:b3,",
+     "050000005e040000050b0000ffff3f00,Xbox One Elite 2 Controller,a:b0,b:b1,back:b4,dpdown:b12,dpleft:b13,dpright:b14,dpup:b11,leftshoulder:b9,leftstick:b7,lefttrigger:a5,leftx:a0,lefty:a1,rightshoulder:b10,rightstick:b8,righttrigger:a6,rightx:a2,righty:a3,start:b6,x:b2,y:b3,",
+     "050000005e040000e002000000783f00,Xbox One S Controller,a:b0,b:b1,back:b4,dpdown:b12,dpleft:b13,dpright:b14,dpup:b11,guide:b5,leftshoulder:b9,leftstick:b7,lefttrigger:a4,leftx:a0,lefty:a1,rightshoulder:b10,rightstick:b8,righttrigger:a5,rightx:a2,righty:a3,start:b6,x:b2,y:b3,",
+     "050000005e040000ea02000000783f00,Xbox One S Controller,a:b0,b:b1,back:b4,dpdown:b12,dpleft:b13,dpright:b14,dpup:b11,guide:b5,leftshoulder:b9,leftstick:b7,lefttrigger:a4,leftx:a0,lefty:a1,rightshoulder:b10,rightstick:b8,righttrigger:a5,rightx:a2,righty:a3,start:b6,x:b2,y:b3,",
+     "050000005e040000fd020000ff7f3f00,Xbox One S Controller,a:b0,b:b1,back:b4,dpdown:b12,dpleft:b13,dpright:b14,dpup:b11,guide:b5,leftshoulder:b9,leftstick:b7,lefttrigger:a4,leftx:a0,lefty:a1,rightshoulder:b10,rightstick:b8,righttrigger:a5,rightx:a2,righty:a3,start:b6,x:b2,y:b3,",
+-    "050000005e040000e00200000ffe3f00,Xbox One Wireless Controller,a:b0,b:b1,back:b9,dpdown:b12,dpleft:b13,dpright:b14,dpup:b11,leftshoulder:b3,leftstick:b15,lefttrigger:a4,leftx:a0,lefty:a1,rightshoulder:b18,rightstick:b16,righttrigger:a5,rightx:a2,righty:a3,start:b10,x:b17,y:b2,",
++    "050000005e040000e00200000ffe3f80,Xbox One Wireless Controller,a:b0,b:b1,back:b9,dpdown:b12,dpleft:b13,dpright:b14,dpup:b11,leftshoulder:b3,leftstick:b15,lefttrigger:a4,leftx:a0,lefty:a1,rightshoulder:b18,rightstick:b16,righttrigger:a5,rightx:a2,righty:a3,start:b10,x:b17,y:b2,",
+     "050000005e040000fd020000ffff3f00,Xbox One Wireless Controller,a:b0,b:b1,back:b4,dpdown:b12,dpleft:b13,dpright:b14,dpup:b11,guide:b5,leftshoulder:b9,leftstick:b7,lefttrigger:a4,leftx:a0,lefty:a1,rightshoulder:b10,rightstick:b8,righttrigger:a5,rightx:a2,righty:a3,start:b6,x:b2,y:b3,",
+-    "050000005e040000120b000000783f00,Xbox Series X Controller,a:b0,b:b1,back:b4,dpdown:b12,dpleft:b13,dpright:b14,dpup:b11,guide:b5,leftshoulder:b9,leftstick:b7,lefttrigger:a4,leftx:a0,lefty:a1,rightshoulder:b10,rightstick:b8,righttrigger:a5,rightx:a2,righty:a3,start:b6,x:b2,y:b3,",
++    "050000005e040000120b000000783f80,Xbox Series X Controller,a:b0,b:b1,back:b4,dpdown:b12,dpleft:b13,dpright:b14,dpup:b11,guide:b5,leftshoulder:b9,leftstick:b7,lefttrigger:a4,leftx:a0,lefty:a1,rightshoulder:b10,rightstick:b8,righttrigger:a5,rightx:a2,righty:a3,start:b6,x:b2,y:b3,",
+     "050000005e040000130b0000ffff3f00,Xbox Series X Controller,a:b0,b:b1,back:b4,dpdown:b12,dpleft:b13,dpright:b14,dpup:b11,guide:b5,leftshoulder:b9,leftstick:b7,lefttrigger:a4,leftx:a0,lefty:a1,rightshoulder:b10,rightstick:b8,righttrigger:a5,rightx:a2,righty:a3,start:b6,x:b2,y:b3,",
+-    "050000005e04000091020000ff073f00,Xbox Wireless Controller,a:b0,b:b1,back:b4,guide:b5,leftshoulder:b9,leftstick:b7,lefttrigger:a4,leftx:a0,lefty:a1,rightshoulder:b10,rightstick:b8,righttrigger:a5,rightx:a2,righty:a3,start:b6,x:b2,y:b3,", /* The DPAD doesn't seem to work on this controller on Android TV? */
+-    "050000001727000044310000ffff3f00,XiaoMi Game Controller,a:b0,b:b1,back:b4,dpdown:b12,dpleft:b13,dpright:b14,dpup:b11,leftshoulder:b9,leftstick:b7,lefttrigger:a7,leftx:a0,lefty:a1,rightshoulder:b10,rightstick:b8,righttrigger:a6,rightx:a4,righty:a5,start:b6,x:b2,y:b3,",
++    "050000005e04000091020000ff073f80,Xbox Wireless Controller,a:b0,b:b1,back:b4,guide:b5,leftshoulder:b9,leftstick:b7,lefttrigger:a4,leftx:a0,lefty:a1,rightshoulder:b10,rightstick:b8,righttrigger:a5,rightx:a2,righty:a3,start:b6,x:b2,y:b3,", /* The DPAD doesn't seem to work on this controller on Android TV? */
++    "050000001727000044310000ffff3f80,XiaoMi Game Controller,a:b0,b:b1,back:b4,dpdown:b12,dpleft:b13,dpright:b14,dpup:b11,leftshoulder:b9,leftstick:b7,lefttrigger:a7,leftx:a0,lefty:a1,rightshoulder:b10,rightstick:b8,righttrigger:a6,rightx:a4,righty:a5,start:b6,x:b2,y:b3,",
+     "0500000083050000602000000ffe0000,iBuffalo SNES Controller,a:b0,b:b1,back:b9,dpdown:b12,dpleft:b13,dpright:b14,dpup:b11,leftshoulder:b15,rightshoulder:b16,start:b10,x:b2,y:b3,hint:SDL_GAMECONTROLLER_USE_BUTTON_LABELS:=1,",
+     "0500000083050000602000000ffe0000,iBuffalo SNES Controller,a:b1,b:b0,back:b9,dpdown:b12,dpleft:b13,dpright:b14,dpup:b11,leftshoulder:b15,rightshoulder:b16,start:b10,x:b3,y:b2,hint:!SDL_GAMECONTROLLER_USE_BUTTON_LABELS:=1,",
+ #endif
+diff --git a/src/joystick/android/SDL_sysjoystick.c b/src/joystick/android/SDL_sysjoystick.c
+index 612cc04f1..84822e4de 100644
+--- a/src/joystick/android/SDL_sysjoystick.c
++++ b/src/joystick/android/SDL_sysjoystick.c
+@@ -304,12 +304,11 @@ int Android_OnHat(int device_id, int hat_id, int x, int y)
+     return -1;
+ }
+ 
+-int Android_AddJoystick(int device_id, const char *name, const char *desc, int vendor_id, int product_id, SDL_bool is_accelerometer, int button_mask, int naxes, int nhats, int nballs)
++int Android_AddJoystick(int device_id, const char *name, const char *desc, int vendor_id, int product_id, SDL_bool is_accelerometer, int button_mask, int naxes, int axis_mask, int nhats, int nballs)
+ {
+     SDL_joylist_item *item;
+     SDL_JoystickGUID guid;
+     int i;
+-    int axis_mask;
+     int result = -1;
+ 
+     SDL_LockJoysticks();
+@@ -336,22 +335,6 @@ int Android_AddJoystick(int device_id, const char *name, const char *desc, int v
+     SDL_Log("Joystick: %s, descriptor %s, vendor = 0x%.4x, product = 0x%.4x, %d axes, %d hats\n", name, desc, vendor_id, product_id, naxes, nhats);
+ #endif
+ 
+-    /* Add the available buttons and axes
+-       The axis mask should probably come from Java where there is more information about the axes...
+-     */
+-    axis_mask = 0;
+-    if (!is_accelerometer) {
+-        if (naxes >= 2) {
+-            axis_mask |= ((1 << SDL_CONTROLLER_AXIS_LEFTX) | (1 << SDL_CONTROLLER_AXIS_LEFTY));
+-        }
+-        if (naxes >= 4) {
+-            axis_mask |= ((1 << SDL_CONTROLLER_AXIS_RIGHTX) | (1 << SDL_CONTROLLER_AXIS_RIGHTY));
+-        }
+-        if (naxes >= 6) {
+-            axis_mask |= ((1 << SDL_CONTROLLER_AXIS_TRIGGERLEFT) | (1 << SDL_CONTROLLER_AXIS_TRIGGERRIGHT));
+-        }
+-    }
+-
+     if (nhats > 0) {
+         /* Hat is translated into DPAD buttons */
+         button_mask |= ((1 << SDL_CONTROLLER_BUTTON_DPAD_UP) |
+@@ -485,7 +468,7 @@ static int ANDROID_JoystickInit(void)
+ 
+     if (SDL_GetHintBoolean(SDL_HINT_ACCELEROMETER_AS_JOYSTICK, SDL_TRUE)) {
+         /* Default behavior, accelerometer as joystick */
+-        Android_AddJoystick(ANDROID_ACCELEROMETER_DEVICE_ID, ANDROID_ACCELEROMETER_NAME, ANDROID_ACCELEROMETER_NAME, 0, 0, SDL_TRUE, 0, 3, 0, 0);
++        Android_AddJoystick(ANDROID_ACCELEROMETER_DEVICE_ID, ANDROID_ACCELEROMETER_NAME, ANDROID_ACCELEROMETER_NAME, 0, 0, SDL_TRUE, 0, 3, 0x0003, 0, 0);
+     }
+     return 0;
+ }
+diff --git a/src/joystick/android/SDL_sysjoystick_c.h b/src/joystick/android/SDL_sysjoystick_c.h
+index 7a905889a..aa96f8736 100644
+--- a/src/joystick/android/SDL_sysjoystick_c.h
++++ b/src/joystick/android/SDL_sysjoystick_c.h
+@@ -32,7 +32,7 @@ extern int Android_OnPadDown(int device_id, int keycode);
+ extern int Android_OnPadUp(int device_id, int keycode);
+ extern int Android_OnJoy(int device_id, int axisnum, float value);
+ extern int Android_OnHat(int device_id, int hat_id, int x, int y);
+-extern int Android_AddJoystick(int device_id, const char *name, const char *desc, int vendor_id, int product_id, SDL_bool is_accelerometer, int button_mask, int naxes, int nhats, int nballs);
++extern int Android_AddJoystick(int device_id, const char *name, const char *desc, int vendor_id, int product_id, SDL_bool is_accelerometer, int button_mask, int naxes, int axis_mask, int nhats, int nballs);
+ extern int Android_RemoveJoystick(int device_id);
+ 
+ /* A linked list of available joysticks */
+-- 
+2.17.1
+

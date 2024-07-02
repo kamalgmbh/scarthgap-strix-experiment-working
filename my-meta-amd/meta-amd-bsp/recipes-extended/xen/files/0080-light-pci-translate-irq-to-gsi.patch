@@ -1,0 +1,25 @@
+From e4c3353f1d7fd16419e02e3e151e6eaeac77c2e8 Mon Sep 17 00:00:00 2001
+From: jiqichen <Jiqian.Chen@amd.com>
+Date: Mon, 30 Jan 2023 14:17:05 +0800
+Subject: [PATCH 080/106] light: pci: translate irq to gsi
+
+Signed-off-by: Chen Jiqian <Jiqian.Chen@amd.com>
+---
+ tools/libs/light/libxl_pci.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/tools/libs/light/libxl_pci.c b/tools/libs/light/libxl_pci.c
+index 96cb4da079..ba8803dab4 100644
+--- a/tools/libs/light/libxl_pci.c
++++ b/tools/libs/light/libxl_pci.c
+@@ -1486,6 +1486,7 @@ static void pci_add_dm_done(libxl__egc *egc,
+         goto out_no_irq;
+     }
+     if ((fscanf(f, "%u", &irq) == 1) && irq) {
++        irq = xc_physdev_gsi_from_irq(ctx->xch, irq);
+         r = xc_physdev_map_pirq(ctx->xch, domid, irq, &irq);
+         if (r < 0) {
+             LOGED(ERROR, domainid, "xc_physdev_map_pirq irq=%d (error=%d)",
+-- 
+2.25.1
+

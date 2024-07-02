@@ -1,0 +1,83 @@
+From 15dccc881d0636991955162a11a202023e13a313 Mon Sep 17 00:00:00 2001
+From: Michal Orzel <michal.orzel@amd.com>
+Date: Thu, 1 Dec 2022 14:25:32 +0000
+Subject: [PATCH 087/221] automation: Add CI test jobs for Yocto
+
+Populate test jobs for Yocto based tests using the provided containers.
+Due to the size restrictions, it is currently not possible to split the
+build and run tasks, therefore everything is done in a single step.
+
+Test jobs for the supported Yocto targets are generic to avoid the
+necessity to add new ones after each Yocto release. The only thing
+required to be changed after updating the containers is the variable
+YOCTO_VERSION stored in a .yocto-test template.
+
+Signed-off-by: Michal Orzel <michal.orzel@amd.com>
+Reviewed-by: Stefano Stabellini <sstabellini@kernel.org>
+---
+ automation/gitlab-ci/test.yaml | 45 ++++++++++++++++++++++++++++++++++
+ 1 file changed, 45 insertions(+)
+
+diff --git a/automation/gitlab-ci/test.yaml b/automation/gitlab-ci/test.yaml
+index c7e0078e04..2d57f4feb7 100644
+--- a/automation/gitlab-ci/test.yaml
++++ b/automation/gitlab-ci/test.yaml
+@@ -54,6 +54,35 @@
+   tags:
+     - x86_64
+ 
++.yocto-test:
++  extends: .test-jobs-common
++  script:
++    - ./automation/build/yocto/build-yocto.sh -v --log-dir=./logs --xen-dir=`pwd` ${YOCTO_BOARD}
++  variables:
++    YOCTO_VERSION: kirkstone
++    CONTAINER: yocto:${YOCTO_VERSION}-${YOCTO_BOARD}-${YOCTO_HOST}
++  artifacts:
++    paths:
++      - 'logs/*'
++    when: always
++  needs: []
++
++.yocto-test-arm64:
++  extends: .yocto-test
++  variables:
++    YOCTO_HOST: arm64v8
++  tags:
++    - arm64
++
++# This is not used by any test job as we only run Yocto on arm based machines.
++# Keep it here so that someone having x86 hardware can easily add jobs.
++.yocto-test-x86-64:
++  extends: .yocto-test
++  variables:
++    YOCTO_HOST: amd64
++  tags:
++    - x86_64
++
+ # Test jobs
+ build-each-commit-gcc:
+   extends: .test-jobs-common
+@@ -188,3 +217,19 @@ qemu-smoke-x86-64-clang-pvh:
+     - ./automation/scripts/qemu-smoke-x86-64.sh pvh 2>&1 | tee ${LOGFILE}
+   needs:
+     - debian-unstable-clang-debug
++
++# Yocto test jobs
++yocto-qemuarm64:
++  extends: .yocto-test-arm64
++  variables:
++    YOCTO_BOARD: qemuarm64
++
++yocto-qemuarm:
++  extends: .yocto-test-arm64
++  variables:
++    YOCTO_BOARD: qemuarm
++
++yocto-qemux86-64:
++  extends: .yocto-test-arm64
++  variables:
++    YOCTO_BOARD: qemux86-64
+-- 
+2.17.1
+

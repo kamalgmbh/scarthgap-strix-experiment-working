@@ -1,0 +1,25 @@
+From 68d5959446ba42dc46156b0045c490bff8143674 Mon Sep 17 00:00:00 2001
+From: Pierre-Eric Pelloux-Prayer <pierre-eric.pelloux-prayer@amd.com>
+Date: Fri, 6 Oct 2023 11:32:16 +0200
+Subject: [PATCH 07/16] vrend: Add XRGB2101010 support
+
+Reviewed-by: Rob Clark <robdclark@gmail.com>
+---
+ src/vrend_winsys_gbm.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/src/vrend_winsys_gbm.c b/src/vrend_winsys_gbm.c
+index 19e6bb9f..7417fdbb 100644
+--- a/src/vrend_winsys_gbm.c
++++ b/src/vrend_winsys_gbm.c
+@@ -103,6 +103,7 @@ static const struct format_conversion conversions[] = {
+     { GBM_FORMAT_ARGB8888, VIRGL_FORMAT_B8G8R8A8_UNORM },
+     { GBM_FORMAT_XRGB8888, VIRGL_FORMAT_B8G8R8X8_UNORM },
+     { GBM_FORMAT_ABGR2101010, VIRGL_FORMAT_R10G10B10A2_UNORM },
++    { GBM_FORMAT_XRGB2101010, VIRGL_FORMAT_B10G10R10X2_UNORM },
+     { GBM_FORMAT_ABGR16161616F, VIRGL_FORMAT_R16G16B16A16_FLOAT },
+     { GBM_FORMAT_NV12, VIRGL_FORMAT_NV12 },
+     { GBM_FORMAT_ABGR8888, VIRGL_FORMAT_R8G8B8A8_UNORM},
+-- 
+2.17.1
+

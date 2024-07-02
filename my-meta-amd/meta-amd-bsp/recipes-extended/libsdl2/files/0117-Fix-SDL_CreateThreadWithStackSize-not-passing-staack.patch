@@ -1,0 +1,26 @@
+From 68073c627684ba35c113d0e128af15b5191b42d6 Mon Sep 17 00:00:00 2001
+From: Vincent Hamm <vincent.hamm@gmail.com>
+Date: Mon, 26 Dec 2022 10:57:29 -0800
+Subject: [PATCH 117/458] Fix SDL_CreateThreadWithStackSize not passing
+ staacksize with win32 static api
+
+---
+ include/SDL_thread.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/include/SDL_thread.h b/include/SDL_thread.h
+index 7364f8137..a72bae659 100644
+--- a/include/SDL_thread.h
++++ b/include/SDL_thread.h
+@@ -142,7 +142,7 @@ SDL_CreateThreadWithStackSize(SDL_ThreadFunction fn,
+ #define SDL_CreateThreadWithStackSize(fn, name, stacksize, data) SDL_CreateThreadWithStackSize_REAL(fn, name, stacksize, data, (pfnSDL_CurrentBeginThread)SDL_beginthread, (pfnSDL_CurrentEndThread)SDL_endthread)
+ #else
+ #define SDL_CreateThread(fn, name, data) SDL_CreateThread(fn, name, data, (pfnSDL_CurrentBeginThread)SDL_beginthread, (pfnSDL_CurrentEndThread)SDL_endthread)
+-#define SDL_CreateThreadWithStackSize(fn, name, stacksize, data) SDL_CreateThreadWithStackSize(fn, name, data, (pfnSDL_CurrentBeginThread)_beginthreadex, (pfnSDL_CurrentEndThread)SDL_endthread)
++#define SDL_CreateThreadWithStackSize(fn, name, stacksize, data) SDL_CreateThreadWithStackSize(fn, name, stacksize, data, (pfnSDL_CurrentBeginThread)_beginthreadex, (pfnSDL_CurrentEndThread)SDL_endthread)
+ #endif
+ 
+ #elif defined(__OS2__)
+-- 
+2.17.1
+

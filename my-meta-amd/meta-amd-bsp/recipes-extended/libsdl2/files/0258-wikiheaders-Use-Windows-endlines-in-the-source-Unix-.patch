@@ -1,0 +1,68 @@
+From 8572e19327612353c476416a7a06af714e53f89a Mon Sep 17 00:00:00 2001
+From: "Ryan C. Gordon" <icculus@icculus.org>
+Date: Tue, 28 Feb 2023 12:03:48 -0500
+Subject: [PATCH 258/458] wikiheaders: Use Windows endlines in the source, Unix
+ in the wiki.
+
+(cherry picked from commit 7745c9b3ae3f2f47e2b3e55399afc5e7b86c0102)
+---
+ build-scripts/wikiheaders.pl | 22 +++++++++++++++++++---
+ 1 file changed, 19 insertions(+), 3 deletions(-)
+
+diff --git a/build-scripts/wikiheaders.pl b/build-scripts/wikiheaders.pl
+index a9d8d729a..2927e6df7 100755
+--- a/build-scripts/wikiheaders.pl
++++ b/build-scripts/wikiheaders.pl
+@@ -3,7 +3,6 @@
+ use warnings;
+ use strict;
+ use Text::Wrap;
+-use File::Copy;
+ 
+ $Text::Wrap::huge = 'overflow';
+ 
+@@ -457,6 +456,23 @@ sub dewikify {
+     return $retval;
+ }
+ 
++sub filecopy {
++    my $src = shift;
++    my $dst = shift;
++    my $endline = shift;
++    $endline = "\n" if not defined $endline;
++
++    open(COPYIN, '<', $src) or die("Failed to open '$src' for reading: $!\n");
++    open(COPYOUT, '>', $dst) or die("Failed to open '$dst' for writing: $!\n");
++    while (<COPYIN>) {
++        chomp;
++        s/[ \t\r\n]*\Z//;
++        print COPYOUT "$_$endline";
++    }
++    close(COPYOUT);
++    close(COPYIN);
++}
++
+ sub usage {
+     die("USAGE: $0 <source code git clone path> <wiki git clone path> [--copy-to-headers|--copy-to-wiki|--copy-to-manpages] [--warn-about-missing]\n\n");
+ }
+@@ -1022,7 +1038,7 @@ if ($copy_direction == 1) {  # --copy-to-headers
+                 my $dent = $_;
+                 if ($dent =~ /\A(.*?)\.md\Z/) {  # we only bridge Markdown files here.
+                     next if $1 eq 'FrontPage';
+-                    copy("$wikireadmepath/$dent", "$readmepath/README-$dent") or die("failed to copy '$wikireadmepath/$dent' to '$readmepath/README-$dent': $!\n");
++                    filecopy("$wikireadmepath/$dent", "$readmepath/README-$dent", "\r\n");
+                 }
+             }
+             closedir(DH);
+@@ -1366,7 +1382,7 @@ if ($copy_direction == 1) {  # --copy-to-headers
+                 if ($dent =~ /\AREADME\-(.*?\.md)\Z/) {  # we only bridge Markdown files here.
+                     my $wikifname = $1;
+                     next if $wikifname eq 'FrontPage.md';
+-                    copy("$readmepath/$dent", "$wikireadmepath/$wikifname") or die("failed to copy '$readmepath/$dent' to '$wikireadmepath/$wikifname': $!\n");
++                    filecopy("$readmepath/$dent", "$wikireadmepath/$wikifname", "\n");
+                 }
+             }
+             closedir(DH);
+-- 
+2.17.1
+

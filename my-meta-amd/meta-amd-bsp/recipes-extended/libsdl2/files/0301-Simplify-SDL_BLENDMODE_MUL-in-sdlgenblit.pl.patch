@@ -1,0 +1,43 @@
+From 18c4db678bd72c97f0e5de75c3667eb7401cf240 Mon Sep 17 00:00:00 2001
+From: Sylvain <sylvain.becker@gmail.com>
+Date: Thu, 16 Mar 2023 09:47:34 +0100
+Subject: [PATCH 301/458] Simplify SDL_BLENDMODE_MUL in sdlgenblit.pl
+
+---
+ src/video/sdlgenblit.pl | 13 +------------
+ 1 file changed, 1 insertion(+), 12 deletions(-)
+
+diff --git a/src/video/sdlgenblit.pl b/src/video/sdlgenblit.pl
+index 2d957959a..8ea89668e 100755
+--- a/src/video/sdlgenblit.pl
++++ b/src/video/sdlgenblit.pl
+@@ -392,17 +392,6 @@ __EOF__
+                 ${d}B = ((${s}B * ${d}B) + (${d}B * (255 - ${s}A))) / 255; if (${d}B > 255) ${d}B = 255;
+ __EOF__
+         }
+-        if ( $dst_has_alpha ) {
+-            if ($A_is_const_FF) {
+-                print FILE <<__EOF__;
+-                ${d}A = 0xFF;
+-__EOF__
+-            } else {
+-                print FILE <<__EOF__;
+-                ${d}A = ((${s}A * ${d}A) + (${d}A * (255 - ${s}A))) / 255; if (${d}A > 255) ${d}A = 255;
+-__EOF__
+-            }
+-        }
+ 
+         print FILE <<__EOF__;
+                 break;
+@@ -426,7 +415,7 @@ sub output_copyfunc
+ 
+     my $dst_has_alpha = ($dst =~ /A/) ? 1 : 0;
+     my $ignore_dst_alpha = !$dst_has_alpha && !$blend;
+-    
++
+     my $src_has_alpha = ($src =~ /A/) ? 1 : 0;
+ 
+     my $is_modulateA_done = 0;
+-- 
+2.17.1
+

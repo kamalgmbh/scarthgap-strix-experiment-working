@@ -1,0 +1,27 @@
+From 6ed29f47c9fba01f8559b6b724cc73f8412a769f Mon Sep 17 00:00:00 2001
+From: capehill <juha.niemimaki@gmail.com>
+Date: Sun, 26 Mar 2023 22:13:09 +0300
+Subject: [PATCH 312/458] testgles2_sdf: Call correct function to get shader
+ info log
+
+(cherry picked from commit b8c88cc58423b7e654b18fdaf1aab5a343114586)
+---
+ test/testgles2_sdf.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/testgles2_sdf.c b/test/testgles2_sdf.c
+index 97bfd4524..e2ef46662 100644
+--- a/test/testgles2_sdf.c
++++ b/test/testgles2_sdf.c
+@@ -151,7 +151,7 @@ process_shader(GLuint *shader, const char * source, GLint shader_type)
+ 
+     /* Dump debug info (source and log) if compilation failed. */
+     if (status != GL_TRUE) {
+-        ctx.glGetProgramInfoLog(*shader, sizeof(buffer), &length, &buffer[0]);
++        ctx.glGetShaderInfoLog(*shader, sizeof(buffer), &length, &buffer[0]);
+         buffer[length] = '\0';
+         SDL_Log("Shader compilation failed: %s", buffer);fflush(stderr);
+         quit(-1);
+-- 
+2.17.1
+

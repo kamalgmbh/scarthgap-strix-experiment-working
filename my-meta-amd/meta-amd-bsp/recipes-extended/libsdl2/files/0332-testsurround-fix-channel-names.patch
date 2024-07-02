@@ -1,0 +1,90 @@
+From 03c239ded90fb65f70cd70866828d2ce532b20c8 Mon Sep 17 00:00:00 2001
+From: Anonymous Maarten <anonymous.maarten@gmail.com>
+Date: Sat, 18 Mar 2023 20:32:14 +0100
+Subject: [PATCH 332/458] testsurround: fix channel names
+
+Used table in include/SDL3/SDL_audio.h as reference.
+
+(cherry picked from commit e1b8a032391f4b24453d5bcbe725a35b3894ea5d)
+---
+ include/SDL_audio.h | 14 +++++++-------
+ test/testsurround.c | 14 ++++++++++----
+ 2 files changed, 17 insertions(+), 11 deletions(-)
+
+diff --git a/include/SDL_audio.h b/include/SDL_audio.h
+index 2c0f21191..ccd35982d 100644
+--- a/include/SDL_audio.h
++++ b/include/SDL_audio.h
+@@ -169,13 +169,13 @@ typedef void (SDLCALL * SDL_AudioCallback) (void *userdata, Uint8 * stream,
+  *  The calculated values in this structure are calculated by SDL_OpenAudio().
+  *
+  *  For multi-channel audio, the default SDL channel mapping is:
+- *  2:  FL FR                       (stereo)
+- *  3:  FL FR LFE                   (2.1 surround)
+- *  4:  FL FR BL BR                 (quad)
+- *  5:  FL FR LFE BL BR             (4.1 surround)
+- *  6:  FL FR FC LFE SL SR          (5.1 surround - last two can also be BL BR)
+- *  7:  FL FR FC LFE BC SL SR       (6.1 surround)
+- *  8:  FL FR FC LFE BL BR SL SR    (7.1 surround)
++ *  2:  FL  FR                          (stereo)
++ *  3:  FL  FR LFE                      (2.1 surround)
++ *  4:  FL  FR  BL  BR                  (quad)
++ *  5:  FL  FR LFE  BL  BR              (4.1 surround)
++ *  6:  FL  FR  FC LFE  SL  SR          (5.1 surround - last two can also be BL BR)
++ *  7:  FL  FR  FC LFE  BC  SL  SR      (6.1 surround)
++ *  8:  FL  FR  FC LFE  BL  BR  SL  SR  (7.1 surround)
+  */
+ typedef struct SDL_AudioSpec
+ {
+diff --git a/test/testsurround.c b/test/testsurround.c
+index 28c3ee5d6..b28436977 100644
+--- a/test/testsurround.c
++++ b/test/testsurround.c
+@@ -38,6 +38,7 @@ get_channel_name(int channel_index, int channel_count)
+     case 2:
+         switch (channel_count) {
+         case 3:
++        case 5:
+             return "Low Frequency Effects";
+         case 4:
+             return "Back Left";
+@@ -57,27 +58,32 @@ get_channel_name(int channel_index, int channel_count)
+         switch (channel_count) {
+         case 5:
+             return "Back Right";
++        case 6:
++            return "Side Left";
+         case 7:
+             return "Back Center";
+-        case 6:
+         case 8:
+             return "Back Left";
+         }
++        SDL_assert(0);
+     case 5:
+         switch (channel_count) {
+-        case 7:
+-            return "Back Left";
+         case 6:
++            return "Side Right";
++        case 7:
++            return "Side Left";
+         case 8:
+             return "Back Right";
+         }
++        SDL_assert(0);
+     case 6:
+         switch (channel_count) {
+         case 7:
+-            return "Back Right";
++            return "Side Right";
+         case 8:
+             return "Side Left";
+         }
++        SDL_assert(0);
+     case 7:
+         return "Side Right";
+     }
+-- 
+2.17.1
+

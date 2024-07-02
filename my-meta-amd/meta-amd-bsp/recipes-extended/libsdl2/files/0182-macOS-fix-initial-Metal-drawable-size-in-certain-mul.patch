@@ -1,0 +1,37 @@
+From 17ecb11ed6fb448ced09f7753e6160b28569153b Mon Sep 17 00:00:00 2001
+From: Sasha Szpakowski <slime73@gmail.com>
+Date: Wed, 1 Feb 2023 18:56:33 -0400
+Subject: [PATCH 182/458] macOS: fix initial Metal drawable size in certain
+ multi-display setups
+
+(cherry picked from commit baca26d72701655157c2a1ab678c2d5af0830d53)
+---
+ src/video/cocoa/SDL_cocoametalview.m | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/video/cocoa/SDL_cocoametalview.m b/src/video/cocoa/SDL_cocoametalview.m
+index 61ca9d158..2f1b73ba3 100644
+--- a/src/video/cocoa/SDL_cocoametalview.m
++++ b/src/video/cocoa/SDL_cocoametalview.m
+@@ -94,7 +94,7 @@ SDL_MetalViewEventWatch(void *userdata, SDL_Event *event)
+ 
+         [self updateDrawableSize];
+     }
+-  
++
+     return self;
+ }
+ 
+@@ -151,6 +151,9 @@ Cocoa_Metal_CreateView(_THIS, SDL_Window * window)
+ 
+     [view addSubview:newview];
+ 
++    /* Make sure the drawable size is up to date after attaching the view. */
++    [newview updateDrawableSize];
++
+     metalview = (SDL_MetalView)CFBridgingRetain(newview);
+ 
+     return metalview;
+-- 
+2.17.1
+

@@ -1,0 +1,172 @@
+From 06b59592bad45307dfdeb977eee2c7263c5afc29 Mon Sep 17 00:00:00 2001
+From: Xenia Ragiadakou <xenia.ragiadakou@amd.com>
+Date: Mon, 29 Jan 2024 21:47:45 +0200
+Subject: [PATCH 096/106] privcmd: add interface to init and update hva
+ mappings
+
+Signed-off-by: Xenia Ragiadakou <xenia.ragiadakou@amd.com>
+Change-Id: Id29619189e264e6c5aa8204e992fa8c2897a9942
+---
+ tools/include/xen-sys/Linux/privcmd.h         | 17 ++++++++++
+ tools/include/xenforeignmemory.h              |  7 ++++
+ tools/libs/foreignmemory/core.c               | 15 +++++++++
+ .../foreignmemory/libxenforeignmemory.map     |  2 ++
+ tools/libs/foreignmemory/linux.c              | 32 +++++++++++++++++++
+ tools/libs/foreignmemory/private.h            |  8 +++++
+ 6 files changed, 81 insertions(+)
+
+diff --git a/tools/include/xen-sys/Linux/privcmd.h b/tools/include/xen-sys/Linux/privcmd.h
+index 6a1fa323fd..0f1ffef18f 100644
+--- a/tools/include/xen-sys/Linux/privcmd.h
++++ b/tools/include/xen-sys/Linux/privcmd.h
+@@ -39,6 +39,19 @@
+ #define __user
+ #endif
+ 
++struct privcmd_update_hva {
++	unsigned int npages;
++	__u64 hva;
++};
++
++struct privcmd_map_hva {
++	domid_t domid;
++	unsigned int npages;
++	__u64 hva;
++	xen_pfn_t gfn;
++	int add_mapping;
++};
++
+ typedef struct privcmd_hypercall
+ {
+ 	__u64 op;
+@@ -115,6 +128,10 @@ typedef struct privcmd_map_hva_to_gpfns {
+  * @arg: &privcmd_hypercall_t
+  * Return: Value returned from execution of the specified hypercall.
+  */
++#define IOCTL_PRIVCMD_UPDATE_HVA				\
++	_IOC(_IOC_NONE, 'P', 17, sizeof(struct privcmd_update_hva))
++#define IOCTL_PRIVCMD_MAP_HVA					\
++	_IOC(_IOC_NONE, 'P', 18, sizeof(struct privcmd_map_hva))
+ #define IOCTL_PRIVCMD_HYPERCALL					\
+ 	_IOC(_IOC_NONE, 'P', 0, sizeof(privcmd_hypercall_t))
+ #define IOCTL_PRIVCMD_MMAP					\
+diff --git a/tools/include/xenforeignmemory.h b/tools/include/xenforeignmemory.h
+index 8e2cff608b..ae822c2b65 100644
+--- a/tools/include/xenforeignmemory.h
++++ b/tools/include/xenforeignmemory.h
+@@ -31,6 +31,13 @@ struct xentoollog_logger;
+ 
+ typedef struct xenforeignmemory_handle xenforeignmemory_handle;
+ 
++int privcmd_update_hva(xenforeignmemory_handle *fmem,
++                       unsigned long hva, size_t npages);
++
++int privcmd_map_hva(xenforeignmemory_handle *fmem, domid_t domid,
++                    unsigned long hva, xen_pfn_t gfn, size_t npages,
++                    int add_mapping);
++
+ /*
+  * Return a handle onto the foreign memory mapping driver.  Logs errors.
+  *
+diff --git a/tools/libs/foreignmemory/core.c b/tools/libs/foreignmemory/core.c
+index 01a6f23dfd..afe07b3f63 100644
+--- a/tools/libs/foreignmemory/core.c
++++ b/tools/libs/foreignmemory/core.c
+@@ -21,6 +21,21 @@
+ 
+ #include "private.h"
+ 
++#if defined(__linux__)
++int privcmd_update_hva(xenforeignmemory_handle *fmem,
++                       unsigned long hva, size_t npages)
++{
++    return osdep_update_hva(fmem, hva, npages);
++}
++
++int privcmd_map_hva(xenforeignmemory_handle *fmem, domid_t domid,
++                    unsigned long hva, xen_pfn_t gfn, size_t npages,
++                    int add_mapping)
++{
++    return osdep_map_hva(fmem, domid, hva, gfn, npages, add_mapping);
++}
++#endif
++
+ static int all_restrict_cb(Xentoolcore__Active_Handle *ah, domid_t domid) {
+     xenforeignmemory_handle *fmem = CONTAINER_OF(ah, *fmem, tc_ah);
+ 
+diff --git a/tools/libs/foreignmemory/libxenforeignmemory.map b/tools/libs/foreignmemory/libxenforeignmemory.map
+index 36dfdf9856..d19ea9f5e2 100644
+--- a/tools/libs/foreignmemory/libxenforeignmemory.map
++++ b/tools/libs/foreignmemory/libxenforeignmemory.map
+@@ -23,4 +23,6 @@ VERS_1.3 {
+ VERS_1.4 {
+ 	global:
+ 		xenforeignmemory_resource_size;
++		privcmd_update_hva;
++		privcmd_map_hva;
+ } VERS_1.3;
+diff --git a/tools/libs/foreignmemory/linux.c b/tools/libs/foreignmemory/linux.c
+index 812f1ef9c8..ddda7d0be2 100644
+--- a/tools/libs/foreignmemory/linux.c
++++ b/tools/libs/foreignmemory/linux.c
+@@ -33,6 +33,38 @@
+ #define O_CLOEXEC 0
+ #endif
+ 
++int osdep_update_hva(xenforeignmemory_handle *fmem,
++                     unsigned long hva, size_t npages)
++{
++    int rc, fd = fmem->fd;
++    struct privcmd_update_hva ioctlx;
++
++    ioctlx.hva = hva;
++    ioctlx.npages = npages;
++
++    rc = ioctl(fd, IOCTL_PRIVCMD_UPDATE_HVA, &ioctlx);
++
++    return rc;
++}
++
++int osdep_map_hva(xenforeignmemory_handle *fmem, domid_t domid,
++                  unsigned long hva, xen_pfn_t gfn, size_t npages,
++                  int add_mapping)
++{
++    int rc, fd = fmem->fd;
++    struct privcmd_map_hva ioctlx;
++
++    ioctlx.domid = domid;
++    ioctlx.hva = hva;
++    ioctlx.gfn = gfn;
++    ioctlx.npages = npages;
++    ioctlx.add_mapping = add_mapping;
++
++    rc = ioctl(fd, IOCTL_PRIVCMD_MAP_HVA, &ioctlx);
++
++    return rc;
++}
++
+ int osdep_xenforeignmemory_open(xenforeignmemory_handle *fmem)
+ {
+     int fd;
+diff --git a/tools/libs/foreignmemory/private.h b/tools/libs/foreignmemory/private.h
+index 6d0272fe52..52c71187ad 100644
+--- a/tools/libs/foreignmemory/private.h
++++ b/tools/libs/foreignmemory/private.h
+@@ -19,6 +19,14 @@ struct xenforeignmemory_handle {
+     int unimpl_errno;
+ };
+ 
++#if defined(__linux__)
++int osdep_update_hva(xenforeignmemory_handle *fmem,
++                     unsigned long hva, size_t npages);
++int osdep_map_hva(xenforeignmemory_handle *fmem, domid_t domid,
++                  unsigned long hva, xen_pfn_t gfn, size_t npages,
++                  int add_mapping);
++#endif
++
+ #if defined (__linux__)
+ int osdep_map_hva_to_gpfns(xenforeignmemory_handle *fmem, domid_t hdom,
+                            domid_t gdom, size_t nr_pages, void *hva,
+-- 
+2.25.1
+

@@ -1,0 +1,72 @@
+From d043c8535beacce49fbfa6bbb427a3a34802d40f Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Tue, 28 Mar 2023 12:28:15 -0700
+Subject: [PATCH 337/458] Fixed the accelerometer and gyro axes for the Armor-X
+ Pro controller
+
+(cherry picked from commit 37517557ae076cd94acd9ca3b739e1f32c150a43)
+---
+ src/joystick/hidapi/SDL_hidapi_ps4.c | 38 +++++++++++++++++++++++-----
+ 1 file changed, 32 insertions(+), 6 deletions(-)
+
+diff --git a/src/joystick/hidapi/SDL_hidapi_ps4.c b/src/joystick/hidapi/SDL_hidapi_ps4.c
+index 37d78007f..ab50a85a5 100644
+--- a/src/joystick/hidapi/SDL_hidapi_ps4.c
++++ b/src/joystick/hidapi/SDL_hidapi_ps4.c
+@@ -408,12 +408,6 @@ static SDL_bool HIDAPI_DriverPS4_InitDevice(SDL_HIDAPI_Device *device)
+         ctx->effects_supported = SDL_FALSE;
+     }
+ 
+-    if (device->vendor_id == USB_VENDOR_SONY &&
+-        device->product_id == USB_PRODUCT_SONY_DS4_STRIKEPAD) {
+-        /* The Armor-X Pro seems to only deliver half the acceleration it should */
+-        ctx->accel_numerator *= 2;
+-    }
+-
+     device->joystick_type = joystick_type;
+     device->type = SDL_CONTROLLER_TYPE_PS4;
+     if (ctx->official_controller) {
+@@ -608,8 +602,40 @@ static void HIDAPI_DriverPS4_LoadCalibrationData(SDL_HIDAPI_Device *device)
+ 
+         if (i < 3) {
+             scale *= ((double)ctx->gyro_numerator / ctx->gyro_denominator) * M_PI / 180.0;
++
++            if (device->vendor_id == USB_VENDOR_SONY &&
++                device->product_id == USB_PRODUCT_SONY_DS4_STRIKEPAD) {
++                /* The Armor-X Pro seems to rotate in the opposite direction on the Z axis */
++                switch (i) {
++                case 0:
++                case 1:
++                    break;
++                case 2:
++                    scale *= -1.0;
++                    break;
++                default:
++                    break;
++                }
++            }
+         } else {
+             scale *= ((double)ctx->accel_numerator / ctx->accel_denominator) * SDL_STANDARD_GRAVITY;
++
++            if (device->vendor_id == USB_VENDOR_SONY &&
++                device->product_id == USB_PRODUCT_SONY_DS4_STRIKEPAD) {
++                /* The Armor-X Pro seems to only deliver half the acceleration it should,
++                 * and in the opposite direction on the X and Y axes */
++                switch (i) {
++                case 3:
++                case 4:
++                    scale *= -2.0;
++                    break;
++                case 5:
++                    scale *= 2.0;
++                    break;
++                default:
++                    break;
++                }
++            }
+         }
+         ctx->calibration[i].scale = (float)scale;
+     }
+-- 
+2.17.1
+

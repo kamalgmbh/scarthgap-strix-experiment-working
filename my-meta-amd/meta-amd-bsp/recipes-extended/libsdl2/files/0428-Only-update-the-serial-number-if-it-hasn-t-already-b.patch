@@ -1,0 +1,54 @@
+From 30b4d90f1cfb9717bbc816987e779671f590b042 Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Fri, 9 Jun 2023 17:34:12 -0700
+Subject: [PATCH 428/458] Only update the serial number if it hasn't already
+ been set
+
+This fixes the serial number for Nintendo Switch Pro, which is queried from the hardware in device initialization, and was later clobbered by the USB string which isn't correct.
+
+(cherry picked from commit 2042e9c4e3cba6ffa9c34abac14828e31365f98b)
+---
+ src/joystick/hidapi/SDL_hidapijoystick.c | 20 +++++++++++++++++++-
+ 1 file changed, 19 insertions(+), 1 deletion(-)
+
+diff --git a/src/joystick/hidapi/SDL_hidapijoystick.c b/src/joystick/hidapi/SDL_hidapijoystick.c
+index 2e7d605d4..de9443ac6 100644
+--- a/src/joystick/hidapi/SDL_hidapijoystick.c
++++ b/src/joystick/hidapi/SDL_hidapijoystick.c
+@@ -676,6 +676,22 @@ static void HIDAPI_UpdateJoystickSerial(SDL_HIDAPI_Device *device)
+     }
+ }
+ 
++static SDL_bool HIDAPI_SerialIsEmpty(SDL_HIDAPI_Device *device)
++{
++    SDL_bool all_zeroes = SDL_TRUE;
++
++    if (device->serial) {
++        const char *serial = device->serial;
++        for (serial = device->serial; *serial; ++serial) {
++            if (*serial != '0') {
++                all_zeroes = SDL_FALSE;
++                break;
++            }
++        }
++    }
++    return all_zeroes;
++}
++
+ void HIDAPI_SetDeviceSerial(SDL_HIDAPI_Device *device, const char *serial)
+ {
+     if (serial && *serial && (!device->serial || SDL_strcmp(serial, device->serial) != 0)) {
+@@ -1079,7 +1095,9 @@ static void HIDAPI_UpdateDeviceList(void)
+                     device->seen = SDL_TRUE;
+ 
+                     /* Check to see if the serial number is available now */
+-                    HIDAPI_SetDeviceSerialW(device, info->serial_number);
++                    if(HIDAPI_SerialIsEmpty(device)) {
++                        HIDAPI_SetDeviceSerialW(device, info->serial_number);
++                    }
+                 } else {
+                     HIDAPI_AddDevice(info, 0, NULL);
+                 }
+-- 
+2.17.1
+

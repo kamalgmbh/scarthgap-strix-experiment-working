@@ -1,0 +1,337 @@
+From b79732b967edecb5c1a7104ce9a50aac1a55fb1a Mon Sep 17 00:00:00 2001
+From: nfarid <54642193+nfarid@users.noreply.github.com>
+Date: Sun, 11 Dec 2022 22:23:45 +0000
+Subject: [PATCH 090/458] cmake: use FindALSA.cmake to find ALSA library
+
+---
+ .gitignore            |  6 ++++++
+ CMakeLists.txt        | 20 ++++++++++++------
+ SDL2Config.cmake.in   | 14 ++++++++++++-
+ cmake/macros.cmake    | 10 +++++----
+ cmake/sdlchecks.cmake | 47 +++++++++++++++++++++++++++++--------------
+ cmake/sdlfind.cmake   |  9 +++++++++
+ configure             |  3 +++
+ configure.ac          |  2 ++
+ sdl2.pc.in            |  2 +-
+ 9 files changed, 86 insertions(+), 27 deletions(-)
+ create mode 100644 cmake/sdlfind.cmake
+
+diff --git a/.gitignore b/.gitignore
+index a746abbc1..fb013e8bf 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -62,6 +62,11 @@ cmake-build-*
+ xcuserdata
+ *.xcworkspace
+ 
++# for QtCreator
++CMakeLists.txt.user
++build*/
++*.pro.user*
++
+ # for Visual C++
+ .vs
+ Debug
+@@ -173,6 +178,7 @@ test/testyuv
+ test/torturethread
+ 
+ builddir/
++!build-scripts/
+ debian/*.debhelper.log
+ debian/*.substvars
+ debian/*.tar.gz
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index d484956fd..32e9dfff8 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -18,6 +18,9 @@ endif()
+ set(EXTRA_LIBS)
+ set(EXTRA_LDFLAGS)
+ 
++set(CMAKE_DEPENDS)
++set(PKGCONFIG_DEPENDS)
++
+ # This is a virtual "library" that just exists to collect up compiler and
+ #  linker options that used to be global to this CMake project. When you
+ #  specify it as part of a real library's target_link_libraries(), that
+@@ -27,7 +30,6 @@ set(EXTRA_LDFLAGS)
+ add_library(sdl-build-options INTERFACE)
+ 
+ if(WINDOWS_STORE)
+-  cmake_minimum_required(VERSION 3.11.0)
+   target_compile_definitions(sdl-build-options INTERFACE "-DSDL_BUILDING_WINRT=1")
+   target_compile_options(sdl-build-options INTERFACE "-ZW")
+ endif()
+@@ -3074,6 +3076,7 @@ string(REGEX REPLACE "-lSDL2( |$)" "-l${sdl_static_libname} " SDL_STATIC_LIBS "$
+ if(NOT SDL_SHARED)
+   string(REGEX REPLACE "-lSDL2( |$)" "-l${sdl_static_libname} " SDL_LIBS "${SDL_LIBS}")
+ endif()
++listtostr(PKGCONFIG_DEPENDS PKGCONFIG_DEPENDS)
+ 
+ if(SDL_STATIC AND SDL_SHARED AND NOT sdl_static_libname STREQUAL "SDL2")
+   message(STATUS "\"pkg-config --static --libs sdl2\" will return invalid information")
+@@ -3154,7 +3157,7 @@ if (SDL_ASAN)
+   endif()
+ endif()
+ 
+-if(SDL_CCACHE)
++if(SDL_CCACHE AND NOT CMAKE_VERSION VERSION_LESS 3.4)
+   cmake_minimum_required(VERSION 3.4)
+   find_program(CCACHE_BINARY ccache)
+   if(CCACHE_BINARY)
+@@ -3165,6 +3168,8 @@ if(SDL_CCACHE)
+   else()
+     set(HAVE_CCACHE OFF)
+   endif()
++else()
++  set(HAVE_CCACHE OFF)
+ endif()
+ 
+ if(SDL_TESTS)
+@@ -3334,12 +3339,13 @@ if(SDL_SHARED)
+     set_target_properties(SDL2 PROPERTIES STATIC_LIBRARY_FLAGS "/NODEFAULTLIB")
+   endif()
+   # FIXME: if CMAKE_VERSION >= 3.13, use target_link_options for EXTRA_LDFLAGS
+-  target_link_libraries(SDL2 PRIVATE ${EXTRA_LIBS} ${EXTRA_LDFLAGS} ${EXTRA_LDFLAGS_BUILD})
++  target_link_libraries(SDL2 PRIVATE ${EXTRA_LIBS} ${EXTRA_LDFLAGS} ${EXTRA_LDFLAGS_BUILD} ${CMAKE_DEPENDS})
+   target_include_directories(SDL2 PUBLIC
+       "$<BUILD_INTERFACE:${SDL2_BINARY_DIR}/include>"
+       "$<BUILD_INTERFACE:${SDL2_BINARY_DIR}/include-config-$<LOWER_CASE:$<CONFIG>>>"
+       "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>"
+-      "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/SDL2>")
++      "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/SDL2>"
++  )
+   # This picks up all the compiler options and such we've accumulated up to here.
+   target_link_libraries(SDL2 PRIVATE $<BUILD_INTERFACE:sdl-build-options>)
+   if(MINGW OR CYGWIN)
+@@ -3366,12 +3372,13 @@ if(SDL_STATIC)
+   target_compile_definitions(SDL2-static PRIVATE SDL_STATIC_LIB)
+   # TODO: Win32 platforms keep the same suffix .lib for import and static
+   # libraries - do we need to consider this?
+-  target_link_libraries(SDL2-static PRIVATE ${EXTRA_LIBS} ${EXTRA_LDFLAGS})
++  target_link_libraries(SDL2-static PRIVATE ${EXTRA_LIBS} ${EXTRA_LDFLAGS} ${CMAKE_DEPENDS})
+   target_include_directories(SDL2-static PUBLIC
+       "$<BUILD_INTERFACE:${SDL2_BINARY_DIR}/include>"
+       "$<BUILD_INTERFACE:${SDL2_BINARY_DIR}/include-config-$<LOWER_CASE:$<CONFIG>>>"
+       "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>"
+-      "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/SDL2>")
++      "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/SDL2>"
++  )
+   # This picks up all the compiler options and such we've accumulated up to here.
+   target_link_libraries(SDL2-static PRIVATE $<BUILD_INTERFACE:sdl-build-options>)
+   if(NOT ANDROID)
+@@ -3505,6 +3512,7 @@ if(NOT SDL2_DISABLE_INSTALL)
+     FILES
+       ${CMAKE_CURRENT_BINARY_DIR}/SDL2Config.cmake
+       ${CMAKE_CURRENT_BINARY_DIR}/SDL2ConfigVersion.cmake
++      ${SDL2_SOURCE_DIR}/cmake/sdlfind.cmake
+     DESTINATION "${SDL_INSTALL_CMAKEDIR}"
+     COMPONENT Devel
+   )
+diff --git a/SDL2Config.cmake.in b/SDL2Config.cmake.in
+index 8c18aa5d4..cc8bcf26d 100644
+--- a/SDL2Config.cmake.in
++++ b/SDL2Config.cmake.in
+@@ -30,6 +30,18 @@ if(EXISTS "${CMAKE_CURRENT_LIST_DIR}/SDL2testTargets.cmake")
+   set(SDL2_SDL2test_FOUND TRUE)
+ endif()
+ 
++
++include("${CMAKE_CURRENT_LIST_DIR}/sdlfind.cmake")
++
++set(SDL_ALSA @SDL_ALSA@)
++set(SDL_ALSA_SHARED @SDL_ALSA_SHARED@)
++if(SDL_ALSA AND NOT SDL_ALSA_SHARED AND TARGET SDL2::SDL2-static)
++  sdlFindALSA()
++endif()
++unset(SDL_ALSA)
++unset(SDL_ALSA_SHARED)
++
++
+ check_required_components(SDL2)
+ 
+ # Create SDL2::SDL2 alias for static-only builds
+@@ -62,4 +74,4 @@ if(TARGET SDL2::SDL2main)
+   list(INSERT SDL2_STATIC_LIBRARIES 0 SDL2::SDL2main)
+ endif()
+ 
+-set(SDL2TEST_LIBRARY SDL2::SDL2test)
+\ No newline at end of file
++set(SDL2TEST_LIBRARY SDL2::SDL2test)
+diff --git a/cmake/macros.cmake b/cmake/macros.cmake
+index 6f6c32971..69a5d5464 100644
+--- a/cmake/macros.cmake
++++ b/cmake/macros.cmake
+@@ -29,7 +29,7 @@ ENDMACRO()
+ 
+ # Message Output
+ macro(MESSAGE_WARN _TEXT)
+-  message(STATUS "*** WARNING: ${_TEXT}")
++  message(WARNING "${_TEXT}")
+ endmacro()
+ 
+ macro(MESSAGE_ERROR _TEXT)
+@@ -64,7 +64,7 @@ macro(MESSAGE_TESTED_OPTION _NAME)
+   message(STATUS "  ${_NAME}${_PAD}(Wanted: ${_REQVALUE}): ${HAVE_${_STRIPPEDNAME}}")
+ endmacro()
+ 
+-macro(LISTTOSTR _LIST _OUTPUT)
++function(LISTTOSTR _LIST _OUTPUT)
+   if(${ARGC} EQUAL 3)
+     # prefix for each element
+     set(_LPREFIX ${ARGV2})
+@@ -73,10 +73,12 @@ macro(LISTTOSTR _LIST _OUTPUT)
+   endif()
+   # Do not use string(REPLACE ";" " ") here to avoid messing up list
+   # entries
++  set(res)
+   foreach(_ITEM ${${_LIST}})
+-    set(${_OUTPUT} "${${_OUTPUT}} ${_LPREFIX}${_ITEM}")
++    set(res "${res} ${_LPREFIX}${_ITEM}")
+   endforeach()
+-endmacro()
++  set(${_OUTPUT} "${res}" PARENT_SCOPE)
++endfunction()
+ 
+ macro(LISTTOSTRREV _LIST _OUTPUT)
+   if(${ARGC} EQUAL 3)
+diff --git a/cmake/sdlchecks.cmake b/cmake/sdlchecks.cmake
+index a72471782..fe31ead9a 100644
+--- a/cmake/sdlchecks.cmake
++++ b/cmake/sdlchecks.cmake
+@@ -1,4 +1,5 @@
+ include(CMakeParseArguments)
++include(${SDL2_SOURCE_DIR}/cmake/sdlfind.cmake)
+ macro(FindLibraryAndSONAME _LIB)
+   cmake_parse_arguments(FLAS "" "" "LIBDIRS" ${ARGN})
+ 
+@@ -6,6 +7,13 @@ macro(FindLibraryAndSONAME _LIB)
+   string(REGEX REPLACE "\\-" "_" _LNAME "${_UPPERLNAME}")
+ 
+   find_library(${_LNAME}_LIB ${_LIB} PATHS ${FLAS_LIBDIRS})
++
++  if(${_LNAME}_LIB MATCHES ".*\\${CMAKE_SHARED_LIBRARY_SUFFIX}.*" AND NOT ${_LNAME}_LIB MATCHES ".*\\${CMAKE_STATIC_LIBRARY_SUFFIX}.*")
++    set(${_LNAME}_SHARED TRUE)
++  else()
++    set(${_LNAME}_SHARED FALSE)
++  endif()
++
+   if(${_LNAME}_LIB)
+     # reduce the library name for shared linking
+ 
+@@ -83,26 +91,35 @@ endmacro()
+ # - HAVE_SDL_LOADSO opt
+ macro(CheckALSA)
+   if(SDL_ALSA)
+-    CHECK_INCLUDE_FILE(alsa/asoundlib.h HAVE_ASOUNDLIB_H)
+-    if(HAVE_ASOUNDLIB_H)
+-      CHECK_LIBRARY_EXISTS(asound snd_pcm_recover "" HAVE_LIBASOUND)
+-    endif()
+-    if(HAVE_LIBASOUND)
+-      set(HAVE_ALSA TRUE)
+-      file(GLOB ALSA_SOURCES ${SDL2_SOURCE_DIR}/src/audio/alsa/*.c)
++    sdlFindALSA()
++    if(ALSA_FOUND)
++      file(GLOB ALSA_SOURCES "${SDL2_SOURCE_DIR}/src/audio/alsa/*.c")
+       list(APPEND SOURCE_FILES ${ALSA_SOURCES})
+       set(SDL_AUDIO_DRIVER_ALSA 1)
+-      if(SDL_ALSA_SHARED AND NOT HAVE_SDL_LOADSO)
+-        message_warn("You must have SDL_LoadObject() support for dynamic ALSA loading")
++      set(HAVE_ALSA TRUE)
++      set(HAVE_ALSA_SHARED FALSE)
++      if(SDL_ALSA_SHARED)
++        if(HAVE_SDL_LOADSO)
++          FindLibraryAndSONAME("asound")
++          if(ASOUND_LIB AND ASOUND_SHARED)
++            target_include_directories(sdl-build-options INTERFACE $<TARGET_PROPERTY:ALSA::ALSA,INTERFACE_INCLUDE_DIRECTORIES>)
++            set(SDL_AUDIO_DRIVER_ALSA_DYNAMIC "\"${ASOUND_LIB_SONAME}\"")
++            set(HAVE_ALSA_SHARED TRUE)
++          else()
++            message(WARNING "Unable to find asound shared object")
++          endif()
++        else()
++          message(WARNING "You must have SDL_LoadObject() support for dynamic ALSA loading")
++        endif()
+       endif()
+-      FindLibraryAndSONAME("asound")
+-      if(SDL_ALSA_SHARED AND ASOUND_LIB AND HAVE_SDL_LOADSO)
+-        set(SDL_AUDIO_DRIVER_ALSA_DYNAMIC "\"${ASOUND_LIB_SONAME}\"")
+-        set(HAVE_ALSA_SHARED TRUE)
+-      else()
+-        list(APPEND EXTRA_LIBS asound)
++      if(NOT HAVE_ALSA_SHARED)
++        list(APPEND CMAKE_DEPENDS ALSA::ALSA)
++        list(APPEND PKGCONFIG_DEPENDS alsa)
+       endif()
+       set(HAVE_SDL_AUDIO TRUE)
++    else()
++      set(HAVE_ALSA FALSE)
++      message(WARNING "Unable to found the alsa development library")
+     endif()
+   endif()
+ endmacro()
+diff --git a/cmake/sdlfind.cmake b/cmake/sdlfind.cmake
+new file mode 100644
+index 000000000..a8145484f
+--- /dev/null
++++ b/cmake/sdlfind.cmake
+@@ -0,0 +1,9 @@
++
++macro(sdlFindALSA)
++  find_package(ALSA MODULE)
++  if(ALSA_FOUND AND (NOT TARGET ALSA::ALSA) )
++    add_Library(ALSA::ALSA UNKNOWN IMPORTED)
++    set_property(TARGET ALSA::ALSA PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${ALSA_INCLUDE_DIRS})
++    set_property(TARGET ALSA::ALSA APPEND PROPERTY IMPORTED_LOCATION ${ALSA_LIBRARY})
++  endif()
++endmacro()
+diff --git a/configure b/configure
+index 06f48ae31..8fe93ee6c 100755
+--- a/configure
++++ b/configure
+@@ -677,6 +677,7 @@ ENABLE_STATIC_TRUE
+ ENABLE_SHARED_FALSE
+ ENABLE_SHARED_TRUE
+ PKGCONFIG_LIBS_PRIV
++PKGCONFIG_DEPENDS
+ SDL_RLD_FLAGS
+ SDL_STATIC_LIBS
+ SDL_LIBS
+@@ -29873,6 +29874,8 @@ done
+ 
+ 
+ 
++PKGCONFIG_DEPENDS=""
++
+ if test x$enable_shared = xyes; then
+     PKGCONFIG_LIBS_PRIV="
+ Libs.private:"
+diff --git a/configure.ac b/configure.ac
+index 65c987cac..d815a168a 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -4861,6 +4861,8 @@ AC_SUBST(SDL_CFLAGS)
+ AC_SUBST(SDL_LIBS)
+ AC_SUBST(SDL_STATIC_LIBS)
+ AC_SUBST(SDL_RLD_FLAGS)
++PKGCONFIG_DEPENDS=""
++AC_SUBST(PKGCONFIG_DEPENDS)
+ if test x$enable_shared = xyes; then
+     PKGCONFIG_LIBS_PRIV="
+ Libs.private:"
+diff --git a/sdl2.pc.in b/sdl2.pc.in
+index ad1a9574f..23a1d69c6 100644
+--- a/sdl2.pc.in
++++ b/sdl2.pc.in
+@@ -8,7 +8,7 @@ includedir=@includedir@
+ Name: sdl2
+ Description: Simple DirectMedia Layer is a cross-platform multimedia library designed to provide low level access to audio, keyboard, mouse, joystick, 3D hardware via OpenGL, and 2D video framebuffer.
+ Version: @SDL_VERSION@
+-Requires:
++Requires.private: @PKGCONFIG_DEPENDS@
+ Conflicts:
+ Libs: -L${libdir} @SDL_RLD_FLAGS@ @SDL_LIBS@ @PKGCONFIG_LIBS_PRIV@ @SDL_STATIC_LIBS@
+ Cflags: -I${includedir} -I${includedir}/SDL2 @SDL_CFLAGS@
+-- 
+2.17.1
+

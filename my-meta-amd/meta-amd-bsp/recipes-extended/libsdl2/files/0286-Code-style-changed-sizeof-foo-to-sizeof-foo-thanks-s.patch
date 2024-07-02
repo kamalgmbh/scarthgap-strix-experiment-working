@@ -1,0 +1,2340 @@
+From 0d76380042800417381d871527c33e2c4a3ad9dd Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Thu, 9 Mar 2023 15:10:00 -0800
+Subject: [PATCH 286/458] Code style: changed "sizeof foo" to "sizeof(foo)"
+ (thanks @sezero!)
+
+(cherry picked from commit c6443d86c92e962683a1efe5f123a144988875b5)
+---
+ src/audio/SDL_audio.c                         |   2 +-
+ src/audio/aaudio/SDL_aaudio.c                 |   2 +-
+ src/audio/alsa/SDL_alsa_audio.c               |   3 +-
+ src/audio/android/SDL_androidaudio.c          |   2 +-
+ src/audio/arts/SDL_artsaudio.c                |   3 +-
+ src/audio/coreaudio/SDL_coreaudio.m           |   3 +-
+ src/audio/directsound/SDL_directsound.c       |   3 +-
+ src/audio/dsp/SDL_dspaudio.c                  |   3 +-
+ src/audio/emscripten/SDL_emscriptenaudio.c    |   4 +-
+ src/audio/esd/SDL_esdaudio.c                  |   3 +-
+ src/audio/fusionsound/SDL_fsaudio.c           |   3 +-
+ src/audio/jack/SDL_jackaudio.c                |   3 +-
+ src/audio/n3ds/SDL_n3dsaudio.c                |   2 +-
+ src/audio/nacl/SDL_naclaudio.c                |  26 +-
+ src/audio/nas/SDL_nasaudio.c                  |   9 +-
+ src/audio/netbsd/SDL_netbsdaudio.c            |   3 +-
+ src/audio/openslES/SDL_openslES.c             |   2 +-
+ src/audio/paudio/SDL_paudio.c                 |   3 +-
+ src/audio/pulseaudio/SDL_pulseaudio.c         |   3 +-
+ src/audio/sun/SDL_sunaudio.c                  |   3 +-
+ src/audio/wasapi/SDL_wasapi.c                 |   4 +-
+ src/audio/winmm/SDL_winmm.c                   |  15 +-
+ src/core/linux/SDL_evdev.c                    |   2 +-
+ src/core/linux/SDL_fcitx.c                    |   4 +-
+ src/core/linux/SDL_ibus.c                     |   6 +-
+ src/core/windows/SDL_windows.c                |   2 +-
+ src/cpuinfo/SDL_cpuinfo.c                     |   8 +-
+ src/dynapi/SDL_dynapi.c                       |   4 +-
+ src/file/SDL_rwops.c                          |   2 +-
+ src/haptic/SDL_haptic.c                       |   6 +-
+ src/haptic/windows/SDL_xinputhaptic.c         |   4 +-
+ src/joystick/SDL_gamecontroller.c             |   8 +-
+ src/joystick/bsd/SDL_bsdjoystick.c            |   2 +-
+ src/joystick/haiku/SDL_haikujoystick.cc       |   4 +-
+ src/joystick/hidapi/SDL_hidapi_ps3.c          |   2 +-
+ src/joystick/hidapi/SDL_hidapi_ps4.c          |  10 +-
+ src/joystick/hidapi/SDL_hidapi_ps5.c          |   6 +-
+ src/joystick/hidapi/SDL_hidapi_switch.c       |   2 +-
+ src/joystick/linux/SDL_sysjoystick.c          |   4 +-
+ src/joystick/windows/SDL_dinputjoystick.c     |  14 +-
+ .../windows/SDL_windows_gaming_input.c        |   4 +-
+ src/joystick/windows/SDL_xinputjoystick.c     |  22 +-
+ src/render/metal/SDL_render_metal.m           |  26 +-
+ src/render/ps2/SDL_render_ps2.c               |   2 +-
+ src/sensor/n3ds/SDL_n3dssensor.c              |   4 +-
+ src/test/SDL_test_common.c                    |  78 ++---
+ src/test/SDL_test_font.c                      |   2 +-
+ src/test/SDL_test_harness.c                   |   4 +-
+ src/test/SDL_test_log.c                       |   2 +-
+ src/test/SDL_test_memory.c                    |  10 +-
+ src/timer/os2/SDL_systimer.c                  |   4 +-
+ src/video/directfb/SDL_DirectFB_render.c      |   8 +-
+ src/video/dummy/SDL_nullframebuffer.c         |   2 +-
+ src/video/kmsdrm/SDL_kmsdrmvideo.c            |   4 +-
+ .../offscreen/SDL_offscreenframebuffer.c      |   3 +-
+ src/video/wayland/SDL_waylandevents.c         |  26 +-
+ src/video/wayland/SDL_waylandvideo.c          |   2 +-
+ src/video/wayland/SDL_waylandwindow.c         |   2 +-
+ src/video/x11/SDL_x11keyboard.c               |   2 +-
+ test/checkkeys.c                              |   2 +-
+ test/checkkeysthreads.c                       |   2 +-
+ test/controllermap.c                          |  12 +-
+ test/testatomic.c                             |  12 +-
+ test/testdisplayinfo.c                        |   2 +-
+ test/testlock.c                               |   4 +-
+ test/testoffscreen.c                          |   3 +-
+ test/testsem.c                                |  12 +-
+ test/testsensor.c                             |   2 +-
+ test/testwm.c                                 | 301 ++++++++++++++++++
+ test/testyuv.c                                |   2 +-
+ test/torturethread.c                          |   4 +-
+ 71 files changed, 525 insertions(+), 234 deletions(-)
+ create mode 100644 test/testwm.c
+
+diff --git a/src/audio/SDL_audio.c b/src/audio/SDL_audio.c
+index 46ea9fa9b..0a34d4f7c 100644
+--- a/src/audio/SDL_audio.c
++++ b/src/audio/SDL_audio.c
+@@ -1511,7 +1511,7 @@ static SDL_AudioDeviceID open_audio_device(const char *devname, int iscapture,
+         const size_t stacksize = is_internal_thread ? 64 * 1024 : 0;
+         char threadname[64];
+ 
+-        (void)SDL_snprintf(threadname, sizeof threadname, "SDLAudio%c%" SDL_PRIu32, (iscapture) ? 'C' : 'P', device->id);
++        (void)SDL_snprintf(threadname, sizeof(threadname), "SDLAudio%c%" SDL_PRIu32, (iscapture) ? 'C' : 'P', device->id);
+         device->thread = SDL_CreateThreadInternal(iscapture ? SDL_CaptureAudio : SDL_RunAudio, threadname, stacksize, device);
+ 
+         if (device->thread == NULL) {
+diff --git a/src/audio/aaudio/SDL_aaudio.c b/src/audio/aaudio/SDL_aaudio.c
+index 376afa00a..35f3b4e01 100644
+--- a/src/audio/aaudio/SDL_aaudio.c
++++ b/src/audio/aaudio/SDL_aaudio.c
+@@ -93,7 +93,7 @@ static int aaudio_OpenDevice(_THIS, const char *devname)
+         audioDevice = this;
+     }
+ 
+-    this->hidden = (struct SDL_PrivateAudioData *)SDL_calloc(1, (sizeof *this->hidden));
++    this->hidden = (struct SDL_PrivateAudioData *)SDL_calloc(1, sizeof(*this->hidden));
+     if (this->hidden == NULL) {
+         return SDL_OutOfMemory();
+     }
+diff --git a/src/audio/alsa/SDL_alsa_audio.c b/src/audio/alsa/SDL_alsa_audio.c
+index 3e49af827..c53161357 100644
+--- a/src/audio/alsa/SDL_alsa_audio.c
++++ b/src/audio/alsa/SDL_alsa_audio.c
+@@ -538,8 +538,7 @@ static int ALSA_OpenDevice(_THIS, const char *devname)
+ #endif
+ 
+     /* Initialize all variables that we clean on shutdown */
+-    this->hidden = (struct SDL_PrivateAudioData *)
+-        SDL_malloc((sizeof *this->hidden));
++    this->hidden = (struct SDL_PrivateAudioData *)SDL_malloc(sizeof(*this->hidden));
+     if (this->hidden == NULL) {
+         return SDL_OutOfMemory();
+     }
+diff --git a/src/audio/android/SDL_androidaudio.c b/src/audio/android/SDL_androidaudio.c
+index 2639aad38..b46fdda09 100644
+--- a/src/audio/android/SDL_androidaudio.c
++++ b/src/audio/android/SDL_androidaudio.c
+@@ -50,7 +50,7 @@ static int ANDROIDAUDIO_OpenDevice(_THIS, const char *devname)
+         audioDevice = this;
+     }
+ 
+-    this->hidden = (struct SDL_PrivateAudioData *)SDL_calloc(1, (sizeof *this->hidden));
++    this->hidden = (struct SDL_PrivateAudioData *)SDL_calloc(1, sizeof(*this->hidden));
+     if (this->hidden == NULL) {
+         return SDL_OutOfMemory();
+     }
+diff --git a/src/audio/arts/SDL_artsaudio.c b/src/audio/arts/SDL_artsaudio.c
+index 7c37608a0..38e11904a 100644
+--- a/src/audio/arts/SDL_artsaudio.c
++++ b/src/audio/arts/SDL_artsaudio.c
+@@ -223,8 +223,7 @@ ARTS_OpenDevice(_THIS, const char *devname)
+     SDL_AudioFormat test_format = 0;
+ 
+     /* Initialize all variables that we clean on shutdown */
+-    this->hidden = (struct SDL_PrivateAudioData *)
+-        SDL_malloc((sizeof *this->hidden));
++    this->hidden = (struct SDL_PrivateAudioData *)SDL_malloc(sizeof(*this->hidden));
+     if (this->hidden == NULL) {
+         return SDL_OutOfMemory();
+     }
+diff --git a/src/audio/coreaudio/SDL_coreaudio.m b/src/audio/coreaudio/SDL_coreaudio.m
+index 401971165..1b2db8700 100644
+--- a/src/audio/coreaudio/SDL_coreaudio.m
++++ b/src/audio/coreaudio/SDL_coreaudio.m
+@@ -1015,8 +1015,7 @@ static int COREAUDIO_OpenDevice(_THIS, const char *devname)
+     SDL_AudioDevice **new_open_devices;
+ 
+     /* Initialize all variables that we clean on shutdown */
+-    this->hidden = (struct SDL_PrivateAudioData *)
+-        SDL_malloc((sizeof *this->hidden));
++    this->hidden = (struct SDL_PrivateAudioData *)SDL_malloc(sizeof(*this->hidden));
+     if (this->hidden == NULL) {
+         return SDL_OutOfMemory();
+     }
+diff --git a/src/audio/directsound/SDL_directsound.c b/src/audio/directsound/SDL_directsound.c
+index d93b06452..a61a068f7 100644
+--- a/src/audio/directsound/SDL_directsound.c
++++ b/src/audio/directsound/SDL_directsound.c
+@@ -492,8 +492,7 @@ static int DSOUND_OpenDevice(_THIS, const char *devname)
+     DWORD bufsize;
+ 
+     /* Initialize all variables that we clean on shutdown */
+-    this->hidden = (struct SDL_PrivateAudioData *)
+-        SDL_malloc((sizeof *this->hidden));
++    this->hidden = (struct SDL_PrivateAudioData *)SDL_malloc(sizeof(*this->hidden));
+     if (this->hidden == NULL) {
+         return SDL_OutOfMemory();
+     }
+diff --git a/src/audio/dsp/SDL_dspaudio.c b/src/audio/dsp/SDL_dspaudio.c
+index baf7a08b2..441aa2574 100644
+--- a/src/audio/dsp/SDL_dspaudio.c
++++ b/src/audio/dsp/SDL_dspaudio.c
+@@ -85,8 +85,7 @@ static int DSP_OpenDevice(_THIS, const char *devname)
+     }
+ 
+     /* Initialize all variables that we clean on shutdown */
+-    this->hidden = (struct SDL_PrivateAudioData *)
+-        SDL_malloc((sizeof *this->hidden));
++    this->hidden = (struct SDL_PrivateAudioData *) SDL_malloc(sizeof(*this->hidden));
+     if (this->hidden == NULL) {
+         return SDL_OutOfMemory();
+     }
+diff --git a/src/audio/emscripten/SDL_emscriptenaudio.c b/src/audio/emscripten/SDL_emscriptenaudio.c
+index 84fbb0f2c..af5f09565 100644
+--- a/src/audio/emscripten/SDL_emscriptenaudio.c
++++ b/src/audio/emscripten/SDL_emscriptenaudio.c
+@@ -125,7 +125,7 @@ static void HandleCaptureProcess(_THIS)
+                 }
+             }
+         }
+-    }, this->work_buffer, (this->spec.size / sizeof (float)) / this->spec.channels);
++    }, this->work_buffer, (this->spec.size / sizeof(float)) / this->spec.channels);
+ /* *INDENT-ON* */ /* clang-format on */
+ 
+     /* okay, we've got an interleaved float32 array in C now. */
+@@ -255,7 +255,7 @@ static int EMSCRIPTENAUDIO_OpenDevice(_THIS, const char *devname)
+     /* Initialize all variables that we clean on shutdown */
+ #if 0  /* !!! FIXME: currently not used. Can we move some stuff off the SDL2 namespace? --ryan. */
+     this->hidden = (struct SDL_PrivateAudioData *)
+-        SDL_malloc((sizeof *this->hidden));
++        SDL_malloc(sizeof(*this->hidden));
+     if (this->hidden == NULL) {
+         return SDL_OutOfMemory();
+     }
+diff --git a/src/audio/esd/SDL_esdaudio.c b/src/audio/esd/SDL_esdaudio.c
+index db8567b56..0f49b09d6 100644
+--- a/src/audio/esd/SDL_esdaudio.c
++++ b/src/audio/esd/SDL_esdaudio.c
+@@ -215,8 +215,7 @@ ESD_OpenDevice(_THIS, const char *devname)
+     int found = 0;
+ 
+     /* Initialize all variables that we clean on shutdown */
+-    this->hidden = (struct SDL_PrivateAudioData *)
+-        SDL_malloc((sizeof *this->hidden));
++    this->hidden = (struct SDL_PrivateAudioData *)SDL_malloc(sizeof(*this->hidden));
+     if (this->hidden == NULL) {
+         return SDL_OutOfMemory();
+     }
+diff --git a/src/audio/fusionsound/SDL_fsaudio.c b/src/audio/fusionsound/SDL_fsaudio.c
+index f5ed59a5c..dccf1f864 100644
+--- a/src/audio/fusionsound/SDL_fsaudio.c
++++ b/src/audio/fusionsound/SDL_fsaudio.c
+@@ -183,8 +183,7 @@ SDL_FS_OpenDevice(_THIS, const char *devname)
+     DirectResult ret;
+ 
+     /* Initialize all variables that we clean on shutdown */
+-    this->hidden = (struct SDL_PrivateAudioData *)
+-        SDL_malloc((sizeof *this->hidden));
++    this->hidden = (struct SDL_PrivateAudioData *)SDL_malloc(sizeof(*this->hidden));
+     if (this->hidden == NULL) {
+         return SDL_OutOfMemory();
+     }
+diff --git a/src/audio/jack/SDL_jackaudio.c b/src/audio/jack/SDL_jackaudio.c
+index 1d22a001d..f9e942c57 100644
+--- a/src/audio/jack/SDL_jackaudio.c
++++ b/src/audio/jack/SDL_jackaudio.c
+@@ -132,6 +132,7 @@ static int load_jack_syms(void)
+     SDL_JACK_SYM(jack_port_type);
+     SDL_JACK_SYM(jack_connect);
+     SDL_JACK_SYM(jack_set_process_callback);
++
+     return 0;
+ }
+ 
+@@ -301,7 +302,7 @@ static int JACK_OpenDevice(_THIS, const char *devname)
+     }
+ 
+     /* Filter out non-audio ports */
+-    audio_ports = SDL_calloc(ports, sizeof *audio_ports);
++    audio_ports = SDL_calloc(ports, sizeof(*audio_ports));
+     for (i = 0; i < ports; i++) {
+         const jack_port_t *dport = JACK_jack_port_by_name(client, devports[i]);
+         const char *type = JACK_jack_port_type(dport);
+diff --git a/src/audio/n3ds/SDL_n3dsaudio.c b/src/audio/n3ds/SDL_n3dsaudio.c
+index 19f385180..ddf4e3aae 100644
+--- a/src/audio/n3ds/SDL_n3dsaudio.c
++++ b/src/audio/n3ds/SDL_n3dsaudio.c
+@@ -96,7 +96,7 @@ static int N3DSAUDIO_OpenDevice(_THIS, const char *devname)
+     Result ndsp_init_res;
+     Uint8 *data_vaddr;
+     float mix[12];
+-    this->hidden = (struct SDL_PrivateAudioData *)SDL_calloc(1, sizeof *this->hidden);
++    this->hidden = (struct SDL_PrivateAudioData *)SDL_calloc(1, sizeof(*this->hidden));
+ 
+     if (this->hidden == NULL) {
+         return SDL_OutOfMemory();
+diff --git a/src/audio/nacl/SDL_naclaudio.c b/src/audio/nacl/SDL_naclaudio.c
+index aa9d3de77..e18f762ee 100644
+--- a/src/audio/nacl/SDL_naclaudio.c
++++ b/src/audio/nacl/SDL_naclaudio.c
+@@ -89,7 +89,7 @@ static void NACLAUDIO_CloseDevice(SDL_AudioDevice *device) {
+     const PPB_Core *core = PSInterfaceCore();
+     const PPB_Audio *ppb_audio = PSInterfaceAudio();
+     SDL_PrivateAudioData *hidden = (SDL_PrivateAudioData *) device->hidden;
+-    
++
+     ppb_audio->StopPlayback(hidden->audio);
+     core->ReleaseResource(hidden->audio);
+ }
+@@ -99,32 +99,32 @@ NACLAUDIO_OpenDevice(_THIS, const char *devname) {
+     PP_Instance instance = PSGetInstanceId();
+     const PPB_Audio *ppb_audio = PSInterfaceAudio();
+     const PPB_AudioConfig *ppb_audiocfg = PSInterfaceAudioConfig();
+-    
+-    private = (SDL_PrivateAudioData *) SDL_calloc(1, (sizeof *private));
++
++    private = (SDL_PrivateAudioData *)SDL_calloc(1, sizeof(*private));
+     if (private == NULL) {
+         return SDL_OutOfMemory();
+     }
+-    
++
+     _this->spec.freq = 44100;
+     _this->spec.format = AUDIO_S16LSB;
+     _this->spec.channels = 2;
+     _this->spec.samples = ppb_audiocfg->RecommendSampleFrameCount(
+-        instance, 
+-        PP_AUDIOSAMPLERATE_44100, 
++        instance,
++        PP_AUDIOSAMPLERATE_44100,
+         SAMPLE_FRAME_COUNT);
+-    
++
+     /* Calculate the final parameters for this audio specification */
+     SDL_CalculateAudioSpec(&_this->spec);
+-    
++
+     private->audio = ppb_audio->Create(
+         instance,
+         ppb_audiocfg->CreateStereo16Bit(instance, PP_AUDIOSAMPLERATE_44100, _this->spec.samples),
+-        nacl_audio_callback, 
++        nacl_audio_callback,
+         _this);
+-    
++
+     /* Start audio playback while we are still on the main thread. */
+     ppb_audio->StartPlayback(private->audio);
+-    
++
+     return 0;
+ }
+ 
+@@ -134,7 +134,7 @@ NACLAUDIO_Init(SDL_AudioDriverImpl * impl)
+     if (PSGetInstanceId() == 0) {
+         return SDL_FALSE;
+     }
+-    
++
+     /* Set the function pointers */
+     impl->OpenDevice = NACLAUDIO_OpenDevice;
+     impl->CloseDevice = NACLAUDIO_CloseDevice;
+@@ -146,7 +146,7 @@ NACLAUDIO_Init(SDL_AudioDriverImpl * impl)
+      *    impl->PlayDevice = NACLAUDIO_PlayDevice;
+      *    impl->Deinitialize = NACLAUDIO_Deinitialize;
+      */
+-    
++
+     return SDL_TRUE;
+ }
+ 
+diff --git a/src/audio/nas/SDL_nasaudio.c b/src/audio/nas/SDL_nasaudio.c
+index 0ba7f6a3a..0339ea855 100644
+--- a/src/audio/nas/SDL_nasaudio.c
++++ b/src/audio/nas/SDL_nasaudio.c
+@@ -197,7 +197,7 @@ NAS_CaptureFromDevice(_THIS, void *buffer, int buflen)
+     while (SDL_TRUE) {
+         /* just keep the event queue moving and the server chattering. */
+         NAS_AuHandleEvents(h->aud);
+-    
++
+         retval = (int) NAS_AuReadElement(h->aud, h->flow, 1, buflen, buffer, NULL);
+         /*printf("read %d capture bytes\n", (int) retval);*/
+         if (retval == 0) {
+@@ -221,10 +221,10 @@ NAS_FlushCapture(_THIS)
+     do {
+         /* just keep the event queue moving and the server chattering. */
+         NAS_AuHandleEvents(h->aud);
+-        br = NAS_AuReadElement(h->aud, h->flow, 1, sizeof (buf), buf, NULL);
++        br = NAS_AuReadElement(h->aud, h->flow, 1, sizeof(buf), buf, NULL);
+         /*printf("flushed %d capture bytes\n", (int) br);*/
+         total += br;
+-    } while ((br == sizeof (buf)) && (total < this->spec.size));
++    } while ((br == sizeof(buf)) && (total < this->spec.size));
+ }
+ 
+ static void
+@@ -319,8 +319,7 @@ NAS_OpenDevice(_THIS, const char *devname)
+     SDL_AudioFormat test_format, format = 0;
+ 
+     /* Initialize all variables that we clean on shutdown */
+-    this->hidden = (struct SDL_PrivateAudioData *)
+-        SDL_malloc((sizeof *this->hidden));
++    this->hidden = (struct SDL_PrivateAudioData *)SDL_malloc(sizeof(*this->hidden));
+     if (this->hidden == NULL) {
+         return SDL_OutOfMemory();
+     }
+diff --git a/src/audio/netbsd/SDL_netbsdaudio.c b/src/audio/netbsd/SDL_netbsdaudio.c
+index 34239605c..d90f28a94 100644
+--- a/src/audio/netbsd/SDL_netbsdaudio.c
++++ b/src/audio/netbsd/SDL_netbsdaudio.c
+@@ -210,8 +210,7 @@ static int NETBSDAUDIO_OpenDevice(_THIS, const char *devname)
+     }
+ 
+     /* Initialize all variables that we clean on shutdown */
+-    this->hidden = (struct SDL_PrivateAudioData *)
+-        SDL_malloc((sizeof *this->hidden));
++    this->hidden = (struct SDL_PrivateAudioData *) SDL_malloc(sizeof(*this->hidden));
+     if (this->hidden == NULL) {
+         return SDL_OutOfMemory();
+     }
+diff --git a/src/audio/openslES/SDL_openslES.c b/src/audio/openslES/SDL_openslES.c
+index 628ad8bc3..998104c24 100644
+--- a/src/audio/openslES/SDL_openslES.c
++++ b/src/audio/openslES/SDL_openslES.c
+@@ -590,7 +590,7 @@ failed:
+ 
+ static int openslES_OpenDevice(_THIS, const char *devname)
+ {
+-    this->hidden = (struct SDL_PrivateAudioData *)SDL_calloc(1, (sizeof *this->hidden));
++    this->hidden = (struct SDL_PrivateAudioData *)SDL_calloc(1, sizeof(*this->hidden));
+     if (this->hidden == NULL) {
+         return SDL_OutOfMemory();
+     }
+diff --git a/src/audio/paudio/SDL_paudio.c b/src/audio/paudio/SDL_paudio.c
+index 962c0315c..64d4fbbcc 100644
+--- a/src/audio/paudio/SDL_paudio.c
++++ b/src/audio/paudio/SDL_paudio.c
+@@ -238,8 +238,7 @@ PAUDIO_OpenDevice(_THIS, const char *devname)
+     int fd = -1;
+ 
+     /* Initialize all variables that we clean on shutdown */
+-    this->hidden = (struct SDL_PrivateAudioData *)
+-        SDL_malloc((sizeof *this->hidden));
++    this->hidden = (struct SDL_PrivateAudioData *)SDL_malloc(sizeof(*this->hidden));
+     if (this->hidden == NULL) {
+         return SDL_OutOfMemory();
+     }
+diff --git a/src/audio/pulseaudio/SDL_pulseaudio.c b/src/audio/pulseaudio/SDL_pulseaudio.c
+index 784c769a2..27c6e755e 100644
+--- a/src/audio/pulseaudio/SDL_pulseaudio.c
++++ b/src/audio/pulseaudio/SDL_pulseaudio.c
+@@ -533,8 +533,7 @@ static int PULSEAUDIO_OpenDevice(_THIS, const char *devname)
+     int rc = 0;
+ 
+     /* Initialize all variables that we clean on shutdown */
+-    h = this->hidden = (struct SDL_PrivateAudioData *)
+-        SDL_malloc((sizeof *this->hidden));
++    h = this->hidden = (struct SDL_PrivateAudioData *)SDL_malloc(sizeof(*this->hidden));
+     if (this->hidden == NULL) {
+         return SDL_OutOfMemory();
+     }
+diff --git a/src/audio/sun/SDL_sunaudio.c b/src/audio/sun/SDL_sunaudio.c
+index 4fdd74a73..7ad441acc 100644
+--- a/src/audio/sun/SDL_sunaudio.c
++++ b/src/audio/sun/SDL_sunaudio.c
+@@ -209,8 +209,7 @@ SUNAUDIO_OpenDevice(_THIS, const char *devname)
+     }
+ 
+     /* Initialize all variables that we clean on shutdown */
+-    this->hidden = (struct SDL_PrivateAudioData *)
+-        SDL_malloc((sizeof *this->hidden));
++    this->hidden = (struct SDL_PrivateAudioData *)SDL_malloc(sizeof(*this->hidden));
+     if (this->hidden == NULL) {
+         return SDL_OutOfMemory();
+     }
+diff --git a/src/audio/wasapi/SDL_wasapi.c b/src/audio/wasapi/SDL_wasapi.c
+index 118b42164..dc22ecd0c 100644
+--- a/src/audio/wasapi/SDL_wasapi.c
++++ b/src/audio/wasapi/SDL_wasapi.c
+@@ -49,6 +49,7 @@
+ static const IID SDL_IID_IAudioRenderClient = { 0xf294acfc, 0x3146, 0x4483, { 0xa7, 0xbf, 0xad, 0xdc, 0xa7, 0xc2, 0x60, 0xe2 } };
+ static const IID SDL_IID_IAudioCaptureClient = { 0xc8adbd64, 0xe71e, 0x48a0, { 0xa4, 0xde, 0x18, 0x5c, 0x39, 0x5c, 0xd3, 0x17 } };
+ 
++
+ static void WASAPI_DetectDevices(void)
+ {
+     WASAPI_EnumerateEndpoints();
+@@ -530,8 +531,7 @@ static int WASAPI_OpenDevice(_THIS, const char *devname)
+     LPCWSTR devid = (LPCWSTR)this->handle;
+ 
+     /* Initialize all variables that we clean on shutdown */
+-    this->hidden = (struct SDL_PrivateAudioData *)
+-        SDL_malloc((sizeof *this->hidden));
++    this->hidden = (struct SDL_PrivateAudioData *) SDL_malloc(sizeof(*this->hidden));
+     if (this->hidden == NULL) {
+         return SDL_OutOfMemory();
+     }
+diff --git a/src/audio/winmm/SDL_winmm.c b/src/audio/winmm/SDL_winmm.c
+index 69e492b5b..92e38bd41 100644
+--- a/src/audio/winmm/SDL_winmm.c
++++ b/src/audio/winmm/SDL_winmm.c
+@@ -35,7 +35,7 @@
+ /* MinGW32 mmsystem.h doesn't include these structures */
+ #if defined(__MINGW32__) && defined(_MMSYSTEM_H)
+ 
+-typedef struct tagWAVEINCAPS2W 
++typedef struct tagWAVEINCAPS2W
+ {
+     WORD wMid;
+     WORD wPid;
+@@ -192,7 +192,7 @@ WINMM_CaptureFromDevice(_THIS, void *buffer, int buflen)
+     /* requeue the buffer that just finished. */
+     result = waveInAddBuffer(this->hidden->hin,
+                              &this->hidden->wavebuf[nextbuf],
+-                             sizeof (this->hidden->wavebuf[nextbuf]));
++                             sizeof(this->hidden->wavebuf[nextbuf]));
+     if (result != MMSYSERR_NOERROR) {
+         return -1;  /* uhoh! Disable the device. */
+     }
+@@ -211,7 +211,7 @@ WINMM_FlushCapture(_THIS)
+         /* requeue the buffer that just finished without reading from it. */
+         waveInAddBuffer(this->hidden->hin,
+                         &this->hidden->wavebuf[nextbuf],
+-                        sizeof (this->hidden->wavebuf[nextbuf]));
++                        sizeof(this->hidden->wavebuf[nextbuf]));
+         this->hidden->next_buffer = (nextbuf + 1) % NUM_BUFFERS;
+     }
+ }
+@@ -229,7 +229,7 @@ WINMM_CloseDevice(_THIS)
+             if (this->hidden->wavebuf[i].dwUser != 0xFFFF) {
+                 waveOutUnprepareHeader(this->hidden->hout,
+                                        &this->hidden->wavebuf[i],
+-                                       sizeof (this->hidden->wavebuf[i]));
++                                       sizeof(this->hidden->wavebuf[i]));
+             }
+         }
+ 
+@@ -244,7 +244,7 @@ WINMM_CloseDevice(_THIS)
+             if (this->hidden->wavebuf[i].dwUser != 0xFFFF) {
+                 waveInUnprepareHeader(this->hidden->hin,
+                                        &this->hidden->wavebuf[i],
+-                                       sizeof (this->hidden->wavebuf[i]));
++                                       sizeof(this->hidden->wavebuf[i]));
+             }
+         }
+         waveInClose(this->hidden->hin);
+@@ -300,8 +300,7 @@ WINMM_OpenDevice(_THIS, const char *devname)
+     }
+ 
+     /* Initialize all variables that we clean on shutdown */
+-    this->hidden = (struct SDL_PrivateAudioData *)
+-        SDL_malloc((sizeof *this->hidden));
++    this->hidden = (struct SDL_PrivateAudioData *)SDL_malloc(sizeof(*this->hidden));
+     if (this->hidden == NULL) {
+         return SDL_OutOfMemory();
+     }
+@@ -361,7 +360,7 @@ WINMM_OpenDevice(_THIS, const char *devname)
+         if (iscapture) {
+             WAVEINCAPS caps;
+             result = waveInGetDevCaps((UINT) this->hidden->hout,
+-                                      &caps, sizeof (caps));
++                                      &caps, sizeof(caps));
+             if (result != MMSYSERR_NOERROR) {
+                 return SetMMerror("waveInGetDevCaps()", result);
+             }
+diff --git a/src/core/linux/SDL_evdev.c b/src/core/linux/SDL_evdev.c
+index bd4567c22..e997aae49 100644
+--- a/src/core/linux/SDL_evdev.c
++++ b/src/core/linux/SDL_evdev.c
+@@ -290,7 +290,7 @@ void SDL_EVDEV_Poll(void)
+     mouse = SDL_GetMouse();
+ 
+     for (item = _this->first; item != NULL; item = item->next) {
+-        while ((len = read(item->fd, events, (sizeof events))) > 0) {
++        while ((len = read(item->fd, events, sizeof(events))) > 0) {
+             len /= sizeof(events[0]);
+             for (i = 0; i < len; ++i) {
+                 /* special handling for touchscreen, that should eventually be
+diff --git a/src/core/linux/SDL_fcitx.c b/src/core/linux/SDL_fcitx.c
+index 46cabbb01..d6484f708 100644
+--- a/src/core/linux/SDL_fcitx.c
++++ b/src/core/linux/SDL_fcitx.c
+@@ -64,9 +64,9 @@ static char *GetAppName()
+     int linksize;
+ 
+ #if defined(__LINUX__)
+-    (void)SDL_snprintf(procfile, sizeof procfile, "/proc/%d/exe", getpid());
++    (void)SDL_snprintf(procfile, sizeof(procfile), "/proc/%d/exe", getpid());
+ #elif defined(__FREEBSD__)
+-    (void)SDL_snprintf(procfile, sizeof procfile, "/proc/%d/file", getpid());
++    (void)SDL_snprintf(procfile, sizeof(procfile), "/proc/%d/file", getpid());
+ #endif
+     linksize = readlink(procfile, linkfile, sizeof(linkfile) - 1);
+     if (linksize > 0) {
+diff --git a/src/core/linux/SDL_ibus.c b/src/core/linux/SDL_ibus.c
+index d0e08753d..f7007c15a 100644
+--- a/src/core/linux/SDL_ibus.c
++++ b/src/core/linux/SDL_ibus.c
+@@ -407,13 +407,13 @@ static char *IBus_GetDBusAddressFilename(void)
+             SDL_free(display);
+             return NULL;
+         }
+-        (void)SDL_snprintf(config_dir, sizeof config_dir, "%s/.config", home_env);
++        (void)SDL_snprintf(config_dir, sizeof(config_dir), "%s/.config", home_env);
+     }
+ 
+     key = dbus->get_local_machine_id();
+ 
+     SDL_memset(file_path, 0, sizeof(file_path));
+-    (void)SDL_snprintf(file_path, sizeof file_path, "%s/ibus/bus/%s-%s-%s",
++    (void)SDL_snprintf(file_path, sizeof(file_path), "%s/ibus/bus/%s-%s-%s",
+                        config_dir, key, host, disp_num);
+     dbus->free(key);
+     SDL_free(display);
+@@ -491,7 +491,7 @@ static SDL_bool IBus_SetupConnection(SDL_DBusContext *dbus, const char *addr)
+ 
+     if (result) {
+         char matchstr[128];
+-        (void)SDL_snprintf(matchstr, sizeof matchstr, "type='signal',interface='%s'", ibus_input_interface);
++        (void)SDL_snprintf(matchstr, sizeof(matchstr), "type='signal',interface='%s'", ibus_input_interface);
+         SDL_free(input_ctx_path);
+         input_ctx_path = SDL_strdup(path);
+         SDL_AddHintCallback(SDL_HINT_IME_INTERNAL_EDITING, IBus_SetCapabilities, NULL);
+diff --git a/src/core/windows/SDL_windows.c b/src/core/windows/SDL_windows.c
+index c01095677..a2f0d5300 100644
+--- a/src/core/windows/SDL_windows.c
++++ b/src/core/windows/SDL_windows.c
+@@ -268,7 +268,7 @@ WIN_LookupAudioDeviceName(const WCHAR *name, const GUID *guid)
+     }
+ 
+     ptr = (const unsigned char *)guid;
+-    (void)SDL_snprintf(keystr, sizeof keystr,
++    (void)SDL_snprintf(keystr, sizeof(keystr),
+                        "System\\CurrentControlSet\\Control\\MediaCategories\\{%02X%02X%02X%02X-%02X%02X-%02X%02X-%02X%02X-%02X%02X%02X%02X%02X%02X}",
+                        ptr[3], ptr[2], ptr[1], ptr[0], ptr[5], ptr[4], ptr[7], ptr[6],
+                        ptr[8], ptr[9], ptr[10], ptr[11], ptr[12], ptr[13], ptr[14], ptr[15]);
+diff --git a/src/cpuinfo/SDL_cpuinfo.c b/src/cpuinfo/SDL_cpuinfo.c
+index 65e86a420..b82bb791f 100644
+--- a/src/cpuinfo/SDL_cpuinfo.c
++++ b/src/cpuinfo/SDL_cpuinfo.c
+@@ -159,7 +159,7 @@ static int CPU_haveCPUID(void)
+     : "%eax", "%ecx"
+     );
+ #elif (defined(__GNUC__) || defined(__llvm__)) && defined(__x86_64__)
+-/* Technically, if this is being compiled under __x86_64__ then it has 
++/* Technically, if this is being compiled under __x86_64__ then it has
+    CPUid by definition.  But it's nice to be able to prove it.  :)      */
+     __asm__ (
+ "        pushfq                      # Get original EFLAGS             \n"
+@@ -386,7 +386,7 @@ static int CPU_haveARMSIMD(void)
+     fd = open("/proc/self/auxv", O_RDONLY | O_CLOEXEC);
+     if (fd >= 0) {
+         Elf32_auxv_t aux;
+-        while (read(fd, &aux, sizeof aux) == sizeof aux) {
++        while (read(fd, &aux, sizeof(aux)) == sizeof(aux)) {
+             if (aux.a_type == AT_PLATFORM) {
+                 const char *plat = (const char *)aux.a_un.a_val;
+                 if (plat) {
+@@ -1173,7 +1173,7 @@ SDL_SIMDAlloc(const size_t len)
+     Uint8 *ptr;
+     size_t to_allocate;
+ 
+-    /* alignment + padding + sizeof (void *) is bounded (a few hundred
++    /* alignment + padding + sizeof(void *) is bounded (a few hundred
+      * bytes max), so no need to check for overflow within that argument */
+     if (SDL_size_add_overflow(len, alignment + padding + sizeof(void *), &to_allocate)) {
+         return NULL;
+@@ -1200,7 +1200,7 @@ SDL_SIMDRealloc(void *mem, const size_t len)
+     Uint8 *ptr;
+     size_t to_allocate;
+ 
+-    /* alignment + padding + sizeof (void *) is bounded (a few hundred
++    /* alignment + padding + sizeof(void *) is bounded (a few hundred
+      * bytes max), so no need to check for overflow within that argument */
+     if (SDL_size_add_overflow(len, alignment + padding + sizeof(void *), &to_allocate)) {
+         return NULL;
+diff --git a/src/dynapi/SDL_dynapi.c b/src/dynapi/SDL_dynapi.c
+index eac122aef..72542ab49 100644
+--- a/src/dynapi/SDL_dynapi.c
++++ b/src/dynapi/SDL_dynapi.c
+@@ -42,9 +42,9 @@
+ /* This is the version of the dynamic API. This doesn't match the SDL version
+    and should not change until there's been a major revamp in API/ABI.
+    So 2.0.5 adds functions over 2.0.4? This number doesn't change;
+-   the sizeof (jump_table) changes instead. But 2.1.0 changes how a function
++   the sizeof(jump_table) changes instead. But 2.1.0 changes how a function
+    works in an incompatible way or removes a function? This number changes,
+-   since sizeof (jump_table) isn't sufficient anymore. It's likely
++   since sizeof(jump_table) isn't sufficient anymore. It's likely
+    we'll forget to bump every time we add a function, so this is the
+    failsafe switch for major API change decisions. Respect it and use it
+    sparingly. */
+diff --git a/src/file/SDL_rwops.c b/src/file/SDL_rwops.c
+index 1a3b9d358..3e3f4bb9e 100644
+--- a/src/file/SDL_rwops.c
++++ b/src/file/SDL_rwops.c
+@@ -704,7 +704,7 @@ SDL_AllocRW(void)
+ {
+     SDL_RWops *area;
+ 
+-    area = (SDL_RWops *)SDL_malloc(sizeof *area);
++    area = (SDL_RWops *)SDL_malloc(sizeof(*area));
+     if (area == NULL) {
+         SDL_OutOfMemory();
+     } else {
+diff --git a/src/haptic/SDL_haptic.c b/src/haptic/SDL_haptic.c
+index f3b931a8d..c3220dab5 100644
+--- a/src/haptic/SDL_haptic.c
++++ b/src/haptic/SDL_haptic.c
+@@ -125,14 +125,14 @@ SDL_HapticOpen(int device_index)
+     }
+ 
+     /* Create the haptic device */
+-    haptic = (SDL_Haptic *)SDL_malloc((sizeof *haptic));
++    haptic = (SDL_Haptic *)SDL_malloc(sizeof(*haptic));
+     if (haptic == NULL) {
+         SDL_OutOfMemory();
+         return NULL;
+     }
+ 
+     /* Initialize the haptic device */
+-    SDL_memset(haptic, 0, (sizeof *haptic));
++    SDL_memset(haptic, 0, sizeof(*haptic));
+     haptic->rumble_id = -1;
+     haptic->index = device_index;
+     if (SDL_SYS_HapticOpen(haptic) < 0) {
+@@ -299,7 +299,7 @@ SDL_HapticOpenFromJoystick(SDL_Joystick *joystick)
+         }
+ 
+         /* Create the haptic device */
+-        haptic = (SDL_Haptic *)SDL_malloc((sizeof *haptic));
++        haptic = (SDL_Haptic *)SDL_malloc(sizeof(*haptic));
+         if (haptic == NULL) {
+             SDL_OutOfMemory();
+             SDL_UnlockJoysticks();
+diff --git a/src/haptic/windows/SDL_xinputhaptic.c b/src/haptic/windows/SDL_xinputhaptic.c
+index 3d35b48a2..6c77163e1 100644
+--- a/src/haptic/windows/SDL_xinputhaptic.c
++++ b/src/haptic/windows/SDL_xinputhaptic.c
+@@ -93,7 +93,7 @@ int SDL_XINPUT_HapticMaybeAddDevice(const DWORD dwUserid)
+     /* !!! FIXME: I'm not bothering to query for a real name right now (can we even?) */
+     {
+         char buf[64];
+-        (void)SDL_snprintf(buf, sizeof buf, "XInput Controller #%u", userid + 1);
++        (void)SDL_snprintf(buf, sizeof(buf), "XInput Controller #%u", userid + 1);
+         item->name = SDL_strdup(buf);
+     }
+ 
+@@ -204,7 +204,7 @@ static int SDL_XINPUT_HapticOpenFromUserIndex(SDL_Haptic *haptic, const Uint8 us
+         return SDL_SetError("Couldn't create XInput haptic mutex");
+     }
+ 
+-    (void)SDL_snprintf(threadName, sizeof threadName, "SDLXInputDev%u", userid);
++    (void)SDL_snprintf(threadName, sizeof(threadName), "SDLXInputDev%d", userid);
+     haptic->hwdata->thread = SDL_CreateThreadInternal(SDL_RunXInputHaptic, threadName, 64 * 1024, haptic->hwdata);
+ 
+     if (haptic->hwdata->thread == NULL) {
+diff --git a/src/joystick/SDL_gamecontroller.c b/src/joystick/SDL_gamecontroller.c
+index 8d3f66afd..5583f768f 100644
+--- a/src/joystick/SDL_gamecontroller.c
++++ b/src/joystick/SDL_gamecontroller.c
+@@ -1376,13 +1376,13 @@ static void SDL_PrivateAppendToMappingString(char *mapping_string,
+     SDL_strlcat(mapping_string, ":", mapping_string_len);
+     switch (mapping->kind) {
+     case EMappingKind_Button:
+-        (void)SDL_snprintf(buffer, sizeof buffer, "b%i", mapping->target);
++        (void)SDL_snprintf(buffer, sizeof(buffer), "b%i", mapping->target);
+         break;
+     case EMappingKind_Axis:
+-        (void)SDL_snprintf(buffer, sizeof buffer, "a%i", mapping->target);
++        (void)SDL_snprintf(buffer, sizeof(buffer), "a%i", mapping->target);
+         break;
+     case EMappingKind_Hat:
+-        (void)SDL_snprintf(buffer, sizeof buffer, "h%i.%i", mapping->target >> 4, mapping->target & 0x0F);
++        (void)SDL_snprintf(buffer, sizeof(buffer), "h%i.%i", mapping->target >> 4, mapping->target & 0x0F);
+         break;
+     default:
+         SDL_assert(SDL_FALSE);
+@@ -1410,7 +1410,7 @@ static ControllerMapping_t *SDL_PrivateGenerateAutomaticControllerMapping(const
+             }
+         }
+     }
+-    (void)SDL_snprintf(mapping, sizeof mapping, "none,%s,", name_string);
++    (void)SDL_snprintf(mapping, sizeof(mapping), "none,%s,", name_string);
+     SDL_PrivateAppendToMappingString(mapping, sizeof(mapping), "a", &raw_map->a);
+     SDL_PrivateAppendToMappingString(mapping, sizeof(mapping), "b", &raw_map->b);
+     SDL_PrivateAppendToMappingString(mapping, sizeof(mapping), "x", &raw_map->x);
+diff --git a/src/joystick/bsd/SDL_bsdjoystick.c b/src/joystick/bsd/SDL_bsdjoystick.c
+index 1498a3849..90a7f3959 100644
+--- a/src/joystick/bsd/SDL_bsdjoystick.c
++++ b/src/joystick/bsd/SDL_bsdjoystick.c
+@@ -647,7 +647,7 @@ static void BSD_JoystickUpdate(SDL_Joystick *joy)
+     static int x, y, xmin = 0xffff, ymin = 0xffff, xmax = 0, ymax = 0;
+ 
+     if (joy->hwdata->type == BSDJOY_JOY) {
+-        while (read(joy->hwdata->fd, &gameport, sizeof gameport) == sizeof gameport) {
++        while (read(joy->hwdata->fd, &gameport, sizeof(gameport)) == sizeof(gameport)) {
+             if (SDL_abs(x - gameport.x) > 8) {
+                 x = gameport.x;
+                 if (x < xmin) {
+diff --git a/src/joystick/haiku/SDL_haikujoystick.cc b/src/joystick/haiku/SDL_haikujoystick.cc
+index 8d84032d6..37e89c334 100644
+--- a/src/joystick/haiku/SDL_haikujoystick.cc
++++ b/src/joystick/haiku/SDL_haikujoystick.cc
+@@ -66,8 +66,8 @@ extern "C"
+         /* Search for attached joysticks */
+         nports = joystick.CountDevices();
+         numjoysticks = 0;
+-        SDL_memset(SDL_joyport, 0, (sizeof SDL_joyport));
+-        SDL_memset(SDL_joyname, 0, (sizeof SDL_joyname));
++        SDL_memset(SDL_joyport, 0, sizeof(SDL_joyport));
++        SDL_memset(SDL_joyname, 0, sizeof(SDL_joyname));
+         for (i = 0; (numjoysticks < MAX_JOYSTICKS) && (i < nports); ++i) {
+             if (joystick.GetDeviceName(i, name) == B_OK) {
+                 if (joystick.Open(name) != B_ERROR) {
+diff --git a/src/joystick/hidapi/SDL_hidapi_ps3.c b/src/joystick/hidapi/SDL_hidapi_ps3.c
+index 19158388c..5add7e393 100644
+--- a/src/joystick/hidapi/SDL_hidapi_ps3.c
++++ b/src/joystick/hidapi/SDL_hidapi_ps3.c
+@@ -586,7 +586,7 @@ static SDL_bool HIDAPI_DriverPS3ThirdParty_IsSupportedDevice(SDL_HIDAPI_Device *
+ 
+     if (HIDAPI_SupportsPlaystationDetection(vendor_id, product_id)) {
+         if (device && device->dev) {
+-            size = ReadFeatureReport(device->dev, 0x03, data, sizeof data);
++            size = ReadFeatureReport(device->dev, 0x03, data, sizeof(data));
+             if (size == 8 && data[2] == 0x26) {
+                 /* Supported third party controller */
+                 return SDL_TRUE;
+diff --git a/src/joystick/hidapi/SDL_hidapi_ps4.c b/src/joystick/hidapi/SDL_hidapi_ps4.c
+index 2f84d3974..6b74dfe01 100644
+--- a/src/joystick/hidapi/SDL_hidapi_ps4.c
++++ b/src/joystick/hidapi/SDL_hidapi_ps4.c
+@@ -189,7 +189,7 @@ static SDL_bool HIDAPI_DriverPS4_IsSupportedDevice(SDL_HIDAPI_Device *device, co
+ 
+     if (HIDAPI_SupportsPlaystationDetection(vendor_id, product_id)) {
+         if (device && device->dev) {
+-            size = ReadFeatureReport(device->dev, k_ePS4FeatureReportIdCapabilities, data, sizeof data);
++            size = ReadFeatureReport(device->dev, k_ePS4FeatureReportIdCapabilities, data, sizeof(data));
+             if (size == 48 && data[2] == 0x27) {
+                 /* Supported third party controller */
+                 return SDL_TRUE;
+@@ -268,7 +268,7 @@ static SDL_bool HIDAPI_DriverPS4_InitDevice(SDL_HIDAPI_Device *device)
+     if (ctx->is_dongle) {
+         size = ReadFeatureReport(device->dev, k_ePS4FeatureReportIdSerialNumber, data, sizeof(data));
+         if (size >= 7 && (data[1] || data[2] || data[3] || data[4] || data[5] || data[6])) {
+-            (void)SDL_snprintf(serial, sizeof serial, "%.2x-%.2x-%.2x-%.2x-%.2x-%.2x",
++            (void)SDL_snprintf(serial, sizeof(serial), "%.2x-%.2x-%.2x-%.2x-%.2x-%.2x",
+                                data[6], data[5], data[4], data[3], data[2], data[1]);
+         }
+         device->is_bluetooth = SDL_FALSE;
+@@ -281,7 +281,7 @@ static SDL_bool HIDAPI_DriverPS4_InitDevice(SDL_HIDAPI_Device *device)
+         /* This will fail if we're on Bluetooth */
+         size = ReadFeatureReport(device->dev, k_ePS4FeatureReportIdSerialNumber, data, sizeof(data));
+         if (size >= 7 && (data[1] || data[2] || data[3] || data[4] || data[5] || data[6])) {
+-            (void)SDL_snprintf(serial, sizeof serial, "%.2x-%.2x-%.2x-%.2x-%.2x-%.2x",
++            (void)SDL_snprintf(serial, sizeof(serial), "%.2x-%.2x-%.2x-%.2x-%.2x-%.2x",
+                                data[6], data[5], data[4], data[3], data[2], data[1]);
+             device->is_bluetooth = SDL_FALSE;
+             ctx->enhanced_mode = SDL_TRUE;
+@@ -312,7 +312,7 @@ static SDL_bool HIDAPI_DriverPS4_InitDevice(SDL_HIDAPI_Device *device)
+     SDL_Log("PS4 dongle = %s, bluetooth = %s\n", ctx->is_dongle ? "TRUE" : "FALSE", device->is_bluetooth ? "TRUE" : "FALSE");
+ #endif
+ 
+-    size = ReadFeatureReport(device->dev, k_ePS4FeatureReportIdCapabilities, data, sizeof data);
++    size = ReadFeatureReport(device->dev, k_ePS4FeatureReportIdCapabilities, data, sizeof(data));
+     /* Get the device capabilities */
+     if (size == 48 && data[2] == 0x27) {
+         Uint8 capabilities = data[4];
+@@ -1130,7 +1130,7 @@ static SDL_bool HIDAPI_DriverPS4_UpdateDevice(SDL_HIDAPI_Device *device)
+                 char serial[18];
+                 size = ReadFeatureReport(device->dev, k_ePS4FeatureReportIdSerialNumber, data, sizeof(data));
+                 if (size >= 7 && (data[1] || data[2] || data[3] || data[4] || data[5] || data[6])) {
+-                    (void)SDL_snprintf(serial, sizeof serial, "%.2x-%.2x-%.2x-%.2x-%.2x-%.2x",
++                    (void)SDL_snprintf(serial, sizeof(serial), "%.2x-%.2x-%.2x-%.2x-%.2x-%.2x",
+                                        data[6], data[5], data[4], data[3], data[2], data[1]);
+                     HIDAPI_SetDeviceSerial(device, serial);
+                 }
+diff --git a/src/joystick/hidapi/SDL_hidapi_ps5.c b/src/joystick/hidapi/SDL_hidapi_ps5.c
+index d3db53971..7bf7d6258 100644
+--- a/src/joystick/hidapi/SDL_hidapi_ps5.c
++++ b/src/joystick/hidapi/SDL_hidapi_ps5.c
+@@ -284,7 +284,7 @@ static SDL_bool HIDAPI_DriverPS5_IsSupportedDevice(SDL_HIDAPI_Device *device, co
+ 
+     if (HIDAPI_SupportsPlaystationDetection(vendor_id, product_id)) {
+         if (device && device->dev) {
+-            size = ReadFeatureReport(device->dev, k_EPS5FeatureReportIdCapabilities, data, sizeof data);
++            size = ReadFeatureReport(device->dev, k_EPS5FeatureReportIdCapabilities, data, sizeof(data));
+             if (size == 48 && data[2] == 0x28) {
+                 /* Supported third party controller */
+                 return SDL_TRUE;
+@@ -409,7 +409,7 @@ static SDL_bool HIDAPI_DriverPS5_InitDevice(SDL_HIDAPI_Device *device)
+            This will also enable enhanced reports over Bluetooth
+         */
+         if (ReadFeatureReport(device->dev, k_EPS5FeatureReportIdSerialNumber, data, sizeof(data)) >= 7) {
+-            (void)SDL_snprintf(serial, sizeof serial, "%.2x-%.2x-%.2x-%.2x-%.2x-%.2x",
++            (void)SDL_snprintf(serial, sizeof(serial), "%.2x-%.2x-%.2x-%.2x-%.2x-%.2x",
+                                data[6], data[5], data[4], data[3], data[2], data[1]);
+         }
+ 
+@@ -421,7 +421,7 @@ static SDL_bool HIDAPI_DriverPS5_InitDevice(SDL_HIDAPI_Device *device)
+         }
+     }
+ 
+-    size = ReadFeatureReport(device->dev, k_EPS5FeatureReportIdCapabilities, data, sizeof data);
++    size = ReadFeatureReport(device->dev, k_EPS5FeatureReportIdCapabilities, data, sizeof(data));
+     /* Get the device capabilities */
+     if (device->vendor_id == USB_VENDOR_SONY) {
+         ctx->sensors_supported = SDL_TRUE;
+diff --git a/src/joystick/hidapi/SDL_hidapi_switch.c b/src/joystick/hidapi/SDL_hidapi_switch.c
+index 0767e7d10..67902fc38 100644
+--- a/src/joystick/hidapi/SDL_hidapi_switch.c
++++ b/src/joystick/hidapi/SDL_hidapi_switch.c
+@@ -1220,7 +1220,7 @@ static void UpdateDeviceIdentity(SDL_HIDAPI_Device *device)
+     }
+     device->guid.data[15] = ctx->m_eControllerType;
+ 
+-    (void)SDL_snprintf(serial, sizeof serial, "%.2x-%.2x-%.2x-%.2x-%.2x-%.2x",
++    (void)SDL_snprintf(serial, sizeof(serial), "%.2x-%.2x-%.2x-%.2x-%.2x-%.2x",
+                        ctx->m_rgucMACAddress[0],
+                        ctx->m_rgucMACAddress[1],
+                        ctx->m_rgucMACAddress[2],
+diff --git a/src/joystick/linux/SDL_sysjoystick.c b/src/joystick/linux/SDL_sysjoystick.c
+index 054350cf6..45c8f5d99 100644
+--- a/src/joystick/linux/SDL_sysjoystick.c
++++ b/src/joystick/linux/SDL_sysjoystick.c
+@@ -1454,7 +1454,7 @@ static void HandleInputEvents(SDL_Joystick *joystick)
+         joystick->hwdata->fresh = SDL_FALSE;
+     }
+ 
+-    while ((len = read(joystick->hwdata->fd, events, (sizeof events))) > 0) {
++    while ((len = read(joystick->hwdata->fd, events, sizeof(events))) > 0) {
+         len /= sizeof(events[0]);
+         for (i = 0; i < len; ++i) {
+             code = events[i].code;
+@@ -1543,7 +1543,7 @@ static void HandleClassicEvents(SDL_Joystick *joystick)
+     SDL_AssertJoysticksLocked();
+ 
+     joystick->hwdata->fresh = SDL_FALSE;
+-    while ((len = read(joystick->hwdata->fd, events, (sizeof events))) > 0) {
++    while ((len = read(joystick->hwdata->fd, events, sizeof(events))) > 0) {
+         len /= sizeof(events[0]);
+         for (i = 0; i < len; ++i) {
+             switch (events[i].type) {
+diff --git a/src/joystick/windows/SDL_dinputjoystick.c b/src/joystick/windows/SDL_dinputjoystick.c
+index 48155ae00..4bb495618 100644
+--- a/src/joystick/windows/SDL_dinputjoystick.c
++++ b/src/joystick/windows/SDL_dinputjoystick.c
+@@ -623,19 +623,19 @@ static BOOL CALLBACK EnumDevObjectsCallback(LPCDIDEVICEOBJECTINSTANCE pDeviceObj
+ 
+         in->type = AXIS;
+         in->num = joystick->naxes;
+-        if (SDL_memcmp(&pDeviceObject->guidType, &GUID_XAxis, sizeof pDeviceObject->guidType) == 0) {
++        if (SDL_memcmp(&pDeviceObject->guidType, &GUID_XAxis, sizeof(pDeviceObject->guidType)) == 0) {
+             in->ofs = DIJOFS_X;
+-        } else if (SDL_memcmp(&pDeviceObject->guidType, &GUID_YAxis, sizeof pDeviceObject->guidType) == 0) {
++        } else if (SDL_memcmp(&pDeviceObject->guidType, &GUID_YAxis, sizeof(pDeviceObject->guidType)) == 0) {
+             in->ofs = DIJOFS_Y;
+-        } else if (SDL_memcmp(&pDeviceObject->guidType, &GUID_ZAxis, sizeof pDeviceObject->guidType) == 0) {
++        } else if (SDL_memcmp(&pDeviceObject->guidType, &GUID_ZAxis, sizeof(pDeviceObject->guidType)) == 0) {
+             in->ofs = DIJOFS_Z;
+-        } else if (SDL_memcmp(&pDeviceObject->guidType, &GUID_RxAxis, sizeof pDeviceObject->guidType) == 0) {
++        } else if (SDL_memcmp(&pDeviceObject->guidType, &GUID_RxAxis, sizeof(pDeviceObject->guidType)) == 0) {
+             in->ofs = DIJOFS_RX;
+-        } else if (SDL_memcmp(&pDeviceObject->guidType, &GUID_RyAxis, sizeof pDeviceObject->guidType) == 0) {
++        } else if (SDL_memcmp(&pDeviceObject->guidType, &GUID_RyAxis, sizeof(pDeviceObject->guidType)) == 0) {
+             in->ofs = DIJOFS_RY;
+-        } else if (SDL_memcmp(&pDeviceObject->guidType, &GUID_RzAxis, sizeof pDeviceObject->guidType) == 0) {
++        } else if (SDL_memcmp(&pDeviceObject->guidType, &GUID_RzAxis, sizeof(pDeviceObject->guidType)) == 0) {
+             in->ofs = DIJOFS_RZ;
+-        } else if (SDL_memcmp(&pDeviceObject->guidType, &GUID_Slider, sizeof pDeviceObject->guidType) == 0) {
++        } else if (SDL_memcmp(&pDeviceObject->guidType, &GUID_Slider, sizeof(pDeviceObject->guidType)) == 0) {
+             in->ofs = DIJOFS_SLIDER(joystick->hwdata->NumSliders);
+             ++joystick->hwdata->NumSliders;
+         } else {
+diff --git a/src/joystick/windows/SDL_windows_gaming_input.c b/src/joystick/windows/SDL_windows_gaming_input.c
+index 0e58d42f8..828977cb9 100644
+--- a/src/joystick/windows/SDL_windows_gaming_input.c
++++ b/src/joystick/windows/SDL_windows_gaming_input.c
+@@ -101,9 +101,11 @@ static const IID IID_IRacingWheelStatics = { 0x3AC12CD5, 0x581B, 0x4936, { 0x9F,
+ static const IID IID_IRacingWheelStatics2 = { 0xE666BCAA, 0xEDFD, 0x4323, { 0xA9, 0xF6, 0x3C, 0x38, 0x40, 0x48, 0xD1, 0xED } };
+ /*static const IID IID_IRacingWheel = { 0xF546656F, 0xE106, 0x4C82, { 0xA9, 0x0F, 0x55, 0x40, 0x12, 0x90, 0x4B, 0x85 } };*/
+ 
++
+ extern SDL_bool SDL_XINPUT_Enabled(void);
+ extern SDL_bool SDL_DINPUT_JoystickPresent(Uint16 vendor, Uint16 product, Uint16 version);
+ 
++
+ static SDL_bool SDL_IsXInputDevice(Uint16 vendor, Uint16 product)
+ {
+ #ifdef SDL_JOYSTICK_XINPUT
+@@ -189,7 +191,7 @@ static SDL_bool SDL_IsXInputDevice(Uint16 vendor, Uint16 product)
+             continue;
+         }
+ 
+-        (void)SDL_snprintf(devVidPidString, sizeof devVidPidString, "VID_%04X&PID_%04X", vendor, product);
++        (void)SDL_snprintf(devVidPidString, sizeof(devVidPidString), "VID_%04X&PID_%04X", vendor, product);
+ 
+         while (CM_Get_Parent(&devNode, devNode, 0) == CR_SUCCESS) {
+             char deviceId[MAX_DEVICE_ID_LEN];
+diff --git a/src/joystick/windows/SDL_xinputjoystick.c b/src/joystick/windows/SDL_xinputjoystick.c
+index 58bc18fde..66e5f8b2a 100644
+--- a/src/joystick/windows/SDL_xinputjoystick.c
++++ b/src/joystick/windows/SDL_xinputjoystick.c
+@@ -86,37 +86,37 @@ static const char *GetXInputName(const Uint8 userid, BYTE SubType)
+     static char name[32];
+ 
+     if (SDL_XInputUseOldJoystickMapping()) {
+-        (void)SDL_snprintf(name, sizeof name, "X360 Controller #%u", 1 + userid);
++        (void)SDL_snprintf(name, sizeof(name), "X360 Controller #%u", 1 + userid);
+     } else {
+         switch (SubType) {
+         case XINPUT_DEVSUBTYPE_GAMEPAD:
+-            (void)SDL_snprintf(name, sizeof name, "XInput Controller #%u", 1 + userid);
++            (void)SDL_snprintf(name, sizeof(name), "XInput Controller #%u", 1 + userid);
+             break;
+         case XINPUT_DEVSUBTYPE_WHEEL:
+-            (void)SDL_snprintf(name, sizeof name, "XInput Wheel #%u", 1 + userid);
++            (void)SDL_snprintf(name, sizeof(name), "XInput Wheel #%u", 1 + userid);
+             break;
+         case XINPUT_DEVSUBTYPE_ARCADE_STICK:
+-            (void)SDL_snprintf(name, sizeof name, "XInput ArcadeStick #%u", 1 + userid);
++            (void)SDL_snprintf(name, sizeof(name), "XInput ArcadeStick #%u", 1 + userid);
+             break;
+         case XINPUT_DEVSUBTYPE_FLIGHT_STICK:
+-            (void)SDL_snprintf(name, sizeof name, "XInput FlightStick #%u", 1 + userid);
++            (void)SDL_snprintf(name, sizeof(name), "XInput FlightStick #%u", 1 + userid);
+             break;
+         case XINPUT_DEVSUBTYPE_DANCE_PAD:
+-            (void)SDL_snprintf(name, sizeof name, "XInput DancePad #%u", 1 + userid);
++            (void)SDL_snprintf(name, sizeof(name), "XInput DancePad #%u", 1 + userid);
+             break;
+         case XINPUT_DEVSUBTYPE_GUITAR:
+         case XINPUT_DEVSUBTYPE_GUITAR_ALTERNATE:
+         case XINPUT_DEVSUBTYPE_GUITAR_BASS:
+-            (void)SDL_snprintf(name, sizeof name, "XInput Guitar #%u", 1 + userid);
++            (void)SDL_snprintf(name, sizeof(name), "XInput Guitar #%u", 1 + userid);
+             break;
+         case XINPUT_DEVSUBTYPE_DRUM_KIT:
+-            (void)SDL_snprintf(name, sizeof name, "XInput DrumKit #%u", 1 + userid);
++            (void)SDL_snprintf(name, sizeof(name), "XInput DrumKit #%u", 1 + userid);
+             break;
+         case XINPUT_DEVSUBTYPE_ARCADE_PAD:
+-            (void)SDL_snprintf(name, sizeof name, "XInput ArcadePad #%u", 1 + userid);
++            (void)SDL_snprintf(name, sizeof(name), "XInput ArcadePad #%u", 1 + userid);
+             break;
+         default:
+-            (void)SDL_snprintf(name, sizeof name, "XInput Device #%u", 1 + userid);
++            (void)SDL_snprintf(name, sizeof(name), "XInput Device #%u", 1 + userid);
+             break;
+         }
+     }
+@@ -279,7 +279,7 @@ static void AddXInputDevice(Uint8 userid, BYTE SubType, JoyStick_DeviceData **pC
+         SDL_free(pNewJoystick);
+         return; /* better luck next time? */
+     }
+-    (void)SDL_snprintf(pNewJoystick->path, sizeof pNewJoystick->path, "XInput#%d", userid);
++    (void)SDL_snprintf(pNewJoystick->path, sizeof(pNewJoystick->path), "XInput#%d", userid);
+     if (!SDL_XInputUseOldJoystickMapping()) {
+         GuessXInputDevice(userid, &vendor, &product, &version);
+ 
+diff --git a/src/render/metal/SDL_render_metal.m b/src/render/metal/SDL_render_metal.m
+index 1444b1777..ef3e8f7d6 100644
+--- a/src/render/metal/SDL_render_metal.m
++++ b/src/render/metal/SDL_render_metal.m
+@@ -259,7 +259,7 @@ MakePipelineState(METAL_RenderData *data, METAL_PipelineCache *cache,
+     switch (cache->vertexFunction) {
+         case SDL_METAL_VERTEX_SOLID:
+             /* position (float2), color (uchar4normalized) */
+-            vertdesc.layouts[0].stride = sizeof(float) * 2 + sizeof (int);
++            vertdesc.layouts[0].stride = sizeof(float) * 2 + sizeof(int);
+             vertdesc.layouts[0].stepFunction = MTLVertexStepFunctionPerVertex;
+ 
+             vertdesc.attributes[0].format = MTLVertexFormatFloat2;
+@@ -267,13 +267,13 @@ MakePipelineState(METAL_RenderData *data, METAL_PipelineCache *cache,
+             vertdesc.attributes[0].bufferIndex = 0;
+ 
+             vertdesc.attributes[1].format = MTLVertexFormatUChar4Normalized;
+-            vertdesc.attributes[1].offset = sizeof (float) * 2;
++            vertdesc.attributes[1].offset = sizeof(float) * 2;
+             vertdesc.attributes[1].bufferIndex = 0;
+ 
+             break;
+         case SDL_METAL_VERTEX_COPY:
+             /* position (float2), color (uchar4normalized), texcoord (float2) */
+-            vertdesc.layouts[0].stride = sizeof(float) * 2 + sizeof (int) + sizeof (float) * 2;
++            vertdesc.layouts[0].stride = sizeof(float) * 2 + sizeof(int) + sizeof(float) * 2;
+             vertdesc.layouts[0].stepFunction = MTLVertexStepFunctionPerVertex;
+ 
+             vertdesc.attributes[0].format = MTLVertexFormatFloat2;
+@@ -281,11 +281,11 @@ MakePipelineState(METAL_RenderData *data, METAL_PipelineCache *cache,
+             vertdesc.attributes[0].bufferIndex = 0;
+ 
+             vertdesc.attributes[1].format = MTLVertexFormatUChar4Normalized;
+-            vertdesc.attributes[1].offset = sizeof (float) * 2;
++            vertdesc.attributes[1].offset = sizeof(float) * 2;
+             vertdesc.attributes[1].bufferIndex = 0;
+ 
+             vertdesc.attributes[2].format = MTLVertexFormatFloat2;
+-            vertdesc.attributes[2].offset = sizeof(float) * 2 + sizeof (int);
++            vertdesc.attributes[2].offset = sizeof(float) * 2 + sizeof(int);
+             vertdesc.attributes[2].bufferIndex = 0;
+             break;
+     }
+@@ -1002,7 +1002,7 @@ METAL_QueueSetViewport(SDL_Renderer * renderer, SDL_RenderCommand *cmd)
+     float projection[4][4];    /* Prepare an orthographic projection */
+     const int w = cmd->data.viewport.rect.w;
+     const int h = cmd->data.viewport.rect.h;
+-    const size_t matrixlen = sizeof (projection);
++    const size_t matrixlen = sizeof(projection);
+     float *matrix = (float *) SDL_AllocateRenderVertices(renderer, matrixlen, CONSTANT_ALIGN(16), &cmd->data.viewport.first);
+     if (!matrix) {
+         return -1;
+@@ -1024,13 +1024,13 @@ METAL_QueueSetViewport(SDL_Renderer * renderer, SDL_RenderCommand *cmd)
+ static int
+ METAL_QueueSetDrawColor(SDL_Renderer *renderer, SDL_RenderCommand *cmd)
+ {
+-    const size_t vertlen = sizeof (float) * 4;
++    const size_t vertlen = sizeof(float) * 4;
+     float *verts = (float *) SDL_AllocateRenderVertices(renderer, vertlen, DEVICE_ALIGN(16), &cmd->data.color.first);
+     if (!verts) {
+         return -1;
+     }
+     /*
+-     * FIXME: not needed anymore, some cleanup to do 
++     * FIXME: not needed anymore, some cleanup to do
+      *
+     *(verts++) = ((float)cmd->data.color.r) / 255.0f;
+     *(verts++) = ((float)cmd->data.color.g) / 255.0f;
+@@ -1050,7 +1050,7 @@ METAL_QueueDrawPoints(SDL_Renderer * renderer, SDL_RenderCommand *cmd, const SDL
+         cmd->data.draw.a
+     };
+ 
+-    const size_t vertlen = (2 * sizeof (float) + sizeof (SDL_Color)) * count;
++    const size_t vertlen = (2 * sizeof(float) + sizeof(SDL_Color)) * count;
+     float *verts = (float *) SDL_AllocateRenderVertices(renderer, vertlen, DEVICE_ALIGN(8), &cmd->data.draw.first);
+     if (!verts) {
+         return -1;
+@@ -1079,7 +1079,7 @@ METAL_QueueDrawLines(SDL_Renderer * renderer, SDL_RenderCommand *cmd, const SDL_
+ 
+     SDL_assert(count >= 2);  /* should have been checked at the higher level. */
+ 
+-    vertlen = (2 * sizeof (float) + sizeof (SDL_Color)) * count;
++    vertlen = (2 * sizeof(float) + sizeof(SDL_Color)) * count;
+     verts = (float *) SDL_AllocateRenderVertices(renderer, vertlen, DEVICE_ALIGN(8), &cmd->data.draw.first);
+     if (!verts) {
+         return -1;
+@@ -1126,7 +1126,7 @@ METAL_QueueGeometry(SDL_Renderer *renderer, SDL_RenderCommand *cmd, SDL_Texture
+         float scale_x, float scale_y)
+ {
+     int count = indices ? num_indices : num_vertices;
+-    const size_t vertlen = (2 * sizeof (float) + sizeof (int) + (texture ? 2 : 0) * sizeof (float)) * count;
++    const size_t vertlen = (2 * sizeof(float) + sizeof(int) + (texture ? 2 : 0) * sizeof(float)) * count;
+     float *verts = (float *) SDL_AllocateRenderVertices(renderer, vertlen, DEVICE_ALIGN(8), &cmd->data.draw.first);
+     if (!verts) {
+         return -1;
+@@ -1338,7 +1338,7 @@ METAL_RunCommandQueue(SDL_Renderer * renderer, SDL_RenderCommand *cmd, void *ver
+     while (cmd) {
+         switch (cmd->command) {
+             case SDL_RENDERCMD_SETVIEWPORT: {
+-                SDL_memcpy(&statecache.viewport, &cmd->data.viewport.rect, sizeof (statecache.viewport));
++                SDL_memcpy(&statecache.viewport, &cmd->data.viewport.rect, sizeof(statecache.viewport));
+                 statecache.projection_offset = cmd->data.viewport.first;
+                 statecache.viewport_dirty = SDL_TRUE;
+                 statecache.cliprect_dirty = SDL_TRUE;
+@@ -1346,7 +1346,7 @@ METAL_RunCommandQueue(SDL_Renderer * renderer, SDL_RenderCommand *cmd, void *ver
+             }
+ 
+             case SDL_RENDERCMD_SETCLIPRECT: {
+-                SDL_memcpy(&statecache.cliprect, &cmd->data.cliprect.rect, sizeof (statecache.cliprect));
++                SDL_memcpy(&statecache.cliprect, &cmd->data.cliprect.rect, sizeof(statecache.cliprect));
+                 statecache.cliprect_enabled = cmd->data.cliprect.enabled;
+                 statecache.cliprect_dirty = SDL_TRUE;
+                 break;
+diff --git a/src/render/ps2/SDL_render_ps2.c b/src/render/ps2/SDL_render_ps2.c
+index f34da6681..dc4bafaab 100644
+--- a/src/render/ps2/SDL_render_ps2.c
++++ b/src/render/ps2/SDL_render_ps2.c
+@@ -234,7 +234,7 @@ static int PS2_QueueGeometry(SDL_Renderer *renderer, SDL_RenderCommand *cmd, SDL
+     size_indices = indices ? size_indices : 0;
+ 
+     if (texture) {
+-        GSPRIMUVPOINT *vertices = (GSPRIMUVPOINT *) SDL_AllocateRenderVertices(renderer, count * sizeof (GSPRIMUVPOINT), 4, &cmd->data.draw.first);
++        GSPRIMUVPOINT *vertices = (GSPRIMUVPOINT *) SDL_AllocateRenderVertices(renderer, count * sizeof(GSPRIMUVPOINT), 4, &cmd->data.draw.first);
+         GSTEXTURE *ps2_tex = (GSTEXTURE *) texture->driverdata;
+ 
+         if (vertices == NULL) {
+diff --git a/src/sensor/n3ds/SDL_n3dssensor.c b/src/sensor/n3ds/SDL_n3dssensor.c
+index 99b799cb5..26647582e 100644
+--- a/src/sensor/n3ds/SDL_n3dssensor.c
++++ b/src/sensor/n3ds/SDL_n3dssensor.c
+@@ -156,7 +156,7 @@ UpdateN3DSAccelerometer(SDL_Sensor *sensor)
+         data[0] = (float)current_state.x * SDL_STANDARD_GRAVITY;
+         data[1] = (float)current_state.y * SDL_STANDARD_GRAVITY;
+         data[2] = (float)current_state.z * SDL_STANDARD_GRAVITY;
+-        SDL_PrivateSensorUpdate(sensor, 0, data, sizeof data);
++        SDL_PrivateSensorUpdate(sensor, 0, data, sizeof(data));
+     }
+ }
+ 
+@@ -173,7 +173,7 @@ UpdateN3DSGyroscope(SDL_Sensor *sensor)
+         data[0] = (float)current_state.x;
+         data[1] = (float)current_state.y;
+         data[2] = (float)current_state.z;
+-        SDL_PrivateSensorUpdate(sensor, 0, data, sizeof data);
++        SDL_PrivateSensorUpdate(sensor, 0, data, sizeof(data));
+     }
+ }
+ 
+diff --git a/src/test/SDL_test_common.c b/src/test/SDL_test_common.c
+index b1477dfc9..b06ca7294 100644
+--- a/src/test/SDL_test_common.c
++++ b/src/test/SDL_test_common.c
+@@ -957,28 +957,28 @@ static void SDLTest_PrintRenderer(SDL_RendererInfo *info)
+ 
+     SDL_Log("  Renderer %s:\n", info->name);
+ 
+-    (void)SDL_snprintf(text, sizeof text, "    Flags: 0x%8.8" SDL_PRIX32, info->flags);
+-    SDL_snprintfcat(text, sizeof text, " (");
++    (void)SDL_snprintf(text, sizeof(text), "    Flags: 0x%8.8" SDL_PRIX32, info->flags);
++    SDL_snprintfcat(text, sizeof(text), " (");
+     count = 0;
+-    for (i = 0; i < 8 * sizeof info->flags; ++i) {
++    for (i = 0; i < 8 * sizeof(info->flags); ++i) {
+         Uint32 flag = (1 << i);
+         if (info->flags & flag) {
+             if (count > 0) {
+-                SDL_snprintfcat(text, sizeof text, " | ");
++                SDL_snprintfcat(text, sizeof(text), " | ");
+             }
+-            SDLTest_PrintRendererFlag(text, sizeof text, flag);
++            SDLTest_PrintRendererFlag(text, sizeof(text), flag);
+             ++count;
+         }
+     }
+-    SDL_snprintfcat(text, sizeof text, ")");
++    SDL_snprintfcat(text, sizeof(text), ")");
+     SDL_Log("%s\n", text);
+ 
+-    (void)SDL_snprintf(text, sizeof text, "    Texture formats (%" SDL_PRIu32 "): ", info->num_texture_formats);
++    (void)SDL_snprintf(text, sizeof(text), "    Texture formats (%" SDL_PRIu32 "): ", info->num_texture_formats);
+     for (i = 0; i < (int)info->num_texture_formats; ++i) {
+         if (i > 0) {
+-            SDL_snprintfcat(text, sizeof text, ", ");
++            SDL_snprintfcat(text, sizeof(text), ", ");
+         }
+-        SDLTest_PrintPixelFormat(text, sizeof text, info->texture_formats[i]);
++        SDLTest_PrintPixelFormat(text, sizeof(text), info->texture_formats[i]);
+     }
+     SDL_Log("%s\n", text);
+ 
+@@ -1065,12 +1065,12 @@ SDLTest_CommonInit(SDLTest_CommonState *state)
+             if (n == 0) {
+                 SDL_Log("No built-in video drivers\n");
+             } else {
+-                (void)SDL_snprintf(text, sizeof text, "Built-in video drivers:");
++                (void)SDL_snprintf(text, sizeof(text), "Built-in video drivers:");
+                 for (i = 0; i < n; ++i) {
+                     if (i > 0) {
+-                        SDL_snprintfcat(text, sizeof text, ",");
++                        SDL_snprintfcat(text, sizeof(text), ",");
+                     }
+-                    SDL_snprintfcat(text, sizeof text, " %s", SDL_GetVideoDriver(i));
++                    SDL_snprintfcat(text, sizeof(text), " %s", SDL_GetVideoDriver(i));
+                 }
+                 SDL_Log("%s\n", text);
+             }
+@@ -1362,12 +1362,12 @@ SDLTest_CommonInit(SDLTest_CommonState *state)
+             if (n == 0) {
+                 SDL_Log("No built-in audio drivers\n");
+             } else {
+-                (void)SDL_snprintf(text, sizeof text, "Built-in audio drivers:");
++                (void)SDL_snprintf(text, sizeof(text), "Built-in audio drivers:");
+                 for (i = 0; i < n; ++i) {
+                     if (i > 0) {
+-                        SDL_snprintfcat(text, sizeof text, ",");
++                        SDL_snprintfcat(text, sizeof(text), ",");
+                     }
+-                    SDL_snprintfcat(text, sizeof text, " %s", SDL_GetAudioDriver(i));
++                    SDL_snprintfcat(text, sizeof(text), " %s", SDL_GetAudioDriver(i));
+                 }
+                 SDL_Log("%s\n", text);
+             }
+@@ -2173,7 +2173,7 @@ void SDLTest_CommonEvent(SDLTest_CommonState *state, SDL_Event *event, int *done
+             char message[256];
+             SDL_Window *window = SDL_GetWindowFromID(event->key.windowID);
+ 
+-            (void)SDL_snprintf(message, sizeof message, "(%" SDL_PRIs32 ", %" SDL_PRIs32 "), rel (%" SDL_PRIs32 ", %" SDL_PRIs32 ")\n",
++            (void)SDL_snprintf(message, sizeof(message), "(%" SDL_PRIs32 ", %" SDL_PRIs32 "), rel (%" SDL_PRIs32 ", %" SDL_PRIs32 ")\n",
+                                lastEvent.x, lastEvent.y, lastEvent.xrel, lastEvent.yrel);
+             SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_INFORMATION, "Last mouse position", message, window);
+             break;
+@@ -2258,7 +2258,7 @@ void SDLTest_CommonDrawWindowInfo(SDL_Renderer *renderer, SDL_Window *window, in
+ 
+     SDL_SetRenderDrawColor(renderer, 170, 170, 170, 255);
+ 
+-    (void)SDL_snprintf(text, sizeof text, "SDL_GetCurrentVideoDriver: %s", SDL_GetCurrentVideoDriver());
++    (void)SDL_snprintf(text, sizeof(text), "SDL_GetCurrentVideoDriver: %s", SDL_GetCurrentVideoDriver());
+     SDLTest_DrawString(renderer, 0, textY, text);
+     textY += lineHeight;
+ 
+@@ -2271,31 +2271,31 @@ void SDLTest_CommonDrawWindowInfo(SDL_Renderer *renderer, SDL_Window *window, in
+     SDL_SetRenderDrawColor(renderer, 170, 170, 170, 255);
+ 
+     if (0 == SDL_GetRendererInfo(renderer, &info)) {
+-        (void)SDL_snprintf(text, sizeof text, "SDL_GetRendererInfo: name: %s", info.name);
++        (void)SDL_snprintf(text, sizeof(text), "SDL_GetRendererInfo: name: %s", info.name);
+         SDLTest_DrawString(renderer, 0, textY, text);
+         textY += lineHeight;
+     }
+ 
+     if (0 == SDL_GetRendererOutputSize(renderer, &w, &h)) {
+-        (void)SDL_snprintf(text, sizeof text, "SDL_GetRendererOutputSize: %dx%d", w, h);
++        (void)SDL_snprintf(text, sizeof(text), "SDL_GetRendererOutputSize: %dx%d", w, h);
+         SDLTest_DrawString(renderer, 0, textY, text);
+         textY += lineHeight;
+     }
+ 
+     SDL_RenderGetViewport(renderer, &rect);
+-    (void)SDL_snprintf(text, sizeof text, "SDL_RenderGetViewport: %d,%d, %dx%d",
++    (void)SDL_snprintf(text, sizeof(text), "SDL_RenderGetViewport: %d,%d, %dx%d",
+                        rect.x, rect.y, rect.w, rect.h);
+     SDLTest_DrawString(renderer, 0, textY, text);
+     textY += lineHeight;
+ 
+     SDL_RenderGetScale(renderer, &scaleX, &scaleY);
+-    (void)SDL_snprintf(text, sizeof text, "SDL_RenderGetScale: %f,%f",
++    (void)SDL_snprintf(text, sizeof(text), "SDL_RenderGetScale: %f,%f",
+                        scaleX, scaleY);
+     SDLTest_DrawString(renderer, 0, textY, text);
+     textY += lineHeight;
+ 
+     SDL_RenderGetLogicalSize(renderer, &w, &h);
+-    (void)SDL_snprintf(text, sizeof text, "SDL_RenderGetLogicalSize: %dx%d", w, h);
++    (void)SDL_snprintf(text, sizeof(text), "SDL_RenderGetLogicalSize: %dx%d", w, h);
+     SDLTest_DrawString(renderer, 0, textY, text);
+     textY += lineHeight;
+ 
+@@ -2308,22 +2308,22 @@ void SDLTest_CommonDrawWindowInfo(SDL_Renderer *renderer, SDL_Window *window, in
+     SDL_SetRenderDrawColor(renderer, 170, 170, 170, 255);
+ 
+     SDL_GetWindowPosition(window, &x, &y);
+-    (void)SDL_snprintf(text, sizeof text, "SDL_GetWindowPosition: %d,%d", x, y);
++    (void)SDL_snprintf(text, sizeof(text), "SDL_GetWindowPosition: %d,%d", x, y);
+     SDLTest_DrawString(renderer, 0, textY, text);
+     textY += lineHeight;
+ 
+     SDL_GetWindowSize(window, &w, &h);
+-    (void)SDL_snprintf(text, sizeof text, "SDL_GetWindowSize: %dx%d", w, h);
++    (void)SDL_snprintf(text, sizeof(text), "SDL_GetWindowSize: %dx%d", w, h);
+     SDLTest_DrawString(renderer, 0, textY, text);
+     textY += lineHeight;
+ 
+-    (void)SDL_snprintf(text, sizeof text, "SDL_GetWindowFlags: ");
+-    SDLTest_PrintWindowFlags(text, sizeof text, SDL_GetWindowFlags(window));
++    (void)SDL_snprintf(text, sizeof(text), "SDL_GetWindowFlags: ");
++    SDLTest_PrintWindowFlags(text, sizeof(text), SDL_GetWindowFlags(window));
+     SDLTest_DrawString(renderer, 0, textY, text);
+     textY += lineHeight;
+ 
+     if (0 == SDL_GetWindowDisplayMode(window, &mode)) {
+-        (void)SDL_snprintf(text, sizeof text, "SDL_GetWindowDisplayMode: %dx%d@%dHz (%s)",
++        (void)SDL_snprintf(text, sizeof(text), "SDL_GetWindowDisplayMode: %dx%d@%dHz (%s)",
+                            mode.w, mode.h, mode.refresh_rate, SDL_GetPixelFormatName(mode.format));
+         SDLTest_DrawString(renderer, 0, textY, text);
+         textY += lineHeight;
+@@ -2337,44 +2337,44 @@ void SDLTest_CommonDrawWindowInfo(SDL_Renderer *renderer, SDL_Window *window, in
+ 
+     SDL_SetRenderDrawColor(renderer, 170, 170, 170, 255);
+ 
+-    (void)SDL_snprintf(text, sizeof text, "SDL_GetWindowDisplayIndex: %d", windowDisplayIndex);
++    (void)SDL_snprintf(text, sizeof(text), "SDL_GetWindowDisplayIndex: %d", windowDisplayIndex);
+     SDLTest_DrawString(renderer, 0, textY, text);
+     textY += lineHeight;
+ 
+-    (void)SDL_snprintf(text, sizeof text, "SDL_GetDisplayName: %s", SDL_GetDisplayName(windowDisplayIndex));
++    (void)SDL_snprintf(text, sizeof(text), "SDL_GetDisplayName: %s", SDL_GetDisplayName(windowDisplayIndex));
+     SDLTest_DrawString(renderer, 0, textY, text);
+     textY += lineHeight;
+ 
+     if (0 == SDL_GetDisplayBounds(windowDisplayIndex, &rect)) {
+-        (void)SDL_snprintf(text, sizeof text, "SDL_GetDisplayBounds: %d,%d, %dx%d",
++        (void)SDL_snprintf(text, sizeof(text), "SDL_GetDisplayBounds: %d,%d, %dx%d",
+                            rect.x, rect.y, rect.w, rect.h);
+         SDLTest_DrawString(renderer, 0, textY, text);
+         textY += lineHeight;
+     }
+ 
+     if (0 == SDL_GetCurrentDisplayMode(windowDisplayIndex, &mode)) {
+-        (void)SDL_snprintf(text, sizeof text, "SDL_GetCurrentDisplayMode: %dx%d@%d",
++        (void)SDL_snprintf(text, sizeof(text), "SDL_GetCurrentDisplayMode: %dx%d@%d",
+                            mode.w, mode.h, mode.refresh_rate);
+         SDLTest_DrawString(renderer, 0, textY, text);
+         textY += lineHeight;
+     }
+ 
+     if (0 == SDL_GetDesktopDisplayMode(windowDisplayIndex, &mode)) {
+-        (void)SDL_snprintf(text, sizeof text, "SDL_GetDesktopDisplayMode: %dx%d@%d",
++        (void)SDL_snprintf(text, sizeof(text), "SDL_GetDesktopDisplayMode: %dx%d@%d",
+                            mode.w, mode.h, mode.refresh_rate);
+         SDLTest_DrawString(renderer, 0, textY, text);
+         textY += lineHeight;
+     }
+ 
+     if (0 == SDL_GetDisplayDPI(windowDisplayIndex, &ddpi, &hdpi, &vdpi)) {
+-        (void)SDL_snprintf(text, sizeof text, "SDL_GetDisplayDPI: ddpi: %f, hdpi: %f, vdpi: %f",
++        (void)SDL_snprintf(text, sizeof(text), "SDL_GetDisplayDPI: ddpi: %f, hdpi: %f, vdpi: %f",
+                            ddpi, hdpi, vdpi);
+         SDLTest_DrawString(renderer, 0, textY, text);
+         textY += lineHeight;
+     }
+ 
+-    (void)SDL_snprintf(text, sizeof text, "SDL_GetDisplayOrientation: ");
+-    SDLTest_PrintDisplayOrientation(text, sizeof text, SDL_GetDisplayOrientation(windowDisplayIndex));
++    (void)SDL_snprintf(text, sizeof(text), "SDL_GetDisplayOrientation: ");
++    SDLTest_PrintDisplayOrientation(text, sizeof(text), SDL_GetDisplayOrientation(windowDisplayIndex));
+     SDLTest_DrawString(renderer, 0, textY, text);
+     textY += lineHeight;
+ 
+@@ -2387,14 +2387,14 @@ void SDLTest_CommonDrawWindowInfo(SDL_Renderer *renderer, SDL_Window *window, in
+     SDL_SetRenderDrawColor(renderer, 170, 170, 170, 255);
+ 
+     flags = SDL_GetMouseState(&x, &y);
+-    (void)SDL_snprintf(text, sizeof text, "SDL_GetMouseState: %d,%d ", x, y);
+-    SDLTest_PrintButtonMask(text, sizeof text, flags);
++    (void)SDL_snprintf(text, sizeof(text), "SDL_GetMouseState: %d,%d ", x, y);
++    SDLTest_PrintButtonMask(text, sizeof(text), flags);
+     SDLTest_DrawString(renderer, 0, textY, text);
+     textY += lineHeight;
+ 
+     flags = SDL_GetGlobalMouseState(&x, &y);
+-    (void)SDL_snprintf(text, sizeof text, "SDL_GetGlobalMouseState: %d,%d ", x, y);
+-    SDLTest_PrintButtonMask(text, sizeof text, flags);
++    (void)SDL_snprintf(text, sizeof(text), "SDL_GetGlobalMouseState: %d,%d ", x, y);
++    SDLTest_PrintButtonMask(text, sizeof(text), flags);
+     SDLTest_DrawString(renderer, 0, textY, text);
+     textY += lineHeight;
+ 
+diff --git a/src/test/SDL_test_font.c b/src/test/SDL_test_font.c
+index 757e041dd..d3bdad6dd 100644
+--- a/src/test/SDL_test_font.c
++++ b/src/test/SDL_test_font.c
+@@ -3393,7 +3393,7 @@ void SDLTest_TextWindowAddText(SDLTest_TextWindow *textwin, const char *fmt, ...
+     va_list ap;
+ 
+     va_start(ap, fmt);
+-    (void)SDL_vsnprintf(text, sizeof text, fmt, ap);
++    (void)SDL_vsnprintf(text, sizeof(text), fmt, ap);
+     va_end(ap);
+ 
+     SDLTest_TextWindowAddTextWithLength(textwin, text, SDL_strlen(text));
+diff --git a/src/test/SDL_test_harness.c b/src/test/SDL_test_harness.c
+index e6ae3ce43..2ce1c1638 100644
+--- a/src/test/SDL_test_harness.c
++++ b/src/test/SDL_test_harness.c
+@@ -130,8 +130,8 @@ static Uint64 SDLTest_GenerateExecKey(const char *runSeed, const char *suiteName
+     }
+ 
+     /* Convert iteration number into a string */
+-    SDL_memset(iterationString, 0, sizeof iterationString);
+-    (void)SDL_snprintf(iterationString, sizeof iterationString - 1, "%d", iteration);
++    SDL_memset(iterationString, 0, sizeof(iterationString));
++    (void)SDL_snprintf(iterationString, sizeof(iterationString) - 1, "%d", iteration);
+ 
+     /* Combine the parameters into single string */
+     runSeedLength = SDL_strlen(runSeed);
+diff --git a/src/test/SDL_test_log.c b/src/test/SDL_test_log.c
+index 011ecf01b..fd48b3cf8 100644
+--- a/src/test/SDL_test_log.c
++++ b/src/test/SDL_test_log.c
+@@ -76,7 +76,7 @@ SDLTest_TimestampToString(const time_t timestamp)
+     SDL_memset(buffer, 0, sizeof(buffer));
+     copy = timestamp;
+     local = localtime(&copy);
+-    result = strftime(buffer, sizeof buffer, "%x %X", local);
++    result = strftime(buffer, sizeof(buffer), "%x %X", local);
+     if (result == 0) {
+         return "";
+     }
+diff --git a/src/test/SDL_test_memory.c b/src/test/SDL_test_memory.c
+index 0c09340d7..bb773a6bc 100644
+--- a/src/test/SDL_test_memory.c
++++ b/src/test/SDL_test_memory.c
+@@ -248,30 +248,30 @@ void SDLTest_LogAllocations()
+     message = tmp;                                         \
+     SDL_strlcat(message, line, message_size)
+ 
+-    SDL_strlcpy(line, "Memory allocations:\n", sizeof line);
++    SDL_strlcpy(line, "Memory allocations:\n", sizeof(line));
+     ADD_LINE();
+-    SDL_strlcpy(line, "Expect 2 allocations from within SDL_GetErrBuf()\n", sizeof line);
++    SDL_strlcpy(line, "Expect 2 allocations from within SDL_GetErrBuf()\n", sizeof(line));
+     ADD_LINE();
+ 
+     count = 0;
+     total_allocated = 0;
+     for (index = 0; index < SDL_arraysize(s_tracked_allocations); ++index) {
+         for (entry = s_tracked_allocations[index]; entry; entry = entry->next) {
+-            (void)SDL_snprintf(line, sizeof line, "Allocation %d: %d bytes\n", count, (int)entry->size);
++            (void)SDL_snprintf(line, sizeof(line), "Allocation %d: %d bytes\n", count, (int)entry->size);
+             ADD_LINE();
+             /* Start at stack index 1 to skip our tracking functions */
+             for (stack_index = 1; stack_index < SDL_arraysize(entry->stack); ++stack_index) {
+                 if (!entry->stack[stack_index]) {
+                     break;
+                 }
+-                (void)SDL_snprintf(line, sizeof line, "\t0x%" SDL_PRIx64 ": %s\n", entry->stack[stack_index], entry->stack_names[stack_index]);
++                (void)SDL_snprintf(line, sizeof(line), "\t0x%" SDL_PRIx64 ": %s\n", entry->stack[stack_index], entry->stack_names[stack_index]);
+                 ADD_LINE();
+             }
+             total_allocated += entry->size;
+             ++count;
+         }
+     }
+-    (void)SDL_snprintf(line, sizeof line, "Total: %.2f Kb in %d allocations\n", total_allocated / 1024.0, count);
++    (void)SDL_snprintf(line, sizeof(line), "Total: %.2f Kb in %d allocations\n", total_allocated / 1024.0, count);
+     ADD_LINE();
+ #undef ADD_LINE
+ 
+diff --git a/src/timer/os2/SDL_systimer.c b/src/timer/os2/SDL_systimer.c
+index a8c995804..0f2c67094 100644
+--- a/src/timer/os2/SDL_systimer.c
++++ b/src/timer/os2/SDL_systimer.c
+@@ -66,7 +66,7 @@ SDL_TicksInit(void)
+     }
+ 
+     ulTmrFreq = 0; /* Error - use DosQuerySysInfo() for timer. */
+-    DosQuerySysInfo(QSV_MS_COUNT, QSV_MS_COUNT, &ulTmrStart, sizeof (ULONG));
++    DosQuerySysInfo(QSV_MS_COUNT, QSV_MS_COUNT, &ulTmrStart, sizeof(ULONG));
+     ullTmrStart = (ULLONG) ulTmrStart;
+ }
+ 
+@@ -92,7 +92,7 @@ SDL_GetTicks64(void)
+     } else {
+         /* note that this counter rolls over to 0 every ~49 days. Fix your system so DosTmrQueryTime works if you need to avoid this. */
+         ULONG ulTmrNow;
+-        DosQuerySysInfo(QSV_MS_COUNT, QSV_MS_COUNT, &ulTmrNow, sizeof (ULONG));
++        DosQuerySysInfo(QSV_MS_COUNT, QSV_MS_COUNT, &ulTmrNow, sizeof(ULONG));
+         ui64Result = (((Uint64) ulTmrNow) - ullTmrStart);
+     }
+ 
+diff --git a/src/video/directfb/SDL_DirectFB_render.c b/src/video/directfb/SDL_DirectFB_render.c
+index 181469fb8..f7b901483 100644
+--- a/src/video/directfb/SDL_DirectFB_render.c
++++ b/src/video/directfb/SDL_DirectFB_render.c
+@@ -619,7 +619,7 @@ DirectFB_QueueSetViewport(SDL_Renderer * renderer, SDL_RenderCommand *cmd)
+ static int
+ DirectFB_QueueDrawPoints(SDL_Renderer * renderer, SDL_RenderCommand *cmd, const SDL_FPoint *points, int count)
+ {
+-    const size_t len = count * sizeof (SDL_FPoint);
++    const size_t len = count * sizeof(SDL_FPoint);
+     SDL_FPoint *verts = (SDL_FPoint *) SDL_AllocateRenderVertices(renderer, len, 0, &cmd->data.draw.first);
+ 
+     if (!verts) {
+@@ -642,7 +642,7 @@ DirectFB_QueueGeometry(SDL_Renderer *renderer, SDL_RenderCommand *cmd, SDL_Textu
+     float *verts;
+     int sz = 2 + 4 + (texture ? 2 : 0);
+ 
+-    verts = (float *) SDL_AllocateRenderVertices(renderer, count * sz * sizeof (float), 0, &cmd->data.draw.first);
++    verts = (float *) SDL_AllocateRenderVertices(renderer, count * sz * sizeof(float), 0, &cmd->data.draw.first);
+     if (!verts) {
+         return -1;
+     }
+@@ -687,7 +687,7 @@ DirectFB_QueueGeometry(SDL_Renderer *renderer, SDL_RenderCommand *cmd, SDL_Textu
+ static int
+ DirectFB_QueueFillRects(SDL_Renderer * renderer, SDL_RenderCommand *cmd, const SDL_FRect * rects, int count)
+ {
+-    const size_t len = count * sizeof (SDL_FRect);
++    const size_t len = count * sizeof(SDL_FRect);
+     SDL_FRect *verts = (SDL_FRect *) SDL_AllocateRenderVertices(renderer, len, 0, &cmd->data.draw.first);
+ 
+     if (!verts) {
+@@ -703,7 +703,7 @@ static int
+ DirectFB_QueueCopy(SDL_Renderer * renderer, SDL_RenderCommand *cmd, SDL_Texture * texture,
+              const SDL_Rect * srcrect, const SDL_FRect * dstrect)
+ {
+-    DFBRectangle *verts = (DFBRectangle *) SDL_AllocateRenderVertices(renderer, 2 * sizeof (DFBRectangle), 0, &cmd->data.draw.first);
++    DFBRectangle *verts = (DFBRectangle *) SDL_AllocateRenderVertices(renderer, 2 * sizeof(DFBRectangle), 0, &cmd->data.draw.first);
+ 
+     if (!verts) {
+         return -1;
+diff --git a/src/video/dummy/SDL_nullframebuffer.c b/src/video/dummy/SDL_nullframebuffer.c
+index 8fd7ad74b..55e396225 100644
+--- a/src/video/dummy/SDL_nullframebuffer.c
++++ b/src/video/dummy/SDL_nullframebuffer.c
+@@ -64,7 +64,7 @@ int SDL_DUMMY_UpdateWindowFramebuffer(_THIS, SDL_Window *window, const SDL_Rect
+     /* Send the data to the display */
+     if (SDL_getenv("SDL_VIDEO_DUMMY_SAVE_FRAMES")) {
+         char file[128];
+-        (void)SDL_snprintf(file, sizeof file, "SDL_window%" SDL_PRIu32 "-%8.8d.bmp",
++        (void)SDL_snprintf(file, sizeof(file), "SDL_window%" SDL_PRIu32 "-%8.8d.bmp",
+                            SDL_GetWindowID(window), ++frame_number);
+         SDL_SaveBMP(surface, file);
+     }
+diff --git a/src/video/kmsdrm/SDL_kmsdrmvideo.c b/src/video/kmsdrm/SDL_kmsdrmvideo.c
+index 2c1ca2915..042a01496 100644
+--- a/src/video/kmsdrm/SDL_kmsdrmvideo.c
++++ b/src/video/kmsdrm/SDL_kmsdrmvideo.c
+@@ -197,7 +197,7 @@ static int KMSDRM_Available(void)
+ 
+     kmsdrm_dri_pathsize = SDL_strlen(kmsdrm_dri_path);
+     kmsdrm_dri_devnamesize = SDL_strlen(kmsdrm_dri_devname);
+-    (void)SDL_snprintf(kmsdrm_dri_cardpath, sizeof kmsdrm_dri_cardpath, "%s%s",
++    (void)SDL_snprintf(kmsdrm_dri_cardpath, sizeof(kmsdrm_dri_cardpath), "%s%s",
+                        kmsdrm_dri_path, kmsdrm_dri_devname);
+ 
+     ret = get_driindex();
+@@ -897,7 +897,7 @@ static int KMSDRM_InitDisplays(_THIS)
+     int i;
+ 
+     /* Open /dev/dri/cardNN (/dev/drmN if on OpenBSD version less than 6.9) */
+-    (void)SDL_snprintf(viddata->devpath, sizeof viddata->devpath, "%s%d",
++    (void)SDL_snprintf(viddata->devpath, sizeof(viddata->devpath), "%s%d",
+                        kmsdrm_dri_cardpath, viddata->devindex);
+ 
+     SDL_LogDebug(SDL_LOG_CATEGORY_VIDEO, "Opening device %s", viddata->devpath);
+diff --git a/src/video/offscreen/SDL_offscreenframebuffer.c b/src/video/offscreen/SDL_offscreenframebuffer.c
+index 8affc51fa..d71f04224 100644
+--- a/src/video/offscreen/SDL_offscreenframebuffer.c
++++ b/src/video/offscreen/SDL_offscreenframebuffer.c
+@@ -48,6 +48,7 @@ int SDL_OFFSCREEN_CreateWindowFramebuffer(_THIS, SDL_Window *window, Uint32 *for
+     *format = surface_format;
+     *pixels = surface->pixels;
+     *pitch = surface->pitch;
++
+     return 0;
+ }
+ 
+@@ -64,7 +65,7 @@ int SDL_OFFSCREEN_UpdateWindowFramebuffer(_THIS, SDL_Window *window, const SDL_R
+     /* Send the data to the display */
+     if (SDL_getenv("SDL_VIDEO_OFFSCREEN_SAVE_FRAMES")) {
+         char file[128];
+-        (void)SDL_snprintf(file, sizeof file, "SDL_window%" SDL_PRIu32 "-%8.8d.bmp",
++        (void)SDL_snprintf(file, sizeof(file), "SDL_window%" SDL_PRIu32 "-%8.8d.bmp",
+                            SDL_GetWindowID(window), ++frame_number);
+         SDL_SaveBMP(surface, file);
+     }
+diff --git a/src/video/wayland/SDL_waylandevents.c b/src/video/wayland/SDL_waylandevents.c
+index 70bd2eb40..fd2a97115 100644
+--- a/src/video/wayland/SDL_waylandevents.c
++++ b/src/video/wayland/SDL_waylandevents.c
+@@ -766,7 +766,7 @@ static void pointer_handle_frame(void *data, struct wl_pointer *pointer)
+     }
+ 
+     /* clear pointer_curr_axis_info for next frame */
+-    SDL_memset(&input->pointer_curr_axis_info, 0, sizeof input->pointer_curr_axis_info);
++    SDL_memset(&input->pointer_curr_axis_info, 0, sizeof(input->pointer_curr_axis_info));
+ 
+     if (x != 0.0f || y != 0.0f) {
+         SDL_SendMouseWheel(window->sdlwindow, 0, x, y, SDL_MOUSEWHEEL_NORMAL);
+@@ -1102,7 +1102,7 @@ static void keyboard_handle_enter(void *data, struct wl_keyboard *keyboard,
+         const SDL_Scancode scancode = Wayland_get_scancode_from_key(input, *key + 8);
+ 
+         if (scancode != SDL_SCANCODE_UNKNOWN) {
+-            for (uint32_t i = 0; i < sizeof mod_scancodes / sizeof *mod_scancodes; ++i) {
++            for (uint32_t i = 0; i < SDL_arraysize(mod_scancodes); ++i) {
+                 if (mod_scancodes[i] == scancode) {
+                     SDL_SendKeyboardKey(SDL_PRESSED, scancode);
+                     break;
+@@ -1310,7 +1310,7 @@ static void seat_handle_capabilities(void *data, struct wl_seat *seat,
+ 
+     if ((caps & WL_SEAT_CAPABILITY_POINTER) && !input->pointer) {
+         input->pointer = wl_seat_get_pointer(seat);
+-        SDL_memset(&input->pointer_curr_axis_info, 0, sizeof input->pointer_curr_axis_info);
++        SDL_memset(&input->pointer_curr_axis_info, 0, sizeof(input->pointer_curr_axis_info));
+         input->display->pointer = input->pointer;
+         wl_pointer_set_user_data(input->pointer, input);
+         wl_pointer_add_listener(input->pointer, &pointer_listener,
+@@ -1428,7 +1428,7 @@ SDL_WaylandDataSource *Wayland_data_source_create(_THIS)
+         if (id == NULL) {
+             SDL_SetError("Wayland unable to create data source");
+         } else {
+-            data_source = SDL_calloc(1, sizeof *data_source);
++            data_source = SDL_calloc(1, sizeof(*data_source));
+             if (data_source == NULL) {
+                 SDL_OutOfMemory();
+                 wl_data_source_destroy(id);
+@@ -1463,7 +1463,7 @@ SDL_WaylandPrimarySelectionSource *Wayland_primary_selection_source_create(_THIS
+         if (id == NULL) {
+             SDL_SetError("Wayland unable to create primary selection source");
+         } else {
+-            primary_selection_source = SDL_calloc(1, sizeof *primary_selection_source);
++            primary_selection_source = SDL_calloc(1, sizeof(*primary_selection_source));
+             if (primary_selection_source == NULL) {
+                 SDL_OutOfMemory();
+                 zwp_primary_selection_source_v1_destroy(id);
+@@ -1517,7 +1517,7 @@ static void data_device_handle_data_offer(void *data, struct wl_data_device *wl_
+ {
+     SDL_WaylandDataOffer *data_offer = NULL;
+ 
+-    data_offer = SDL_calloc(1, sizeof *data_offer);
++    data_offer = SDL_calloc(1, sizeof(*data_offer));
+     if (data_offer == NULL) {
+         SDL_OutOfMemory();
+     } else {
+@@ -1763,7 +1763,7 @@ static void primary_selection_device_handle_offer(void *data, struct zwp_primary
+ {
+     SDL_WaylandPrimarySelectionOffer *primary_selection_offer = NULL;
+ 
+-    primary_selection_offer = SDL_calloc(1, sizeof *primary_selection_offer);
++    primary_selection_offer = SDL_calloc(1, sizeof(*primary_selection_offer));
+     if (primary_selection_offer == NULL) {
+         SDL_OutOfMemory();
+     } else {
+@@ -1904,7 +1904,7 @@ static void Wayland_create_data_device(SDL_VideoData *d)
+ {
+     SDL_WaylandDataDevice *data_device = NULL;
+ 
+-    data_device = SDL_calloc(1, sizeof *data_device);
++    data_device = SDL_calloc(1, sizeof(*data_device));
+     if (data_device == NULL) {
+         return;
+     }
+@@ -1927,7 +1927,7 @@ static void Wayland_create_primary_selection_device(SDL_VideoData *d)
+ {
+     SDL_WaylandPrimarySelectionDevice *primary_selection_device = NULL;
+ 
+-    primary_selection_device = SDL_calloc(1, sizeof *primary_selection_device);
++    primary_selection_device = SDL_calloc(1, sizeof(*primary_selection_device));
+     if (primary_selection_device == NULL) {
+         return;
+     }
+@@ -1951,7 +1951,7 @@ static void Wayland_create_text_input(SDL_VideoData *d)
+ {
+     SDL_WaylandTextInput *text_input = NULL;
+ 
+-    text_input = SDL_calloc(1, sizeof *text_input);
++    text_input = SDL_calloc(1, sizeof(*text_input));
+     if (text_input == NULL) {
+         return;
+     }
+@@ -2221,7 +2221,7 @@ struct SDL_WaylandTabletObjectListNode *tablet_object_list_new_node(void *object
+ {
+     struct SDL_WaylandTabletObjectListNode *node;
+ 
+-    node = SDL_calloc(1, sizeof *node);
++    node = SDL_calloc(1, sizeof(*node));
+     if (node == NULL) {
+         return NULL;
+     }
+@@ -2296,7 +2296,7 @@ void Wayland_input_add_tablet(struct SDL_WaylandInput *input, struct SDL_Wayland
+         return;
+     }
+ 
+-    tablet_input = SDL_calloc(1, sizeof *tablet_input);
++    tablet_input = SDL_calloc(1, sizeof(*tablet_input));
+     if (tablet_input == NULL) {
+         return;
+     }
+@@ -2329,7 +2329,7 @@ void Wayland_display_add_input(SDL_VideoData *d, uint32_t id, uint32_t version)
+ {
+     struct SDL_WaylandInput *input;
+ 
+-    input = SDL_calloc(1, sizeof *input);
++    input = SDL_calloc(1, sizeof(*input));
+     if (input == NULL) {
+         return;
+     }
+diff --git a/src/video/wayland/SDL_waylandvideo.c b/src/video/wayland/SDL_waylandvideo.c
+index 6922c9d9e..8fd65813a 100644
+--- a/src/video/wayland/SDL_waylandvideo.c
++++ b/src/video/wayland/SDL_waylandvideo.c
+@@ -681,7 +681,7 @@ static void Wayland_add_display(SDL_VideoData *d, uint32_t id)
+         SDL_SetError("Failed to retrieve output.");
+         return;
+     }
+-    data = SDL_malloc(sizeof *data);
++    data = (SDL_WaylandOutputData *)SDL_malloc(sizeof(*data));
+     SDL_zerop(data);
+     data->videodata = d;
+     data->output = output;
+diff --git a/src/video/wayland/SDL_waylandwindow.c b/src/video/wayland/SDL_waylandwindow.c
+index e18db6825..83d820d85 100644
+--- a/src/video/wayland/SDL_waylandwindow.c
++++ b/src/video/wayland/SDL_waylandwindow.c
+@@ -2002,7 +2002,7 @@ int Wayland_CreateWindow(_THIS, SDL_Window *window)
+     SDL_WindowData *data;
+     SDL_VideoData *c;
+ 
+-    data = SDL_calloc(1, sizeof *data);
++    data = SDL_calloc(1, sizeof(*data));
+     if (data == NULL) {
+         return SDL_OutOfMemory();
+     }
+diff --git a/src/video/x11/SDL_x11keyboard.c b/src/video/x11/SDL_x11keyboard.c
+index 44f300e4a..2e0576e06 100644
+--- a/src/video/x11/SDL_x11keyboard.c
++++ b/src/video/x11/SDL_x11keyboard.c
+@@ -452,7 +452,7 @@ void X11_ShowScreenKeyboard(_THIS, SDL_Window *window)
+          * https://partner.steamgames.com/doc/api/ISteamUtils#ShowFloatingGamepadTextInput
+          */
+         char deeplink[128];
+-        (void)SDL_snprintf(deeplink, sizeof deeplink,
++        (void)SDL_snprintf(deeplink, sizeof(deeplink),
+                            "steam://open/keyboard?XPosition=0&YPosition=0&Width=0&Height=0&Mode=%d",
+                            SDL_GetHintBoolean(SDL_HINT_RETURN_KEY_HIDES_IME, SDL_FALSE) ? 0 : 1);
+         SDL_OpenURL(deeplink);
+diff --git a/test/checkkeys.c b/test/checkkeys.c
+index b933f1489..4efdc721e 100644
+--- a/test/checkkeys.c
++++ b/test/checkkeys.c
+@@ -161,7 +161,7 @@ PrintText(const char *eventtype, const char *text)
+     expanded[0] = '\0';
+     for (spot = text; *spot; ++spot) {
+         size_t length = SDL_strlen(expanded);
+-        (void)SDL_snprintf(expanded + length, sizeof expanded - length, "\\x%.2x", (unsigned char)*spot);
++        (void)SDL_snprintf(expanded + length, sizeof(expanded) - length, "\\x%.2x", (unsigned char)*spot);
+     }
+     SDL_Log("%s Text (%s): \"%s%s\"\n", eventtype, expanded, *text == '"' ? "\\" : "", text);
+ }
+diff --git a/test/checkkeysthreads.c b/test/checkkeysthreads.c
+index 1f4912484..3db5dd2dc 100644
+--- a/test/checkkeysthreads.c
++++ b/test/checkkeysthreads.c
+@@ -157,7 +157,7 @@ PrintText(const char *eventtype, const char *text)
+     expanded[0] = '\0';
+     for (spot = text; *spot; ++spot) {
+         size_t length = SDL_strlen(expanded);
+-        (void)SDL_snprintf(expanded + length, sizeof expanded - length, "\\x%.2x", (unsigned char)*spot);
++        (void)SDL_snprintf(expanded + length, sizeof(expanded) - length, "\\x%.2x", (unsigned char)*spot);
+     }
+     SDL_Log("%s Text (%s): \"%s%s\"\n", eventtype, expanded, *text == '"' ? "\\" : "", text);
+ }
+diff --git a/test/controllermap.c b/test/controllermap.c
+index bd81d81b1..cfb0effac 100644
+--- a/test/controllermap.c
++++ b/test/controllermap.c
+@@ -591,7 +591,7 @@ WatchJoystick(SDL_Joystick *joystick)
+             char crc_string[5];
+ 
+             SDL_strlcat(mapping, "crc:", SDL_arraysize(mapping));
+-            (void)SDL_snprintf(crc_string, sizeof crc_string, "%.4x", crc);
++            (void)SDL_snprintf(crc_string, sizeof(crc_string), "%.4x", crc);
+             SDL_strlcat(mapping, crc_string, SDL_arraysize(mapping));
+             SDL_strlcat(mapping, ",", SDL_arraysize(mapping));
+         }
+@@ -664,17 +664,17 @@ WatchJoystick(SDL_Joystick *joystick)
+             pszElement[0] = '\0';
+             switch (pBinding->bindType) {
+             case SDL_CONTROLLER_BINDTYPE_BUTTON:
+-                (void)SDL_snprintf(pszElement, sizeof pszElement, "b%d", pBinding->value.button);
++                (void)SDL_snprintf(pszElement, sizeof(pszElement), "b%d", pBinding->value.button);
+                 break;
+             case SDL_CONTROLLER_BINDTYPE_AXIS:
+                 if (pBinding->value.axis.axis_min == 0 && pBinding->value.axis.axis_max == SDL_JOYSTICK_AXIS_MIN) {
+                     /* The negative half axis */
+-                    (void)SDL_snprintf(pszElement, sizeof pszElement, "-a%d", pBinding->value.axis.axis);
++                    (void)SDL_snprintf(pszElement, sizeof(pszElement), "-a%d", pBinding->value.axis.axis);
+                 } else if (pBinding->value.axis.axis_min == 0 && pBinding->value.axis.axis_max == SDL_JOYSTICK_AXIS_MAX) {
+                     /* The positive half axis */
+-                    (void)SDL_snprintf(pszElement, sizeof pszElement, "+a%d", pBinding->value.axis.axis);
++                    (void)SDL_snprintf(pszElement, sizeof(pszElement), "+a%d", pBinding->value.axis.axis);
+                 } else {
+-                    (void)SDL_snprintf(pszElement, sizeof pszElement, "a%d", pBinding->value.axis.axis);
++                    (void)SDL_snprintf(pszElement, sizeof(pszElement), "a%d", pBinding->value.axis.axis);
+                     if (pBinding->value.axis.axis_min > pBinding->value.axis.axis_max) {
+                         /* Invert the axis */
+                         SDL_strlcat(pszElement, "~", SDL_arraysize(pszElement));
+@@ -682,7 +682,7 @@ WatchJoystick(SDL_Joystick *joystick)
+                 }
+                 break;
+             case SDL_CONTROLLER_BINDTYPE_HAT:
+-                (void)SDL_snprintf(pszElement, sizeof pszElement, "h%d.%d", pBinding->value.hat.hat, pBinding->value.hat.hat_mask);
++                (void)SDL_snprintf(pszElement, sizeof(pszElement), "h%d.%d", pBinding->value.hat.hat, pBinding->value.hat.hat_mask);
+                 break;
+             default:
+                 SDL_assert(!"Unknown bind type");
+diff --git a/test/testatomic.c b/test/testatomic.c
+index 9f1ba3b03..15a7a6a7d 100644
+--- a/test/testatomic.c
++++ b/test/testatomic.c
+@@ -617,7 +617,7 @@ static void RunFIFOTest(SDL_bool lock_free)
+     SDL_zeroa(readerData);
+     for (i = 0; i < NUM_READERS; ++i) {
+         char name[64];
+-        (void)SDL_snprintf(name, sizeof name, "FIFOReader%d", i);
++        (void)SDL_snprintf(name, sizeof(name), "FIFOReader%d", i);
+         readerData[i].queue = &queue;
+         readerData[i].lock_free = lock_free;
+         readerData[i].thread = SDL_CreateThread(FIFO_Reader, name, &readerData[i]);
+@@ -628,7 +628,7 @@ static void RunFIFOTest(SDL_bool lock_free)
+     SDL_zeroa(writerData);
+     for (i = 0; i < NUM_WRITERS; ++i) {
+         char name[64];
+-        (void)SDL_snprintf(name, sizeof name, "FIFOWriter%d", i);
++        (void)SDL_snprintf(name, sizeof(name), "FIFOWriter%d", i);
+         writerData[i].queue = &queue;
+         writerData[i].index = i;
+         writerData[i].lock_free = lock_free;
+@@ -677,17 +677,17 @@ static void RunFIFOTest(SDL_bool lock_free)
+         }
+         grand_total += total;
+         SDL_Log("Reader %d read %d events, had %d waits\n", i, total, readerData[i].waits);
+-        (void)SDL_snprintf(textBuffer, sizeof textBuffer, "  { ");
++        (void)SDL_snprintf(textBuffer, sizeof(textBuffer), "  { ");
+         for (j = 0; j < NUM_WRITERS; ++j) {
+             if (j > 0) {
+                 len = SDL_strlen(textBuffer);
+-                (void)SDL_snprintf(textBuffer + len, sizeof textBuffer - len, ", ");
++                (void)SDL_snprintf(textBuffer + len, sizeof(textBuffer) - len, ", ");
+             }
+             len = SDL_strlen(textBuffer);
+-            (void)SDL_snprintf(textBuffer + len, sizeof textBuffer - len, "%d", readerData[i].counters[j]);
++            (void)SDL_snprintf(textBuffer + len, sizeof(textBuffer) - len, "%d", readerData[i].counters[j]);
+         }
+         len = SDL_strlen(textBuffer);
+-        (void)SDL_snprintf(textBuffer + len, sizeof textBuffer - len, " }\n");
++        (void)SDL_snprintf(textBuffer + len, sizeof(textBuffer) - len, " }\n");
+         SDL_Log("%s", textBuffer);
+     }
+     SDL_Log("Readers read %d total events\n", grand_total);
+diff --git a/test/testdisplayinfo.c b/test/testdisplayinfo.c
+index 06570a83b..66cc5d875 100644
+--- a/test/testdisplayinfo.c
++++ b/test/testdisplayinfo.c
+@@ -80,7 +80,7 @@ int main(int argc, char *argv[])
+                 SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "    MODE %d: failed to query (%s)\n", m, SDL_GetError());
+             } else {
+                 char prefix[64];
+-                (void)SDL_snprintf(prefix, sizeof prefix, "    MODE %d", m);
++                (void)SDL_snprintf(prefix, sizeof(prefix), "    MODE %d", m);
+                 print_mode(prefix, &mode);
+             }
+         }
+diff --git a/test/testlock.c b/test/testlock.c
+index 741267c35..544ec322b 100644
+--- a/test/testlock.c
++++ b/test/testlock.c
+@@ -27,7 +27,7 @@ static SDL_atomic_t doterminate;
+ 
+ /*
+  * SDL_Quit() shouldn't be used with atexit() directly because
+- *  calling conventions may differ...
++ * calling conventions may differ...
+  */
+ static void
+ SDL_Quit_Wrapper(void)
+@@ -116,7 +116,7 @@ int main(int argc, char *argv[])
+     (void)atexit(printid);
+     for (i = 0; i < maxproc; ++i) {
+         char name[64];
+-        (void)SDL_snprintf(name, sizeof name, "Worker%d", i);
++        (void)SDL_snprintf(name, sizeof(name), "Worker%d", i);
+         threads[i] = SDL_CreateThread(Run, name, NULL);
+         if (threads[i] == NULL) {
+             SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Couldn't create thread!\n");
+diff --git a/test/testoffscreen.c b/test/testoffscreen.c
+index 8335d05b6..fa511e8ce 100644
+--- a/test/testoffscreen.c
++++ b/test/testoffscreen.c
+@@ -116,8 +116,7 @@ int main(int argc, char *argv[])
+                               width, height, 0);
+ 
+     if (window == NULL) {
+-        SDL_Log("Couldn't create window: %s\n",
+-                SDL_GetError());
++        SDL_Log("Couldn't create window: %s\n", SDL_GetError());
+         return SDL_FALSE;
+     }
+ 
+diff --git a/test/testsem.c b/test/testsem.c
+index 072226e91..c0036e882 100644
+--- a/test/testsem.c
++++ b/test/testsem.c
+@@ -76,7 +76,7 @@ TestRealWorld(int init_sem)
+     /* Create all the threads */
+     for (i = 0; i < NUM_THREADS; ++i) {
+         char name[64];
+-        (void)SDL_snprintf(name, sizeof name, "Thread%u", (unsigned int)i);
++        (void)SDL_snprintf(name, sizeof(name), "Thread%u", (unsigned int)i);
+         thread_states[i].number = i;
+         thread_states[i].thread = SDL_CreateThread(ThreadFuncRealWorld, name, (void *)&thread_states[i]);
+     }
+@@ -198,7 +198,7 @@ TestOverheadContended(SDL_bool try_wait)
+     /* Create multiple threads to starve the semaphore and cause contention */
+     for (i = 0; i < NUM_THREADS; ++i) {
+         char name[64];
+-        (void)SDL_snprintf(name, sizeof name, "Thread%u", (unsigned int)i);
++        (void)SDL_snprintf(name, sizeof(name), "Thread%u", (unsigned int)i);
+         thread_states[i].flag = try_wait;
+         thread_states[i].thread = SDL_CreateThread(ThreadFuncOverheadContended, name, (void *)&thread_states[i]);
+     }
+@@ -231,17 +231,17 @@ TestOverheadContended(SDL_bool try_wait)
+             duration, try_wait ? "where contended" : "timed out", content_count,
+             loop_count, ((float)content_count * 100) / loop_count);
+     /* Print how many semaphores where consumed per thread */
+-    (void)SDL_snprintf(textBuffer, sizeof textBuffer, "{ ");
++    (void)SDL_snprintf(textBuffer, sizeof(textBuffer), "{ ");
+     for (i = 0; i < NUM_THREADS; ++i) {
+         if (i > 0) {
+             len = SDL_strlen(textBuffer);
+-            (void)SDL_snprintf(textBuffer + len, sizeof textBuffer - len, ", ");
++            (void)SDL_snprintf(textBuffer + len, sizeof(textBuffer) - len, ", ");
+         }
+         len = SDL_strlen(textBuffer);
+-        (void)SDL_snprintf(textBuffer + len, sizeof textBuffer - len, "%d", thread_states[i].loop_count - thread_states[i].content_count);
++        (void)SDL_snprintf(textBuffer + len, sizeof(textBuffer) - len, "%d", thread_states[i].loop_count - thread_states[i].content_count);
+     }
+     len = SDL_strlen(textBuffer);
+-    (void)SDL_snprintf(textBuffer + len, sizeof textBuffer - len, " }\n");
++    (void)SDL_snprintf(textBuffer + len, sizeof(textBuffer) - len, " }\n");
+     SDL_Log("%s\n", textBuffer);
+ 
+     SDL_DestroySemaphore(sem);
+diff --git a/test/testsensor.c b/test/testsensor.c
+index ad23260be..3da7e015e 100644
+--- a/test/testsensor.c
++++ b/test/testsensor.c
+@@ -28,7 +28,7 @@ static const char *GetSensorTypeString(SDL_SensorType type)
+     case SDL_SENSOR_GYRO:
+         return "SDL_SENSOR_GYRO";
+     default:
+-        (void)SDL_snprintf(unknown_type, sizeof unknown_type, "UNKNOWN (%d)", type);
++        (void)SDL_snprintf(unknown_type, sizeof(unknown_type), "UNKNOWN (%d)", type);
+         return unknown_type;
+     }
+ }
+diff --git a/test/testwm.c b/test/testwm.c
+new file mode 100644
+index 000000000..301f4f74d
+--- /dev/null
++++ b/test/testwm.c
+@@ -0,0 +1,301 @@
++/*
++  Copyright (C) 1997-2023 Sam Lantinga <slouken@libsdl.org>
++
++  This software is provided 'as-is', without any express or implied
++  warranty.  In no event will the authors be held liable for any damages
++  arising from the use of this software.
++
++  Permission is granted to anyone to use this software for any purpose,
++  including commercial applications, and to alter it and redistribute it
++  freely.
++*/
++
++#include <stdlib.h>
++
++#ifdef __EMSCRIPTEN__
++#include <emscripten/emscripten.h>
++#endif
++
++#include <SDL3/SDL_test_common.h>
++#include <SDL3/SDL_test_font.h>
++#include <SDL3/SDL_main.h>
++
++static SDLTest_CommonState *state;
++static int done;
++
++static const char *cursorNames[] = {
++    "arrow",
++    "ibeam",
++    "wait",
++    "crosshair",
++    "waitarrow",
++    "sizeNWSE",
++    "sizeNESW",
++    "sizeWE",
++    "sizeNS",
++    "sizeALL",
++    "NO",
++    "hand",
++};
++static int system_cursor = -1;
++static SDL_Cursor *cursor = NULL;
++static SDL_bool relative_mode = SDL_FALSE;
++static const SDL_DisplayMode *highlighted_mode = NULL;
++
++/* Call this instead of exit(), so we can clean up SDL: atexit() is evil. */
++static void
++quit(int rc)
++{
++    SDLTest_CommonQuit(state);
++    exit(rc);
++}
++
++/* Draws the modes menu, and stores the mode index under the mouse in highlighted_mode */
++static void
++draw_modes_menu(SDL_Window *window, SDL_Renderer *renderer, SDL_FRect viewport)
++{
++    const SDL_DisplayMode **modes;
++    char text[1024];
++    const int lineHeight = 10;
++    int i, j;
++    int column_chars = 0;
++    int text_length;
++    float x, y;
++    float table_top;
++    SDL_FPoint mouse_pos = { -1.0f, -1.0f };
++    SDL_DisplayID *display_ids;
++
++    /* Get mouse position */
++    if (SDL_GetMouseFocus() == window) {
++        float window_x, window_y;
++        float logical_x, logical_y;
++
++        SDL_GetMouseState(&window_x, &window_y);
++        SDL_RenderCoordinatesFromWindow(renderer, window_x, window_y, &logical_x, &logical_y);
++
++        mouse_pos.x = logical_x;
++        mouse_pos.y = logical_y;
++    }
++
++    x = 0.0f;
++    y = viewport.y;
++
++    y += lineHeight;
++
++    SDL_strlcpy(text, "Click on a mode to set it with SDL_SetWindowFullscreenMode", sizeof(text));
++    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
++    SDLTest_DrawString(renderer, x, y, text);
++    y += lineHeight;
++
++    SDL_strlcpy(text, "Press Ctrl+Enter to toggle SDL_WINDOW_FULLSCREEN", sizeof(text));
++    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
++    SDLTest_DrawString(renderer, x, y, text);
++    y += lineHeight;
++
++    table_top = y;
++
++    /* Clear the cached mode under the mouse */
++    if (window == SDL_GetMouseFocus()) {
++        highlighted_mode = NULL;
++    }
++
++    display_ids = SDL_GetDisplays(NULL);
++
++    if (display_ids) {
++        for (i = 0; display_ids[i]; ++i) {
++            const SDL_DisplayID display_id = display_ids[i];
++            modes = SDL_GetFullscreenDisplayModes(display_id, NULL);
++            for (j = 0; modes[j]; ++j) {
++                SDL_FRect cell_rect;
++                const SDL_DisplayMode *mode = modes[j];
++
++                (void)SDL_snprintf(text, sizeof(text), "%s mode %d: %dx%d@%gHz",
++                                   SDL_GetDisplayName(display_id),
++                                   j, mode->pixel_w, mode->pixel_h, mode->refresh_rate);
++
++                /* Update column width */
++                text_length = (int)SDL_strlen(text);
++                column_chars = SDL_max(column_chars, text_length);
++
++                /* Check if under mouse */
++                cell_rect.x = x;
++                cell_rect.y = y;
++                cell_rect.w = (float)(text_length * FONT_CHARACTER_SIZE);
++                cell_rect.h = (float)lineHeight;
++
++                if (SDL_PointInRectFloat(&mouse_pos, &cell_rect)) {
++                    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
++
++                    /* Update cached mode under the mouse */
++                    if (window == SDL_GetMouseFocus()) {
++                        highlighted_mode = mode;
++                    }
++                } else {
++                    SDL_SetRenderDrawColor(renderer, 170, 170, 170, 255);
++                }
++
++                SDLTest_DrawString(renderer, x, y, text);
++                y += lineHeight;
++
++                if ((y + lineHeight) > (viewport.y + viewport.h)) {
++                    /* Advance to next column */
++                    x += (column_chars + 1) * FONT_CHARACTER_SIZE;
++                    y = table_top;
++                    column_chars = 0;
++                }
++            }
++            SDL_free((void *)modes);
++        }
++        SDL_free(display_ids);
++    }
++}
++
++static void loop(void)
++{
++    int i;
++    SDL_Event event;
++    /* Check for events */
++    while (SDL_PollEvent(&event)) {
++        SDLTest_CommonEvent(state, &event, &done);
++
++        if (event.type == SDL_EVENT_WINDOW_RESIZED) {
++            SDL_Window *window = SDL_GetWindowFromID(event.window.windowID);
++            if (window) {
++                SDL_Log("Window %" SDL_PRIu32 " resized to %" SDL_PRIs32 "x%" SDL_PRIs32 "\n",
++                        event.window.windowID,
++                        event.window.data1,
++                        event.window.data2);
++            }
++        }
++        if (event.type == SDL_EVENT_WINDOW_MOVED) {
++            SDL_Window *window = SDL_GetWindowFromID(event.window.windowID);
++            if (window) {
++                SDL_Log("Window %" SDL_PRIu32 " moved to %" SDL_PRIs32 ",%" SDL_PRIs32 " (display %s)\n",
++                        event.window.windowID,
++                        event.window.data1,
++                        event.window.data2,
++                        SDL_GetDisplayName(SDL_GetDisplayForWindow(window)));
++            }
++        }
++        if (event.type == SDL_EVENT_WINDOW_FOCUS_LOST) {
++            relative_mode = SDL_GetRelativeMouseMode();
++            if (relative_mode) {
++                SDL_SetRelativeMouseMode(SDL_FALSE);
++            }
++        }
++        if (event.type == SDL_EVENT_WINDOW_FOCUS_GAINED) {
++            if (relative_mode) {
++                SDL_SetRelativeMouseMode(SDL_TRUE);
++            }
++        }
++        if (event.type == SDL_EVENT_KEY_UP) {
++            SDL_bool updateCursor = SDL_FALSE;
++
++            if (event.key.keysym.sym == SDLK_a) {
++                SDL_assert(!"Keyboard generated assert");
++            } else if (event.key.keysym.sym == SDLK_LEFT) {
++                --system_cursor;
++                if (system_cursor < 0) {
++                    system_cursor = SDL_NUM_SYSTEM_CURSORS - 1;
++                }
++                updateCursor = SDL_TRUE;
++            } else if (event.key.keysym.sym == SDLK_RIGHT) {
++                ++system_cursor;
++                if (system_cursor >= SDL_NUM_SYSTEM_CURSORS) {
++                    system_cursor = 0;
++                }
++                updateCursor = SDL_TRUE;
++            }
++            if (updateCursor) {
++                SDL_Log("Changing cursor to \"%s\"", cursorNames[system_cursor]);
++                SDL_DestroyCursor(cursor);
++                cursor = SDL_CreateSystemCursor((SDL_SystemCursor)system_cursor);
++                SDL_SetCursor(cursor);
++            }
++        }
++        if (event.type == SDL_EVENT_MOUSE_BUTTON_UP) {
++            SDL_Window *window = SDL_GetMouseFocus();
++            if (highlighted_mode != NULL && window != NULL) {
++                SDL_memcpy(&state->fullscreen_mode, highlighted_mode, sizeof(state->fullscreen_mode));
++                SDL_SetWindowFullscreenMode(window, highlighted_mode);
++            }
++        }
++    }
++
++    for (i = 0; i < state->num_windows; ++i) {
++        SDL_Window *window = state->windows[i];
++        SDL_Renderer *renderer = state->renderers[i];
++        if (window != NULL && renderer != NULL) {
++            float y = 0.0f;
++            SDL_Rect viewport;
++            SDL_FRect menurect;
++
++            SDL_GetRenderViewport(renderer, &viewport);
++
++            SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
++            SDL_RenderClear(renderer);
++
++            SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
++            SDLTest_CommonDrawWindowInfo(renderer, state->windows[i], &y);
++
++            menurect.x = 0.0f;
++            menurect.y = y;
++            menurect.w = (float)viewport.w;
++            menurect.h = (float)viewport.h - y;
++            draw_modes_menu(window, renderer, menurect);
++
++            SDL_Delay(16);
++            SDL_RenderPresent(renderer);
++        }
++    }
++#ifdef __EMSCRIPTEN__
++    if (done) {
++        emscripten_cancel_main_loop();
++    }
++#endif
++}
++
++int main(int argc, char *argv[])
++{
++    int i;
++
++    /* Enable standard application logging */
++    SDL_LogSetPriority(SDL_LOG_CATEGORY_APPLICATION, SDL_LOG_PRIORITY_INFO);
++
++    SDL_assert(SDL_arraysize(cursorNames) == SDL_NUM_SYSTEM_CURSORS);
++
++    /* Initialize test framework */
++    state = SDLTest_CommonCreateState(argv, SDL_INIT_VIDEO);
++    if (state == NULL) {
++        return 1;
++    }
++
++    if (!SDLTest_CommonDefaultArgs(state, argc, argv) || !SDLTest_CommonInit(state)) {
++        SDLTest_CommonQuit(state);
++        return 1;
++    }
++
++    SDL_SetEventEnabled(SDL_EVENT_DROP_FILE, SDL_TRUE);
++    SDL_SetEventEnabled(SDL_EVENT_DROP_TEXT, SDL_TRUE);
++
++    for (i = 0; i < state->num_windows; ++i) {
++        SDL_Renderer *renderer = state->renderers[i];
++        SDL_SetRenderDrawColor(renderer, 0xA0, 0xA0, 0xA0, 0xFF);
++        SDL_RenderClear(renderer);
++    }
++
++    /* Main render loop */
++    done = 0;
++#ifdef __EMSCRIPTEN__
++    emscripten_set_main_loop(loop, 0, 1);
++#else
++    while (!done) {
++        loop();
++    }
++#endif
++    SDL_DestroyCursor(cursor);
++
++    quit(0);
++    /* keep the compiler happy ... */
++    return 0;
++}
+diff --git a/test/testyuv.c b/test/testyuv.c
+index ee668bc5a..e7373a8b1 100644
+--- a/test/testyuv.c
++++ b/test/testyuv.c
+@@ -436,7 +436,7 @@ int main(int argc, char **argv)
+             if (current == 0) {
+                 SDLTest_DrawString(renderer, 4, 4, titles[current]);
+             } else {
+-                (void)SDL_snprintf(title, sizeof title, "%s %s %s", titles[current], yuv_name, yuv_mode);
++                (void)SDL_snprintf(title, sizeof(title), "%s %s %s", titles[current], yuv_name, yuv_mode);
+                 SDLTest_DrawString(renderer, 4, 4, title);
+             }
+             SDL_RenderPresent(renderer);
+diff --git a/test/torturethread.c b/test/torturethread.c
+index d3d967c09..1976800f0 100644
+--- a/test/torturethread.c
++++ b/test/torturethread.c
+@@ -52,7 +52,7 @@ ThreadFunc(void *data)
+ 
+     for (i = 0; i < NUMTHREADS; i++) {
+         char name[64];
+-        (void)SDL_snprintf(name, sizeof name, "Child%d_%d", tid, i);
++        (void)SDL_snprintf(name, sizeof(name), "Child%d_%d", tid, i);
+         flags[i] = 0;
+         sub_threads[i] = SDL_CreateThread(SubThreadFunc, name, &flags[i]);
+     }
+@@ -90,7 +90,7 @@ int main(int argc, char *argv[])
+     (void)signal(SIGSEGV, SIG_DFL);
+     for (i = 0; i < NUMTHREADS; i++) {
+         char name[64];
+-        (void)SDL_snprintf(name, sizeof name, "Parent%d", i);
++        (void)SDL_snprintf(name, sizeof(name), "Parent%d", i);
+         SDL_AtomicSet(&time_for_threads_to_die[i], 0);
+         threads[i] = SDL_CreateThread(ThreadFunc, name, (void *)(uintptr_t)i);
+ 
+-- 
+2.17.1
+

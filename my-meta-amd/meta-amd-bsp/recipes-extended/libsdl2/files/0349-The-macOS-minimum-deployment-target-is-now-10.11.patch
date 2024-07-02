@@ -1,0 +1,37 @@
+From 51dcc3bb0b8363b4055a5eed775e8f030fbb158c Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Wed, 5 Apr 2023 11:37:27 -0700
+Subject: [PATCH 349/458] The macOS minimum deployment target is now 10.11
+
+Xcode 14.3 does not allow targeting 10.9, the minimum recommended version is 10.13 and the minimum possible version is 10.11.
+
+(cherry picked from commit 73b2faea4e39aa27b4142f9d4d39f5807a3b3688)
+---
+ Xcode/SDL/SDL.xcodeproj/project.pbxproj | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/Xcode/SDL/SDL.xcodeproj/project.pbxproj b/Xcode/SDL/SDL.xcodeproj/project.pbxproj
+index 202dcc218..d25af806e 100644
+--- a/Xcode/SDL/SDL.xcodeproj/project.pbxproj
++++ b/Xcode/SDL/SDL.xcodeproj/project.pbxproj
+@@ -9558,7 +9558,7 @@
+ 					"@executable_path/Frameworks",
+ 					"@loader_path/Frameworks",
+ 				);
+-				MACOSX_DEPLOYMENT_TARGET = 10.9;
++				MACOSX_DEPLOYMENT_TARGET = 10.11;
+ 				PRODUCT_BUNDLE_IDENTIFIER = org.libsdl.SDL2;
+ 				PRODUCT_NAME = SDL2;
+ 				STRIP_STYLE = "non-global";
+@@ -9643,7 +9643,7 @@
+ 					"@executable_path/Frameworks",
+ 					"@loader_path/Frameworks",
+ 				);
+-				MACOSX_DEPLOYMENT_TARGET = 10.9;
++				MACOSX_DEPLOYMENT_TARGET = 10.11;
+ 				ONLY_ACTIVE_ARCH = NO;
+ 				PRODUCT_BUNDLE_IDENTIFIER = org.libsdl.SDL2;
+ 				PRODUCT_NAME = SDL2;
+-- 
+2.17.1
+

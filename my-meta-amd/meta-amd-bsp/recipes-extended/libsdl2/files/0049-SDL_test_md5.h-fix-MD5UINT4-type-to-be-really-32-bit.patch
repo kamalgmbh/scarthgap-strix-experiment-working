@@ -1,0 +1,27 @@
+From 8eeca8c7db323d82ec257db9886e2ba16c0c892a Mon Sep 17 00:00:00 2001
+From: Ozkan Sezer <sezeroz@gmail.com>
+Date: Tue, 29 Nov 2022 08:56:32 +0300
+Subject: [PATCH 049/458] SDL_test_md5.h: fix MD5UINT4 type to be really 32
+ bits.
+
+(cherry picked from commit 8901297437ed9ced67e6029a1d525e8052275b7c)
+---
+ include/SDL_test_md5.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/include/SDL_test_md5.h b/include/SDL_test_md5.h
+index 17b1d2be7..5d4c2e679 100644
+--- a/include/SDL_test_md5.h
++++ b/include/SDL_test_md5.h
+@@ -65,7 +65,7 @@ extern "C" {
+ /* ------------ Definitions --------- */
+ 
+ /* typedef a 32-bit type */
+-  typedef unsigned long int MD5UINT4;
++  typedef Uint32 MD5UINT4;
+ 
+ /* Data structure for MD5 (Message-Digest) computation */
+   typedef struct {
+-- 
+2.17.1
+

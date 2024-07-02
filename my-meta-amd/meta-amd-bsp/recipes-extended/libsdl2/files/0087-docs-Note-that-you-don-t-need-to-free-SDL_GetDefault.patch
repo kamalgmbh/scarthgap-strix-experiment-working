@@ -1,0 +1,30 @@
+From 4bae75387aa13154777801ebf3e730b91887c245 Mon Sep 17 00:00:00 2001
+From: "Ryan C. Gordon" <icculus@icculus.org>
+Date: Fri, 9 Dec 2022 22:07:22 -0500
+Subject: [PATCH 087/458] docs: Note that you don't need to free
+ SDL_GetDefaultCursor's results.
+
+Reference Issue #6777.
+
+(cherry picked from commit 16f8dfcef944019ce4474061aa06c2a1997e601e)
+---
+ include/SDL_mouse.h | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/include/SDL_mouse.h b/include/SDL_mouse.h
+index b318c7038..6a276a128 100644
+--- a/include/SDL_mouse.h
++++ b/include/SDL_mouse.h
+@@ -389,6 +389,9 @@ extern DECLSPEC SDL_Cursor *SDLCALL SDL_GetCursor(void);
+ /**
+  * Get the default cursor.
+  *
++ * You do not have to call SDL_FreeCursor() on the return value,
++ * but it is safe to do so.
++ *
+  * \returns the default cursor on success or NULL on failure.
+  *
+  * \since This function is available since SDL 2.0.0.
+-- 
+2.17.1
+

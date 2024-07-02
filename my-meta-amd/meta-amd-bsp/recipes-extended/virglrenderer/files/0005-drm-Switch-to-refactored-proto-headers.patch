@@ -1,0 +1,586 @@
+From 98d81921b8467fb0c9ebe89dd66625366cac12b7 Mon Sep 17 00:00:00 2001
+From: Rob Clark <robdclark@chromium.org>
+Date: Tue, 23 Jan 2024 13:47:28 -0800
+Subject: [PATCH 05/16] drm: Switch to refactored proto headers
+
+https://gitlab.freedesktop.org/mesa/mesa/-/commit/b90244776added6cfce76e68d37e142607e09040
+extracted some common vdrm structs, for things that ended up identical
+for intel and amd.  This commit makes the same change on the
+virglrenderer side.
+
+Signed-off-by: Rob Clark <robdclark@chromium.org>
+---
+ src/drm/msm/msm_proto.h    | 102 ++++++++++---------------------------
+ src/drm/msm/msm_renderer.c |  53 +++++++++----------
+ src/drm_hw.h               |  62 ++++++++++++++++++++++
+ 3 files changed, 117 insertions(+), 100 deletions(-)
+
+diff --git a/src/drm/msm/msm_proto.h b/src/drm/msm/msm_proto.h
+index b5138e4d..ba66ab9d 100644
+--- a/src/drm/msm/msm_proto.h
++++ b/src/drm/msm/msm_proto.h
+@@ -23,31 +23,7 @@
+  * Defines the layout of shmem buffer used for host->guest communication.
+  */
+ struct msm_shmem {
+-   /**
+-    * The sequence # of last cmd processed by the host
+-    */
+-   uint32_t seqno;
+-
+-   /**
+-    * Offset to the start of rsp memory region in the shmem buffer.  This
+-    * is set by the host when the shmem buffer is allocated, to allow for
+-    * extending the shmem buffer with new fields.  The size of the rsp
+-    * memory region is the size of the shmem buffer (controlled by the
+-    * guest) minus rsp_mem_offset.
+-    *
+-    * The guest should use the msm_shmem_has_field() macro to determine
+-    * if the host supports a given field, ie. to handle compatibility of
+-    * newer guest vs older host.
+-    *
+-    * Making the guest userspace responsible for backwards compatibility
+-    * simplifies the host VMM.
+-    */
+-   uint32_t rsp_mem_offset;
+-
+-#define msm_shmem_has_field(shmem, field) ({                         \
+-      struct msm_shmem *_shmem = (shmem);                            \
+-      (_shmem->rsp_mem_offset > offsetof(struct msm_shmem, field));  \
+-   })
++   struct vdrm_shmem base;
+ 
+    /**
+     * Counter that is incremented on asynchronous errors, like SUBMIT
+@@ -61,12 +37,7 @@ struct msm_shmem {
+     */
+    uint32_t global_faults;
+ };
+-
+-#define DEFINE_CAST(parent, child)                                             \
+-   static inline struct child *to_##child(const struct parent *x)              \
+-   {                                                                           \
+-      return (struct child *)x;                                                \
+-   }
++DEFINE_CAST(vdrm_shmem, msm_shmem)
+ 
+ /*
+  * Possible cmd types for "command stream", ie. payload of EXECBUF ioctl:
+@@ -86,30 +57,13 @@ enum msm_ccmd {
+    MSM_CCMD_LAST,
+ };
+ 
+-struct msm_ccmd_req {
+-   uint32_t cmd;
+-   uint32_t len;
+-   uint32_t seqno;
+-
+-   /* Offset into shmem ctrl buffer to write response.  The host ensures
+-    * that it doesn't write outside the bounds of the ctrl buffer, but
+-    * otherwise it is up to the guest to manage allocation of where responses
+-    * should be written in the ctrl buf.
+-    */
+-   uint32_t rsp_off;
+-};
+-
+-struct msm_ccmd_rsp {
+-   uint32_t len;
+-};
+-
+ #ifdef __cplusplus
+ #define MSM_CCMD(_cmd, _len) {                      \
+        .cmd = MSM_CCMD_##_cmd,                      \
+        .len = (_len),                               \
+    }
+ #else
+-#define MSM_CCMD(_cmd, _len) (struct msm_ccmd_req){ \
++#define MSM_CCMD(_cmd, _len) (struct vdrm_ccmd_req){ \
+        .cmd = MSM_CCMD_##_cmd,                      \
+        .len = (_len),                               \
+    }
+@@ -119,7 +73,7 @@ struct msm_ccmd_rsp {
+  * MSM_CCMD_NOP
+  */
+ struct msm_ccmd_nop_req {
+-   struct msm_ccmd_req hdr;
++   struct vdrm_ccmd_req hdr;
+ };
+ 
+ /*
+@@ -128,15 +82,15 @@ struct msm_ccmd_nop_req {
+  * Forward simple/flat IOC_RW or IOC_W ioctls.  Limited ioctls are supported.
+  */
+ struct msm_ccmd_ioctl_simple_req {
+-   struct msm_ccmd_req hdr;
++   struct vdrm_ccmd_req hdr;
+ 
+    uint32_t cmd;
+    uint8_t payload[];
+ };
+-DEFINE_CAST(msm_ccmd_req, msm_ccmd_ioctl_simple_req)
++DEFINE_CAST(vdrm_ccmd_req, msm_ccmd_ioctl_simple_req)
+ 
+ struct msm_ccmd_ioctl_simple_rsp {
+-   struct msm_ccmd_rsp hdr;
++   struct vdrm_ccmd_rsp hdr;
+ 
+    /* ioctl return value, interrupted syscalls are handled on the host without
+     * returning to the guest.
+@@ -160,14 +114,14 @@ struct msm_ccmd_ioctl_simple_rsp {
+  * No response.
+  */
+ struct msm_ccmd_gem_new_req {
+-   struct msm_ccmd_req hdr;
++   struct vdrm_ccmd_req hdr;
+ 
+    uint64_t iova;
+    uint64_t size;
+    uint32_t flags;
+    uint32_t blob_id;
+ };
+-DEFINE_CAST(msm_ccmd_req, msm_ccmd_gem_new_req)
++DEFINE_CAST(vdrm_ccmd_req, msm_ccmd_gem_new_req)
+ 
+ /*
+  * MSM_CCMD_GEM_SET_IOVA
+@@ -176,12 +130,12 @@ DEFINE_CAST(msm_ccmd_req, msm_ccmd_gem_new_req)
+  * (by setting it to zero) when a BO is freed.
+  */
+ struct msm_ccmd_gem_set_iova_req {
+-   struct msm_ccmd_req hdr;
++   struct vdrm_ccmd_req hdr;
+ 
+    uint64_t iova;
+    uint32_t res_id;
+ };
+-DEFINE_CAST(msm_ccmd_req, msm_ccmd_gem_set_iova_req)
++DEFINE_CAST(vdrm_ccmd_req, msm_ccmd_gem_set_iova_req)
+ 
+ /*
+  * MSM_CCMD_GEM_CPU_PREP
+@@ -193,15 +147,15 @@ DEFINE_CAST(msm_ccmd_req, msm_ccmd_gem_set_iova_req)
+  * should poll if needed.
+  */
+ struct msm_ccmd_gem_cpu_prep_req {
+-   struct msm_ccmd_req hdr;
++   struct vdrm_ccmd_req hdr;
+ 
+    uint32_t res_id;
+    uint32_t op;
+ };
+-DEFINE_CAST(msm_ccmd_req, msm_ccmd_gem_cpu_prep_req)
++DEFINE_CAST(vdrm_ccmd_req, msm_ccmd_gem_cpu_prep_req)
+ 
+ struct msm_ccmd_gem_cpu_prep_rsp {
+-   struct msm_ccmd_rsp hdr;
++   struct vdrm_ccmd_rsp hdr;
+ 
+    int32_t ret;
+ };
+@@ -214,7 +168,7 @@ struct msm_ccmd_gem_cpu_prep_rsp {
+  * No response.
+  */
+ struct msm_ccmd_gem_set_name_req {
+-   struct msm_ccmd_req hdr;
++   struct vdrm_ccmd_req hdr;
+ 
+    uint32_t res_id;
+    /* Note: packet size aligned to 4 bytes, so the string name may
+@@ -223,7 +177,7 @@ struct msm_ccmd_gem_set_name_req {
+    uint32_t len;
+    uint8_t  payload[];
+ };
+-DEFINE_CAST(msm_ccmd_req, msm_ccmd_gem_set_name_req)
++DEFINE_CAST(vdrm_ccmd_req, msm_ccmd_gem_set_name_req)
+ 
+ /*
+  * MSM_CCMD_GEM_SUBMIT
+@@ -241,7 +195,7 @@ DEFINE_CAST(msm_ccmd_req, msm_ccmd_gem_set_name_req)
+  * No response.
+  */
+ struct msm_ccmd_gem_submit_req {
+-   struct msm_ccmd_req hdr;
++   struct vdrm_ccmd_req hdr;
+ 
+    uint32_t flags;
+    uint32_t queue_id;
+@@ -265,7 +219,7 @@ struct msm_ccmd_gem_submit_req {
+     */
+    int8_t   payload[];
+ };
+-DEFINE_CAST(msm_ccmd_req, msm_ccmd_gem_submit_req)
++DEFINE_CAST(vdrm_ccmd_req, msm_ccmd_gem_submit_req)
+ 
+ /*
+  * MSM_CCMD_GEM_UPLOAD
+@@ -275,7 +229,7 @@ DEFINE_CAST(msm_ccmd_req, msm_ccmd_gem_submit_req)
+  * No response.
+  */
+ struct msm_ccmd_gem_upload_req {
+-   struct msm_ccmd_req hdr;
++   struct vdrm_ccmd_req hdr;
+ 
+    uint32_t res_id;
+    uint32_t pad;
+@@ -287,7 +241,7 @@ struct msm_ccmd_gem_upload_req {
+    uint32_t len;
+    uint8_t  payload[];
+ };
+-DEFINE_CAST(msm_ccmd_req, msm_ccmd_gem_upload_req)
++DEFINE_CAST(vdrm_ccmd_req, msm_ccmd_gem_upload_req)
+ 
+ /*
+  * MSM_CCMD_SUBMITQUEUE_QUERY
+@@ -295,16 +249,16 @@ DEFINE_CAST(msm_ccmd_req, msm_ccmd_gem_upload_req)
+  * Maps to DRM_MSM_SUBMITQUEUE_QUERY
+  */
+ struct msm_ccmd_submitqueue_query_req {
+-   struct msm_ccmd_req hdr;
++   struct vdrm_ccmd_req hdr;
+ 
+    uint32_t queue_id;
+    uint32_t param;
+    uint32_t len;   /* size of payload in rsp */
+ };
+-DEFINE_CAST(msm_ccmd_req, msm_ccmd_submitqueue_query_req)
++DEFINE_CAST(vdrm_ccmd_req, msm_ccmd_submitqueue_query_req)
+ 
+ struct msm_ccmd_submitqueue_query_rsp {
+-   struct msm_ccmd_rsp hdr;
++   struct vdrm_ccmd_rsp hdr;
+ 
+    int32_t  ret;
+    uint32_t out_len;
+@@ -321,15 +275,15 @@ struct msm_ccmd_submitqueue_query_rsp {
+  * should poll if needed.
+  */
+ struct msm_ccmd_wait_fence_req {
+-   struct msm_ccmd_req hdr;
++   struct vdrm_ccmd_req hdr;
+ 
+    uint32_t queue_id;
+    uint32_t fence;
+ };
+-DEFINE_CAST(msm_ccmd_req, msm_ccmd_wait_fence_req)
++DEFINE_CAST(vdrm_ccmd_req, msm_ccmd_wait_fence_req)
+ 
+ struct msm_ccmd_wait_fence_rsp {
+-   struct msm_ccmd_rsp hdr;
++   struct vdrm_ccmd_rsp hdr;
+ 
+    int32_t ret;
+ };
+@@ -346,7 +300,7 @@ struct msm_ccmd_wait_fence_rsp {
+  * No response.
+  */
+ struct msm_ccmd_set_debuginfo_req {
+-   struct msm_ccmd_req hdr;
++   struct vdrm_ccmd_req hdr;
+ 
+    uint32_t comm_len;
+    uint32_t cmdline_len;
+@@ -357,6 +311,6 @@ struct msm_ccmd_set_debuginfo_req {
+     */
+    int8_t   payload[];
+ };
+-DEFINE_CAST(msm_ccmd_req, msm_ccmd_set_debuginfo_req)
++DEFINE_CAST(vdrm_ccmd_req, msm_ccmd_set_debuginfo_req)
+ 
+ #endif /* MSM_PROTO_H_ */
+diff --git a/src/drm/msm/msm_renderer.c b/src/drm/msm/msm_renderer.c
+index 1b230a9f..5133672f 100644
+--- a/src/drm/msm/msm_renderer.c
++++ b/src/drm/msm/msm_renderer.c
+@@ -26,6 +26,7 @@
+ #include "util/u_thread.h"
+ 
+ #include "drm_fence.h"
++#include "drm_hw.h"
+ 
+ #include "msm_drm.h"
+ #include "msm_proto.h"
+@@ -62,7 +63,7 @@ struct msm_context {
+    uint8_t *rsp_mem;
+    uint32_t rsp_mem_sz;
+ 
+-   struct msm_ccmd_rsp *current_rsp;
++   struct vdrm_ccmd_rsp *current_rsp;
+ 
+    int fd;
+ 
+@@ -327,7 +328,7 @@ msm_renderer_unmap_blob(struct msm_context *mctx)
+    if (!mctx->shmem)
+       return;
+ 
+-   uint32_t blob_size = mctx->rsp_mem_sz + mctx->shmem->rsp_mem_offset;
++   uint32_t blob_size = mctx->rsp_mem_sz + mctx->shmem->base.rsp_mem_offset;
+ 
+    munmap(mctx->shmem, blob_size);
+ 
+@@ -533,11 +534,11 @@ msm_renderer_get_blob(struct virgl_context *vctx, uint32_t res_id, uint64_t blob
+          return -ENOMEM;
+       }
+ 
+-      mctx->shmem->rsp_mem_offset = sizeof(*mctx->shmem);
++      mctx->shmem->base.rsp_mem_offset = sizeof(*mctx->shmem);
+ 
+       uint8_t *ptr = (uint8_t *)mctx->shmem;
+-      mctx->rsp_mem = &ptr[mctx->shmem->rsp_mem_offset];
+-      mctx->rsp_mem_sz = blob_size - mctx->shmem->rsp_mem_offset;
++      mctx->rsp_mem = &ptr[mctx->shmem->base.rsp_mem_offset];
++      mctx->rsp_mem_sz = blob_size - mctx->shmem->base.rsp_mem_offset;
+ 
+       blob->type = VIRGL_RESOURCE_FD_SHM;
+       blob->u.fd = fd;
+@@ -608,13 +609,13 @@ msm_renderer_get_blob(struct virgl_context *vctx, uint32_t res_id, uint64_t blob
+ }
+ 
+ static void *
+-msm_context_rsp_noshadow(struct msm_context *mctx, const struct msm_ccmd_req *hdr)
++msm_context_rsp_noshadow(struct msm_context *mctx, const struct vdrm_ccmd_req *hdr)
+ {
+    return &mctx->rsp_mem[hdr->rsp_off];
+ }
+ 
+ static void *
+-msm_context_rsp(struct msm_context *mctx, const struct msm_ccmd_req *hdr, unsigned len)
++msm_context_rsp(struct msm_context *mctx, const struct vdrm_ccmd_req *hdr, unsigned len)
+ {
+    unsigned rsp_mem_sz = mctx->rsp_mem_sz;
+    unsigned off = hdr->rsp_off;
+@@ -624,7 +625,7 @@ msm_context_rsp(struct msm_context *mctx, const struct msm_ccmd_req *hdr, unsign
+       return NULL;
+    }
+ 
+-   struct msm_ccmd_rsp *rsp = msm_context_rsp_noshadow(mctx, hdr);
++   struct vdrm_ccmd_rsp *rsp = msm_context_rsp_noshadow(mctx, hdr);
+ 
+    assert(len >= sizeof(*rsp));
+ 
+@@ -646,13 +647,13 @@ msm_context_rsp(struct msm_context *mctx, const struct msm_ccmd_req *hdr, unsign
+ }
+ 
+ static int
+-msm_ccmd_nop(UNUSED struct msm_context *mctx, UNUSED const struct msm_ccmd_req *hdr)
++msm_ccmd_nop(UNUSED struct msm_context *mctx, UNUSED const struct vdrm_ccmd_req *hdr)
+ {
+    return 0;
+ }
+ 
+ static int
+-msm_ccmd_ioctl_simple(struct msm_context *mctx, const struct msm_ccmd_req *hdr)
++msm_ccmd_ioctl_simple(struct msm_context *mctx, const struct vdrm_ccmd_req *hdr)
+ {
+    const struct msm_ccmd_ioctl_simple_req *req = to_msm_ccmd_ioctl_simple_req(hdr);
+    unsigned payload_len = _IOC_SIZE(req->cmd);
+@@ -716,7 +717,7 @@ msm_ccmd_ioctl_simple(struct msm_context *mctx, const struct msm_ccmd_req *hdr)
+ }
+ 
+ static int
+-msm_ccmd_gem_new(struct msm_context *mctx, const struct msm_ccmd_req *hdr)
++msm_ccmd_gem_new(struct msm_context *mctx, const struct vdrm_ccmd_req *hdr)
+ {
+    const struct msm_ccmd_gem_new_req *req = to_msm_ccmd_gem_new_req(hdr);
+    int ret = 0;
+@@ -778,7 +779,7 @@ out_error:
+ }
+ 
+ static int
+-msm_ccmd_gem_set_iova(struct msm_context *mctx, const struct msm_ccmd_req *hdr)
++msm_ccmd_gem_set_iova(struct msm_context *mctx, const struct vdrm_ccmd_req *hdr)
+ {
+    const struct msm_ccmd_gem_set_iova_req *req = to_msm_ccmd_gem_set_iova_req(hdr);
+    struct msm_object *obj = msm_get_object_from_res_id(mctx, req->res_id);
+@@ -815,7 +816,7 @@ out_error:
+ }
+ 
+ static int
+-msm_ccmd_gem_cpu_prep(struct msm_context *mctx, const struct msm_ccmd_req *hdr)
++msm_ccmd_gem_cpu_prep(struct msm_context *mctx, const struct vdrm_ccmd_req *hdr)
+ {
+    const struct msm_ccmd_gem_cpu_prep_req *req = to_msm_ccmd_gem_cpu_prep_req(hdr);
+    struct msm_ccmd_gem_cpu_prep_rsp *rsp = msm_context_rsp(mctx, hdr, sizeof(*rsp));
+@@ -837,7 +838,7 @@ msm_ccmd_gem_cpu_prep(struct msm_context *mctx, const struct msm_ccmd_req *hdr)
+ }
+ 
+ static int
+-msm_ccmd_gem_set_name(struct msm_context *mctx, const struct msm_ccmd_req *hdr)
++msm_ccmd_gem_set_name(struct msm_context *mctx, const struct vdrm_ccmd_req *hdr)
+ {
+    const struct msm_ccmd_gem_set_name_req *req = to_msm_ccmd_gem_set_name_req(hdr);
+ 
+@@ -880,7 +881,7 @@ msm_dump_submit(struct drm_msm_gem_submit *req)
+ }
+ 
+ static int
+-msm_ccmd_gem_submit(struct msm_context *mctx, const struct msm_ccmd_req *hdr)
++msm_ccmd_gem_submit(struct msm_context *mctx, const struct vdrm_ccmd_req *hdr)
+ {
+    const struct msm_ccmd_gem_submit_req *req = to_msm_ccmd_gem_submit_req(hdr);
+ 
+@@ -991,7 +992,7 @@ map_object(struct msm_context *mctx, struct msm_object *obj)
+ }
+ 
+ static int
+-msm_ccmd_gem_upload(struct msm_context *mctx, const struct msm_ccmd_req *hdr)
++msm_ccmd_gem_upload(struct msm_context *mctx, const struct vdrm_ccmd_req *hdr)
+ {
+    const struct msm_ccmd_gem_upload_req *req = to_msm_ccmd_gem_upload_req(hdr);
+    int ret;
+@@ -1017,7 +1018,7 @@ msm_ccmd_gem_upload(struct msm_context *mctx, const struct msm_ccmd_req *hdr)
+ }
+ 
+ static int
+-msm_ccmd_submitqueue_query(struct msm_context *mctx, const struct msm_ccmd_req *hdr)
++msm_ccmd_submitqueue_query(struct msm_context *mctx, const struct vdrm_ccmd_req *hdr)
+ {
+    const struct msm_ccmd_submitqueue_query_req *req =
+       to_msm_ccmd_submitqueue_query_req(hdr);
+@@ -1043,7 +1044,7 @@ msm_ccmd_submitqueue_query(struct msm_context *mctx, const struct msm_ccmd_req *
+ }
+ 
+ static int
+-msm_ccmd_wait_fence(struct msm_context *mctx, const struct msm_ccmd_req *hdr)
++msm_ccmd_wait_fence(struct msm_context *mctx, const struct vdrm_ccmd_req *hdr)
+ {
+    const struct msm_ccmd_wait_fence_req *req = to_msm_ccmd_wait_fence_req(hdr);
+    struct msm_ccmd_wait_fence_rsp *rsp = msm_context_rsp(mctx, hdr, sizeof(*rsp));
+@@ -1073,7 +1074,7 @@ msm_ccmd_wait_fence(struct msm_context *mctx, const struct msm_ccmd_req *hdr)
+ }
+ 
+ static int
+-msm_ccmd_set_debuginfo(struct msm_context *mctx, const struct msm_ccmd_req *hdr)
++msm_ccmd_set_debuginfo(struct msm_context *mctx, const struct vdrm_ccmd_req *hdr)
+ {
+    const struct msm_ccmd_set_debuginfo_req *req = to_msm_ccmd_set_debuginfo_req(hdr);
+ 
+@@ -1109,7 +1110,7 @@ msm_ccmd_set_debuginfo(struct msm_context *mctx, const struct msm_ccmd_req *hdr)
+ 
+ static const struct ccmd {
+    const char *name;
+-   int (*handler)(struct msm_context *mctx, const struct msm_ccmd_req *hdr);
++   int (*handler)(struct msm_context *mctx, const struct vdrm_ccmd_req *hdr);
+    size_t size;
+ } ccmd_dispatch[] = {
+ #define HANDLER(N, n)                                                                    \
+@@ -1128,7 +1129,7 @@ static const struct ccmd {
+ };
+ 
+ static int
+-submit_cmd_dispatch(struct msm_context *mctx, const struct msm_ccmd_req *hdr)
++submit_cmd_dispatch(struct msm_context *mctx, const struct vdrm_ccmd_req *hdr)
+ {
+    int ret;
+ 
+@@ -1159,7 +1160,7 @@ submit_cmd_dispatch(struct msm_context *mctx, const struct msm_ccmd_req *hdr)
+       memcpy(&buf[0], hdr, hdr->len);
+       memset(&buf[hdr->len], 0, ccmd->size - hdr->len);
+ 
+-      ret = ccmd->handler(mctx, (struct msm_ccmd_req *)buf);
++      ret = ccmd->handler(mctx, (struct vdrm_ccmd_req *)buf);
+    } else {
+       ret = ccmd->handler(mctx, hdr);
+    }
+@@ -1176,7 +1177,7 @@ submit_cmd_dispatch(struct msm_context *mctx, const struct msm_ccmd_req *hdr)
+     * copy is used, and we need to copy back to the actual rsp
+     * buffer.
+     */
+-   struct msm_ccmd_rsp *rsp = msm_context_rsp_noshadow(mctx, hdr);
++   struct vdrm_ccmd_rsp *rsp = msm_context_rsp_noshadow(mctx, hdr);
+    if (mctx->current_rsp && (mctx->current_rsp != rsp)) {
+       unsigned len = rsp->len;
+       memcpy(rsp, mctx->current_rsp, len);
+@@ -1195,7 +1196,7 @@ submit_cmd_dispatch(struct msm_context *mctx, const struct msm_ccmd_req *hdr)
+        * could just use p_atomic_set.
+        */
+       uint32_t seqno = hdr->seqno;
+-      p_atomic_xchg(&mctx->shmem->seqno, seqno);
++      p_atomic_xchg(&mctx->shmem->base.seqno, seqno);
+    }
+ 
+    return 0;
+@@ -1207,8 +1208,8 @@ msm_renderer_submit_cmd(struct virgl_context *vctx, const void *_buffer, size_t
+    struct msm_context *mctx = to_msm_context(vctx);
+    const uint8_t *buffer = _buffer;
+ 
+-   while (size >= sizeof(struct msm_ccmd_req)) {
+-      const struct msm_ccmd_req *hdr = (const struct msm_ccmd_req *)buffer;
++   while (size >= sizeof(struct vdrm_ccmd_req)) {
++      const struct vdrm_ccmd_req *hdr = (const struct vdrm_ccmd_req *)buffer;
+ 
+       /* Sanity check first: */
+       if ((hdr->len > size) || (hdr->len < sizeof(*hdr)) || (hdr->len % 4)) {
+diff --git a/src/drm_hw.h b/src/drm_hw.h
+index eb17d753..45a2f4f4 100644
+--- a/src/drm_hw.h
++++ b/src/drm_hw.h
+@@ -30,4 +30,66 @@ struct virgl_renderer_capset_drm {
+    } u;
+ };
+ 
++/**
++ * Defines the layout of shmem buffer used for host->guest communication.
++ */
++struct vdrm_shmem {
++   /**
++    * The sequence # of last cmd processed by the host
++    */
++   uint32_t seqno;
++
++   /**
++    * Offset to the start of rsp memory region in the shmem buffer.  This
++    * is set by the host when the shmem buffer is allocated, to allow for
++    * extending the shmem buffer with new fields.  The size of the rsp
++    * memory region is the size of the shmem buffer (controlled by the
++    * guest) minus rsp_mem_offset.
++    *
++    * The guest should use the vdrm_shmem_has_field() macro to determine
++    * if the host supports a given field, ie. to handle compatibility of
++    * newer guest vs older host.
++    *
++    * Making the guest userspace responsible for backwards compatibility
++    * simplifies the host VMM.
++    */
++   uint32_t rsp_mem_offset;
++
++#define vdrm_shmem_has_field(shmem, field) ({                             \
++      struct vdrm_shmem *_shmem = &(shmem)->base;                         \
++      (_shmem->rsp_mem_offset > offsetof(__typeof__(*(shmem)), field));   \
++   })
++};
++
++/**
++ * A Guest -> Host request header.
++ */
++struct vdrm_ccmd_req {
++   uint32_t cmd;
++   uint32_t len;
++   uint32_t seqno;
++
++   /* Offset into shmem ctrl buffer to write response.  The host ensures
++    * that it doesn't write outside the bounds of the ctrl buffer, but
++    * otherwise it is up to the guest to manage allocation of where responses
++    * should be written in the ctrl buf.
++    *
++    * Only applicable for cmds that have a response message.
++    */
++   uint32_t rsp_off;
++};
++
++/**
++ * A Guest <- Host response header.
++ */
++struct vdrm_ccmd_rsp {
++   uint32_t len;
++};
++
++#define DEFINE_CAST(parent, child)                                             \
++   static inline struct child *to_##child(const struct parent *x)              \
++   {                                                                           \
++      return (struct child *)x;                                                \
++   }
++
+ #endif /* DRM_HW_H_ */
+-- 
+2.17.1
+

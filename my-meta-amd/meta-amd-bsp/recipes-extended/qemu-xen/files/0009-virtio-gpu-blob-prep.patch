@@ -1,0 +1,118 @@
+From ab0ab025c558ea8b27ac76d46fcca636b2ebe784 Mon Sep 17 00:00:00 2001
+From: Antonio Caggiano <antonio.caggiano@collabora.com>
+Date: Sun, 12 Mar 2023 17:22:29 +0800
+Subject: [PATCH 09/70] virtio-gpu: blob prep
+
+This adds preparatory functions needed to:
+
+     - decode blob cmds
+     - tracking iovecs
+
+Signed-off-by: Antonio Caggiano <antonio.caggiano@collabora.com>
+Signed-off-by: Dmitry Osipenko <dmitry.osipenko@collabora.com>
+Signed-off-by: Gurchetan Singh <gurchetansingh@chromium.org>
+Tested-by: Alyssa Ross <hi@alyssa.is>
+Tested-by: Emmanouil Pitsidianakis <manos.pitsidianakis@linaro.org>
+Tested-by: Akihiko Odaki <akihiko.odaki@daynix.com>
+Tested-by: Huang Rui <ray.huang@amd.com>
+Acked-by: Huang Rui <ray.huang@amd.com>
+Reviewed-by: Emmanouil Pitsidianakis <manos.pitsidianakis@linaro.org>
+Reviewed-by: Akihiko Odaki <akihiko.odaki@daynix.com>
+---
+ hw/display/virtio-gpu.c              | 10 +++-------
+ include/hw/virtio/virtio-gpu-bswap.h | 15 +++++++++++++++
+ include/hw/virtio/virtio-gpu.h       |  5 +++++
+ 3 files changed, 23 insertions(+), 7 deletions(-)
+
+diff --git a/hw/display/virtio-gpu.c b/hw/display/virtio-gpu.c
+index 3fc351bdbf..e380f1adba 100644
+--- a/hw/display/virtio-gpu.c
++++ b/hw/display/virtio-gpu.c
+@@ -33,15 +33,11 @@
+ 
+ #define VIRTIO_GPU_VM_VERSION 1
+ 
+-static struct virtio_gpu_simple_resource*
+-virtio_gpu_find_resource(VirtIOGPU *g, uint32_t resource_id);
+ static struct virtio_gpu_simple_resource *
+ virtio_gpu_find_check_resource(VirtIOGPU *g, uint32_t resource_id,
+                                bool require_backing,
+                                const char *caller, uint32_t *error);
+ 
+-static void virtio_gpu_cleanup_mapping(VirtIOGPU *g,
+-                                       struct virtio_gpu_simple_resource *res);
+ static void virtio_gpu_reset_bh(void *opaque);
+ 
+ void virtio_gpu_update_cursor_data(VirtIOGPU *g,
+@@ -116,7 +112,7 @@ static void update_cursor(VirtIOGPU *g, struct virtio_gpu_update_cursor *cursor)
+                   cursor->resource_id ? 1 : 0);
+ }
+ 
+-static struct virtio_gpu_simple_resource *
++struct virtio_gpu_simple_resource *
+ virtio_gpu_find_resource(VirtIOGPU *g, uint32_t resource_id)
+ {
+     struct virtio_gpu_simple_resource *res;
+@@ -873,8 +869,8 @@ void virtio_gpu_cleanup_mapping_iov(VirtIOGPU *g,
+     g_free(iov);
+ }
+ 
+-static void virtio_gpu_cleanup_mapping(VirtIOGPU *g,
+-                                       struct virtio_gpu_simple_resource *res)
++void virtio_gpu_cleanup_mapping(VirtIOGPU *g,
++                                struct virtio_gpu_simple_resource *res)
+ {
+     virtio_gpu_cleanup_mapping_iov(g, res->iov, res->iov_cnt);
+     res->iov = NULL;
+diff --git a/include/hw/virtio/virtio-gpu-bswap.h b/include/hw/virtio/virtio-gpu-bswap.h
+index 9124108485..ead4c321c5 100644
+--- a/include/hw/virtio/virtio-gpu-bswap.h
++++ b/include/hw/virtio/virtio-gpu-bswap.h
+@@ -67,6 +67,21 @@ virtio_gpu_create_blob_bswap(struct virtio_gpu_resource_create_blob *cblob)
+     le64_to_cpus(&cblob->size);
+ }
+ 
++static inline void
++virtio_gpu_map_blob_bswap(struct virtio_gpu_resource_map_blob *mblob)
++{
++    virtio_gpu_ctrl_hdr_bswap(&mblob->hdr);
++    le32_to_cpus(&mblob->resource_id);
++    le64_to_cpus(&mblob->offset);
++}
++
++static inline void
++virtio_gpu_unmap_blob_bswap(struct virtio_gpu_resource_unmap_blob *ublob)
++{
++    virtio_gpu_ctrl_hdr_bswap(&ublob->hdr);
++    le32_to_cpus(&ublob->resource_id);
++}
++
+ static inline void
+ virtio_gpu_scanout_blob_bswap(struct virtio_gpu_set_scanout_blob *ssb)
+ {
+diff --git a/include/hw/virtio/virtio-gpu.h b/include/hw/virtio/virtio-gpu.h
+index d213c4edd6..1fd1ef4247 100644
+--- a/include/hw/virtio/virtio-gpu.h
++++ b/include/hw/virtio/virtio-gpu.h
+@@ -254,6 +254,9 @@ void virtio_gpu_base_fill_display_info(VirtIOGPUBase *g,
+ void virtio_gpu_base_generate_edid(VirtIOGPUBase *g, int scanout,
+                                    struct virtio_gpu_resp_edid *edid);
+ /* virtio-gpu.c */
++struct virtio_gpu_simple_resource *
++virtio_gpu_find_resource(VirtIOGPU *g, uint32_t resource_id);
++
+ void virtio_gpu_ctrl_response(VirtIOGPU *g,
+                               struct virtio_gpu_ctrl_command *cmd,
+                               struct virtio_gpu_ctrl_hdr *resp,
+@@ -272,6 +275,8 @@ int virtio_gpu_create_mapping_iov(VirtIOGPU *g,
+                                   uint32_t *niov);
+ void virtio_gpu_cleanup_mapping_iov(VirtIOGPU *g,
+                                     struct iovec *iov, uint32_t count);
++void virtio_gpu_cleanup_mapping(VirtIOGPU *g,
++                                struct virtio_gpu_simple_resource *res);
+ void virtio_gpu_process_cmdq(VirtIOGPU *g);
+ void virtio_gpu_device_realize(DeviceState *qdev, Error **errp);
+ void virtio_gpu_reset(VirtIODevice *vdev);
+-- 
+2.17.1
+

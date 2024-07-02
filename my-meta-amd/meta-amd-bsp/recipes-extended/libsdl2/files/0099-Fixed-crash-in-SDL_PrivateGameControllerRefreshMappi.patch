@@ -1,0 +1,26 @@
+From 7a9966af9d7f4817b72d28a5af38751b0968d1ca Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Wed, 14 Dec 2022 14:24:58 -0800
+Subject: [PATCH 099/458] Fixed crash in
+ SDL_PrivateGameControllerRefreshMapping()
+
+---
+ src/joystick/SDL_gamecontroller.c | 2 --
+ 1 file changed, 2 deletions(-)
+
+diff --git a/src/joystick/SDL_gamecontroller.c b/src/joystick/SDL_gamecontroller.c
+index f63368e0d..3c6a6fad2 100644
+--- a/src/joystick/SDL_gamecontroller.c
++++ b/src/joystick/SDL_gamecontroller.c
+@@ -1211,8 +1211,6 @@ static void SDL_PrivateGameControllerRefreshMapping(ControllerMapping_t *pContro
+                 SDL_PushEvent(&event);
+             }
+         }
+-
+-        controller = controller->next;
+     }
+ }
+ 
+-- 
+2.17.1
+

@@ -1,0 +1,30 @@
+From 45e5f0f10bd44022cb3df3808eaa14ebb1eb2e4e Mon Sep 17 00:00:00 2001
+From: Sylvain <sylvain.becker@gmail.com>
+Date: Mon, 13 Feb 2023 09:40:44 +0100
+Subject: [PATCH 212/458] Fixed bug #7302 - Memory 'leak' in
+ SDL_SetMouseSystemScale()
+
+---
+ src/events/SDL_mouse.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/src/events/SDL_mouse.c b/src/events/SDL_mouse.c
+index fa0a582e7..5d8d1d2ed 100644
+--- a/src/events/SDL_mouse.c
++++ b/src/events/SDL_mouse.c
+@@ -912,6 +912,12 @@ void SDL_MouseQuit(void)
+     }
+     mouse->num_clickstates = 0;
+ 
++    if (mouse->system_scale_values) {
++        SDL_free(mouse->system_scale_values);
++        mouse->system_scale_values = NULL;
++    }
++    mouse->num_system_scale_values = 0;
++
+     SDL_DelHintCallback(SDL_HINT_MOUSE_DOUBLE_CLICK_TIME,
+                         SDL_MouseDoubleClickTimeChanged, mouse);
+ 
+-- 
+2.17.1
+

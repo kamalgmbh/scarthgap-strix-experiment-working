@@ -1,0 +1,61 @@
+From a937b5c4ad2bae5a19df3e77bec21dafb3dd18d7 Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Mon, 28 Nov 2022 13:47:30 -0800
+Subject: [PATCH 033/458] Add 8BitDo to the list of Xbox 360 third party
+ vendors
+
+Allows detection of the 8BitDo Ultimate Wired Controller
+---
+ .../app/src/main/java/org/libsdl/app/HIDDeviceManager.java     | 3 ++-
+ src/hidapi/libusb/hid.c                                        | 1 +
+ src/joystick/hidapi/SDL_hidapijoystick.c                       | 1 +
+ 3 files changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/android-project/app/src/main/java/org/libsdl/app/HIDDeviceManager.java b/android-project/app/src/main/java/org/libsdl/app/HIDDeviceManager.java
+index cf3c9267f..e695a1772 100644
+--- a/android-project/app/src/main/java/org/libsdl/app/HIDDeviceManager.java
++++ b/android-project/app/src/main/java/org/libsdl/app/HIDDeviceManager.java
+@@ -251,6 +251,7 @@ public class HIDDeviceManager {
+             0x20d6, // PowerA
+             0x24c6, // PowerA
+             0x2c22, // Qanba
++            0x2dc8, // 8BitDo
+         };
+ 
+         if (usbInterface.getInterfaceClass() == UsbConstants.USB_CLASS_VENDOR_SPEC &&
+@@ -278,7 +279,7 @@ public class HIDDeviceManager {
+             0x1532, // Razer Wildcat
+             0x20d6, // PowerA
+             0x24c6, // PowerA
+-            0x2dc8, /* 8BitDo */
++            0x2dc8, // 8BitDo
+             0x2e24, // Hyperkin
+         };
+ 
+diff --git a/src/hidapi/libusb/hid.c b/src/hidapi/libusb/hid.c
+index 9e2a43589..abd5d0030 100644
+--- a/src/hidapi/libusb/hid.c
++++ b/src/hidapi/libusb/hid.c
+@@ -688,6 +688,7 @@ static int is_xbox360(unsigned short vendor_id, const struct libusb_interface_de
+ 		0x20d6, /* PowerA */
+ 		0x24c6, /* PowerA */
+ 		0x2c22, /* Qanba */
++		0x2dc8, /* 8BitDo */
+ 	};
+ 
+ 	if (intf_desc->bInterfaceClass == LIBUSB_CLASS_VENDOR_SPEC &&
+diff --git a/src/joystick/hidapi/SDL_hidapijoystick.c b/src/joystick/hidapi/SDL_hidapijoystick.c
+index ae3f2cc2d..94124b70c 100644
+--- a/src/joystick/hidapi/SDL_hidapijoystick.c
++++ b/src/joystick/hidapi/SDL_hidapijoystick.c
+@@ -170,6 +170,7 @@ SDL_GetJoystickGameControllerProtocol(const char *name, Uint16 vendor, Uint16 pr
+             0x20d6, /* PowerA */
+             0x24c6, /* PowerA */
+             0x2c22, /* Qanba */
++            0x2dc8, /* 8BitDo */
+         };
+ 
+         int i;
+-- 
+2.17.1
+

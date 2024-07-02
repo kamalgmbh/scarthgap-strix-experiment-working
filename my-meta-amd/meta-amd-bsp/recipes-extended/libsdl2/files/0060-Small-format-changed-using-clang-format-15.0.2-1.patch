@@ -1,0 +1,159 @@
+From 09ee811f4b2c5adc8965a9f25789aea70b3644ad Mon Sep 17 00:00:00 2001
+From: Sylvain <sylvain.becker@gmail.com>
+Date: Thu, 1 Dec 2022 09:39:08 +0100
+Subject: [PATCH 060/458] Small format changed (using clang-format 15.0.2-1)
+
+(cherry picked from commit 778b8926b4808f0642a331ed84a9e8e19899b6db)
+---
+ src/core/linux/SDL_evdev.c                |  4 ++--
+ src/core/winrt/SDL_winrtapp_direct3d.cpp  |  7 +++----
+ src/dynapi/SDL_dynapi.c                   |  5 ++++-
+ src/joystick/SDL_sysjoystick.h            |  2 +-
+ src/joystick/linux/SDL_sysjoystick_c.h    |  4 ++--
+ src/sensor/android/SDL_androidsensor.c    |  1 -
+ src/video/SDL_blit_N.c                    | 10 ++++++++--
+ src/video/windows/SDL_windowsmessagebox.c |  4 ++--
+ 8 files changed, 22 insertions(+), 15 deletions(-)
+
+diff --git a/src/core/linux/SDL_evdev.c b/src/core/linux/SDL_evdev.c
+index 12481bb7a..9940d6fa7 100644
+--- a/src/core/linux/SDL_evdev.c
++++ b/src/core/linux/SDL_evdev.c
+@@ -95,9 +95,9 @@ typedef struct SDL_evdevlist_item
+             } delta;
+             int tracking_id;
+             int x, y, pressure;
+-        } * slots;
++        } *slots;
+ 
+-    } * touchscreen_data;
++    } *touchscreen_data;
+ 
+     /* Mouse state */
+     SDL_bool high_res_wheel;
+diff --git a/src/core/winrt/SDL_winrtapp_direct3d.cpp b/src/core/winrt/SDL_winrtapp_direct3d.cpp
+index 4baeed39a..270b6f85e 100644
+--- a/src/core/winrt/SDL_winrtapp_direct3d.cpp
++++ b/src/core/winrt/SDL_winrtapp_direct3d.cpp
+@@ -51,7 +51,6 @@ extern "C" {
+ #include "SDL_stdinc.h"
+ #include "SDL_render.h"
+ #include "../../video/SDL_sysvideo.h"
+-//#include "../../SDL_hints_c.h"
+ #include "../../events/SDL_events_c.h"
+ #include "../../events/SDL_keyboard_c.h"
+ #include "../../events/SDL_mouse_c.h"
+@@ -74,9 +73,9 @@ extern "C" void D3D11_Trim(SDL_Renderer *);
+ 
+ // Compile-time debugging options:
+ // To enable, uncomment; to disable, comment them out.
+-//#define LOG_POINTER_EVENTS 1
+-//#define LOG_WINDOW_EVENTS 1
+-//#define LOG_ORIENTATION_EVENTS 1
++// #define LOG_POINTER_EVENTS 1
++// #define LOG_WINDOW_EVENTS 1
++// #define LOG_ORIENTATION_EVENTS 1
+ 
+ // HACK, DLudwig: record a reference to the global, WinRT 'app'/view.
+ // SDL/WinRT will use this throughout its code.
+diff --git a/src/dynapi/SDL_dynapi.c b/src/dynapi/SDL_dynapi.c
+index 7219a622c..919bbba8f 100644
+--- a/src/dynapi/SDL_dynapi.c
++++ b/src/dynapi/SDL_dynapi.c
+@@ -204,7 +204,10 @@ SDL_DYNAPI_VARARGS(static, _DEFAULT, SDL_InitDynamicAPI())
+ /* Public API functions to jump into the jump table. */
+ #if DISABLE_JUMP_MAGIC
+ #define SDL_DYNAPI_PROC(rc, fn, params, args, ret) \
+-    rc SDLCALL fn params { ret jump_table.fn args; }
++    rc SDLCALL fn params                           \
++    {                                              \
++        ret jump_table.fn args;                    \
++    }
+ #define SDL_DYNAPI_PROC_NO_VARARGS 1
+ #include "SDL_dynapi_procs.h"
+ #undef SDL_DYNAPI_PROC
+diff --git a/src/joystick/SDL_sysjoystick.h b/src/joystick/SDL_sysjoystick.h
+index fbe8b60ef..8a8312495 100644
+--- a/src/joystick/SDL_sysjoystick.h
++++ b/src/joystick/SDL_sysjoystick.h
+@@ -89,7 +89,7 @@ struct _SDL_Joystick
+     {
+         int dx;
+         int dy;
+-    } * balls; /* Current ball motion deltas */
++    } *balls; /* Current ball motion deltas */
+ 
+     int nbuttons;   /* Number of buttons on the joystick */
+     Uint8 *buttons; /* Current button states */
+diff --git a/src/joystick/linux/SDL_sysjoystick_c.h b/src/joystick/linux/SDL_sysjoystick_c.h
+index 138eedb0e..b021f3742 100644
+--- a/src/joystick/linux/SDL_sysjoystick_c.h
++++ b/src/joystick/linux/SDL_sysjoystick_c.h
+@@ -43,12 +43,12 @@ struct joystick_hwdata
+     struct hwdata_hat
+     {
+         int axis[2];
+-    } * hats;
++    } *hats;
+     /* The current Linux joystick driver maps balls to two axes */
+     struct hwdata_ball
+     {
+         int axis[2];
+-    } * balls;
++    } *balls;
+ 
+     /* Support for the Linux 2.4 unified input interface */
+     Uint8 key_map[KEY_MAX];
+diff --git a/src/sensor/android/SDL_androidsensor.c b/src/sensor/android/SDL_androidsensor.c
+index d8fb8e99d..0e70b6aff 100644
+--- a/src/sensor/android/SDL_androidsensor.c
++++ b/src/sensor/android/SDL_androidsensor.c
+@@ -32,7 +32,6 @@
+ #include "SDL_androidsensor.h"
+ #include "../SDL_syssensor.h"
+ #include "../SDL_sensor_c.h"
+-//#include "../../core/android/SDL_android.h"
+ 
+ #ifndef LOOPER_ID_USER
+ #define LOOPER_ID_USER 3
+diff --git a/src/video/SDL_blit_N.c b/src/video/SDL_blit_N.c
+index cac0bb403..4b7033471 100644
+--- a/src/video/SDL_blit_N.c
++++ b/src/video/SDL_blit_N.c
+@@ -84,9 +84,15 @@ GetL3CacheSize(void)
+         (vector unsigned short) ( a,b,c,d,e,f,g,h )
+ #else
+ #define VECUINT8_LITERAL(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p) \
+-    (vector unsigned char) { a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p }
++    (vector unsigned char)                                               \
++    {                                                                    \
++        a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p                   \
++    }
+ #define VECUINT16_LITERAL(a, b, c, d, e, f, g, h) \
+-    (vector unsigned short) { a, b, c, d, e, f, g, h }
++    (vector unsigned short)                       \
++    {                                             \
++        a, b, c, d, e, f, g, h                    \
++    }
+ #endif
+ 
+ #define UNALIGNED_PTR(x)       (((size_t)x) & 0x0000000F)
+diff --git a/src/video/windows/SDL_windowsmessagebox.c b/src/video/windows/SDL_windowsmessagebox.c
+index 09528f619..7c7679161 100644
+--- a/src/video/windows/SDL_windowsmessagebox.c
++++ b/src/video/windows/SDL_windowsmessagebox.c
+@@ -86,9 +86,9 @@ enum _TASKDIALOG_FLAGS
+     TDF_RTL_LAYOUT = 0x2000,
+     TDF_NO_DEFAULT_RADIO_BUTTON = 0x4000,
+     TDF_CAN_BE_MINIMIZED = 0x8000,
+-    //#if (NTDDI_VERSION >= NTDDI_WIN8)
++    // #if (NTDDI_VERSION >= NTDDI_WIN8)
+     TDF_NO_SET_FOREGROUND = 0x00010000, // Don't call SetForegroundWindow() when activating the dialog
+-                                        //#endif // (NTDDI_VERSION >= NTDDI_WIN8)
++                                        // #endif // (NTDDI_VERSION >= NTDDI_WIN8)
+     TDF_SIZE_TO_CONTENT = 0x01000000    // used by ShellMessageBox to emulate MessageBox sizing behavior
+ };
+ typedef int TASKDIALOG_FLAGS; // Note: _TASKDIALOG_FLAGS is an int
+-- 
+2.17.1
+

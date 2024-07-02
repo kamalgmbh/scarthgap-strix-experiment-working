@@ -1,0 +1,43 @@
+From 1cdd6dc82968274123b3124e4cae2d155bcd6cc8 Mon Sep 17 00:00:00 2001
+From: Sam Lantinga <slouken@libsdl.org>
+Date: Fri, 9 Jun 2023 14:34:59 -0700
+Subject: [PATCH 427/458] Fixed reading input from the Razer Atrox Arcade Stick
+ using Windows Gaming Input
+
+(cherry picked from commit 172cfca51332a845abf9c141ae56aa121fe4ada5)
+---
+ src/joystick/windows/SDL_windows_gaming_input.c | 15 +++++++++------
+ 1 file changed, 9 insertions(+), 6 deletions(-)
+
+diff --git a/src/joystick/windows/SDL_windows_gaming_input.c b/src/joystick/windows/SDL_windows_gaming_input.c
+index 06e555cb5..f9e7e4204 100644
+--- a/src/joystick/windows/SDL_windows_gaming_input.c
++++ b/src/joystick/windows/SDL_windows_gaming_input.c
+@@ -837,15 +837,18 @@ static void WGI_JoystickUpdate(SDL_Joystick *joystick)
+     }
+ 
+     hr = __x_ABI_CWindows_CGaming_CInput_CIRawGameController_GetCurrentReading(hwdata->controller, nbuttons, buttons, nhats, hats, naxes, axes, &timestamp);
+-    if (SUCCEEDED(hr) && timestamp != hwdata->timestamp) {
++    if (SUCCEEDED(hr) && (!timestamp || timestamp != hwdata->timestamp)) {
+         UINT32 i;
+-        SDL_bool all_zero = SDL_TRUE;
++        SDL_bool all_zero = SDL_FALSE;
+ 
+         /* The axes are all zero when the application loses focus */
+-        for (i = 0; i < naxes; ++i) {
+-            if (axes[i] != 0.0f) {
+-                all_zero = SDL_FALSE;
+-                break;
++        if (naxes > 0) {
++            all_zero = SDL_TRUE;
++            for (i = 0; i < naxes; ++i) {
++                if (axes[i] != 0.0f) {
++                    all_zero = SDL_FALSE;
++                    break;
++                }
+             }
+         }
+         if (all_zero) {
+-- 
+2.17.1
+

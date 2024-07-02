@@ -1,0 +1,318 @@
+From 4c74c1b848a63d6ea613b7ed497252dfb16cf951 Mon Sep 17 00:00:00 2001
+From: Jason Andryuk <jason.andryuk@amd.com>
+Date: Wed, 28 Feb 2024 10:29:00 -0500
+Subject: [PATCH 106/106] x86/PVH: Support relocatable dom0 kernels
+
+Xen tries to load a PVH dom0 kernel at the fixed guest physical address
+from the elf headers.  For Linux, this defaults to 0x1000000 (16MB), but
+it can be configured.
+
+Unfortunately there exist firmwares that have reserved regions at this
+address, so Xen fails to load the dom0 kernel since it's not RAM.
+
+The PVH entry code is not relocatable - it loads from absolute
+addresses, which fail when the kernel is loaded at a different address.
+With a suitably modified kernel, a reloctable entry point is possible.
+
+Add XEN_ELFNOTE_PHYS32_RELOC which specifies optional alignment,
+minimum, and maximum addresses needed for the kernel.  The presence of
+the NOTE indicates the kernel supports a relocatable entry path.
+
+Change the loading to check for an acceptable load address.  If the
+kernel is relocatable, support finding an alternate load address.
+
+The primary motivation for an explicit align field is that Linux has a
+configurable CONFIG_PHYSICAL_ALIGN field.  This value is present in the
+bzImage setup header, but not the ELF program headers p_align, which
+report 2MB even when CONFIG_PHYSICAL_ALIGN is greater.  Since a kernel
+is only considered relocatable if the PHYS32_RELOC elf note is present,
+the alignment contraints can just be specified within the note instead
+of searching for an alignment value via a heuristic.
+
+Load alignment uses the PHYS32_RELOC note value if specified.
+Otherwise, the maxmum ELF PHDR p_align value is selected if greater than
+or equal to PAGE_SIZE.  Finally, the fallback default is 2MB.
+
+libelf-private.h includes common-macros.h to satisfy the fuzzer build.
+
+Link: https://gitlab.com/xen-project/xen/-/issues/180
+Signed-off-by: Jason Andryuk <jason.andryuk@amd.com>
+---
+ xen/arch/x86/hvm/dom0_build.c      | 108 +++++++++++++++++++++++++++++
+ xen/common/libelf/libelf-dominfo.c |  35 ++++++++++
+ xen/common/libelf/libelf-private.h |   1 +
+ xen/include/public/elfnote.h       |  20 +++++-
+ xen/include/xen/libelf.h           |   4 ++
+ 5 files changed, 167 insertions(+), 1 deletion(-)
+
+diff --git a/xen/arch/x86/hvm/dom0_build.c b/xen/arch/x86/hvm/dom0_build.c
+index c7d47d0d4c..de124a14bc 100644
+--- a/xen/arch/x86/hvm/dom0_build.c
++++ b/xen/arch/x86/hvm/dom0_build.c
+@@ -530,6 +530,111 @@ static paddr_t __init find_memory(
+     return INVALID_PADDR;
+ }
+ 
++static bool __init check_load_address(
++    const struct domain *d, const struct elf_binary *elf)
++{
++    paddr_t kernel_start = (uintptr_t)elf->dest_base;
++    paddr_t kernel_end = kernel_start + elf->dest_size;
++    unsigned int i;
++
++    /* Relies on a sorted memory map with adjacent entries merged. */
++    for ( i = 0; i < d->arch.nr_e820; i++ )
++    {
++        paddr_t start = d->arch.e820[i].addr;
++        paddr_t end = start + d->arch.e820[i].size;
++
++        if ( start >= kernel_end )
++            return false;
++
++        if ( d->arch.e820[i].type == E820_RAM &&
++             start <= kernel_start &&
++             end >= kernel_end )
++            return true;
++    }
++
++    return false;
++}
++
++/* Find an e820 RAM region that fits the kernel at a suitable alignment. */
++static paddr_t __init find_kernel_memory(
++    const struct domain *d, struct elf_binary *elf,
++    const struct elf_dom_parms *parms)
++{
++    paddr_t kernel_size = elf->dest_size;
++    unsigned int align;
++    int i;
++
++    if ( parms->phys_align != UNSET_ADDR32 )
++        align = parms->phys_align;
++    else if ( elf->palign > PAGE_SIZE )
++        align = elf->palign;
++    else
++        align = MB(2);
++
++    /* Search backwards to find the highest address. */
++    for ( i = d->arch.nr_e820 - 1; i >= 0 ; i-- )
++    {
++        paddr_t start = d->arch.e820[i].addr;
++        paddr_t end = start + d->arch.e820[i].size;
++        paddr_t kstart, kend;
++
++        if ( d->arch.e820[i].type != E820_RAM ||
++             d->arch.e820[i].size < kernel_size )
++            continue;
++
++        if ( start > parms->phys_max )
++            continue;
++
++        if ( end - 1 > parms->phys_max )
++            end = parms->phys_max + 1;
++
++        kstart = (end - kernel_size) & ~(align - 1);
++        kend = kstart + kernel_size;
++
++        if ( kstart < parms->phys_min )
++            return 0;
++
++        if ( kstart >= start && kend <= end )
++            return kstart;
++    }
++
++    return 0;
++}
++
++/* Check the kernel load address, and adjust if necessary and possible. */
++static bool __init check_and_adjust_load_address(
++    const struct domain *d, struct elf_binary *elf, struct elf_dom_parms *parms)
++{
++    paddr_t reloc_base;
++
++    if ( check_load_address(d, elf) )
++        return true;
++
++    if ( !parms->phys_reloc )
++    {
++        printk("%pd kernel: Address conflict and not relocatable\n", d);
++        return false;
++    }
++
++    reloc_base = find_kernel_memory(d, elf, parms);
++    if ( !reloc_base )
++    {
++        printk("%pd kernel: Failed find a load address\n", d);
++        return false;
++    }
++
++    if ( opt_dom0_verbose )
++        printk("%pd kernel: Moving [%p, %p] -> [%"PRIpaddr", %"PRIpaddr"]\n", d,
++               elf->dest_base, elf->dest_base + elf->dest_size - 1,
++               reloc_base, reloc_base + elf->dest_size - 1);
++
++    parms->phys_entry =
++        reloc_base + (parms->phys_entry - (uintptr_t)elf->dest_base);
++    elf->dest_base = (char *)reloc_base;
++
++    return true;
++}
++
+ static int __init pvh_load_kernel(struct domain *d, const module_t *image,
+                                   unsigned long image_headroom,
+                                   module_t *initrd, void *image_base,
+@@ -577,6 +682,9 @@ static int __init pvh_load_kernel(struct domain *d, const module_t *image,
+     elf.dest_base = (void *)(parms.virt_kstart - parms.virt_base);
+     elf.dest_size = parms.virt_kend - parms.virt_kstart;
+ 
++    if ( !check_and_adjust_load_address(d, &elf, &parms) )
++        return -ENOSPC;
++
+     elf_set_vcpu(&elf, v);
+     rc = elf_load_binary(&elf);
+     if ( rc < 0 )
+diff --git a/xen/common/libelf/libelf-dominfo.c b/xen/common/libelf/libelf-dominfo.c
+index 0cdb419b8a..260294d0ed 100644
+--- a/xen/common/libelf/libelf-dominfo.c
++++ b/xen/common/libelf/libelf-dominfo.c
+@@ -17,6 +17,14 @@
+ 
+ #include "libelf-private.h"
+ 
++#if defined(__i386__) || defined(__x86_64__)
++#define ARCH_PHYS_MIN_DEFAULT   0
++#define ARCH_PHYS_MAX_DEFAULT   (GB(4) - 1)
++#else
++#define ARCH_PHYS_MIN_DEFAULT   0
++#define ARCH_PHYS_MAX_DEFAULT   0
++#endif
++
+ /* ------------------------------------------------------------------------ */
+ /* xen features                                                             */
+ 
+@@ -125,6 +133,7 @@ elf_errorstatus elf_xen_parse_note(struct elf_binary *elf,
+         [XEN_ELFNOTE_SUSPEND_CANCEL] = { "SUSPEND_CANCEL", ELFNOTE_INT },
+         [XEN_ELFNOTE_MOD_START_PFN] = { "MOD_START_PFN", ELFNOTE_INT },
+         [XEN_ELFNOTE_PHYS32_ENTRY] = { "PHYS32_ENTRY", ELFNOTE_INT },
++        [XEN_ELFNOTE_PHYS32_RELOC] = { "PHYS32_RELOC", ELFNOTE_NAME },
+     };
+ /* *INDENT-ON* */
+ 
+@@ -132,6 +141,7 @@ elf_errorstatus elf_xen_parse_note(struct elf_binary *elf,
+     uint64_t val = 0;
+     unsigned int i;
+     unsigned type = elf_uval(elf, note, type);
++    unsigned descsz = elf_uval(elf, note, descsz);
+ 
+     if ( (type >= sizeof(note_desc) / sizeof(note_desc[0])) ||
+          (note_desc[type].name == NULL) )
+@@ -228,6 +238,27 @@ elf_errorstatus elf_xen_parse_note(struct elf_binary *elf,
+     case XEN_ELFNOTE_PHYS32_ENTRY:
+         parms->phys_entry = val;
+         break;
++
++    case XEN_ELFNOTE_PHYS32_RELOC:
++        parms->phys_reloc = true;
++
++        if ( descsz >= 4 )
++        {
++            parms->phys_align = elf_note_numeric_array(elf, note, 4, 0);
++            elf_msg(elf, " align: %#"PRIx32, parms->phys_align);
++        }
++        if ( descsz >= 8 )
++        {
++            parms->phys_min = elf_note_numeric_array(elf, note, 4, 1);
++            elf_msg(elf, " min: %#"PRIx32, parms->phys_min);
++        }
++        if ( descsz >= 12 )
++        {
++            parms->phys_max = elf_note_numeric_array(elf, note, 4, 2);
++            elf_msg(elf, " max: %#"PRIx32, parms->phys_max);
++        }
++
++        break;
+     }
+ 
+     if ( note_desc[type].type == ELFNOTE_NAME)
+@@ -543,6 +574,10 @@ elf_errorstatus elf_xen_parse(struct elf_binary *elf,
+     parms->p2m_base = UNSET_ADDR;
+     parms->elf_paddr_offset = UNSET_ADDR;
+     parms->phys_entry = UNSET_ADDR32;
++    parms->phys_align = UNSET_ADDR32;
++    parms->phys_min = ARCH_PHYS_MIN_DEFAULT;
++    parms->phys_max = ARCH_PHYS_MAX_DEFAULT;
++    parms->phys_reloc = false;
+ 
+     /* Find and parse elf notes. */
+     count = elf_phdr_count(elf);
+diff --git a/xen/common/libelf/libelf-private.h b/xen/common/libelf/libelf-private.h
+index 47db679966..98cac65bc5 100644
+--- a/xen/common/libelf/libelf-private.h
++++ b/xen/common/libelf/libelf-private.h
+@@ -71,6 +71,7 @@
+ #endif
+ #include <xen/elfnote.h>
+ #include <xen/libelf/libelf.h>
++#include <xen-tools/common-macros.h>
+ 
+ #ifndef FUZZ_NO_LIBXC
+ #include "xenctrl.h"
+diff --git a/xen/include/public/elfnote.h b/xen/include/public/elfnote.h
+index 8bf54d035b..205f26576d 100644
+--- a/xen/include/public/elfnote.h
++++ b/xen/include/public/elfnote.h
+@@ -194,10 +194,28 @@
+  */
+ #define XEN_ELFNOTE_PHYS32_ENTRY 18
+ 
++/*
++ * Physical loading constraints for PVH kernels
++ *
++ * The presence of this note indicates the kernel supports relocating itself.
++ *
++ * The note may include up to three 32bit values to place constraints on the
++ * guest physical loading addresses and alignment for a PVH kernel.  Values
++ * are read in the following order:
++ *  - a required start alignment (default 0x200000)
++ *  - a minimum address for the start of the image (default 0)
++ *  - a maximum address for the last byte of the image (default 0xffffffff)
++ *
++ *  When this note specifies an alignment value, it is used.  Otherwise the
++ *  maximum p_align value from loadable ELF Program Headers is used, if it is
++ *  greater than or equal to 4k (0x1000).  Otherwise, the default is used.
++ */
++#define XEN_ELFNOTE_PHYS32_RELOC 19
++
+ /*
+  * The number of the highest elfnote defined.
+  */
+-#define XEN_ELFNOTE_MAX XEN_ELFNOTE_PHYS32_ENTRY
++#define XEN_ELFNOTE_MAX XEN_ELFNOTE_PHYS32_RELOC
+ 
+ /*
+  * System information exported through crash notes.
+diff --git a/xen/include/xen/libelf.h b/xen/include/xen/libelf.h
+index 2d971f958e..9ac530acc2 100644
+--- a/xen/include/xen/libelf.h
++++ b/xen/include/xen/libelf.h
+@@ -426,6 +426,7 @@ struct elf_dom_parms {
+     enum xen_pae_type pae;
+     bool bsd_symtab;
+     bool unmapped_initrd;
++    bool phys_reloc;
+     uint64_t virt_base;
+     uint64_t virt_entry;
+     uint64_t virt_hypercall;
+@@ -435,6 +436,9 @@ struct elf_dom_parms {
+     uint32_t f_supported[XENFEAT_NR_SUBMAPS];
+     uint32_t f_required[XENFEAT_NR_SUBMAPS];
+     uint32_t phys_entry;
++    uint32_t phys_align;
++    uint32_t phys_min;
++    uint32_t phys_max;
+ 
+     /* calculated */
+     uint64_t virt_kstart;
+-- 
+2.25.1
+
