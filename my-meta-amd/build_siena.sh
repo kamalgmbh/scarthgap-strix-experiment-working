@@ -8,6 +8,7 @@ DL_DIR ?= "\${TOPDIR}/../downloads"
 SSTATE_DIR ?= "\${TOPDIR}/../sstate-cache"
 MACHINE = "${MACHINE}"
 DISTRO = "poky-amd"
+BBMASK+ = "meta-amd/meta-amd-bsp/recipes-graphics/"
 EOF
 
 bitbake-layers add-layer ../meta-openembedded/meta-oe
