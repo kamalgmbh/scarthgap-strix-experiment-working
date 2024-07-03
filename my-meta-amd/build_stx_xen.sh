@@ -1,4 +1,4 @@
-YOCTO_BRANCH="kirkstone"
+YOCTO_BRANCH="scarthgap"
 MACHINE='stx'
 source ./oe-init-build-env build-${MACHINE}-${YOCTO_BRANCH}
 
@@ -9,15 +9,17 @@ MACHINE = "${MACHINE}"
 DISTRO = "poky-amd"
 EOF
 
+
 bitbake-layers add-layer ../meta-openembedded/meta-oe
 bitbake-layers add-layer ../meta-openembedded/meta-python
 bitbake-layers add-layer ../meta-openembedded/meta-networking
+bitbake-layers add-layer ../meta-openembedded/meta-multimedia
 bitbake-layers add-layer ../meta-amd/meta-amd-distro
 bitbake-layers add-layer ../meta-amd/meta-amd-bsp
 bitbake-layers add-layer ../meta-openembedded/meta-filesystems
-bitbake-layers add-layer ../meta-openembedded/meta-xfce
 bitbake-layers add-layer ../meta-openembedded/meta-gnome
+bitbake-layers add-layer ../meta-openembedded/meta-xfce
 bitbake-layers add-layer ../meta-virtualization
 bitbake-layers add-layer ../meta-vulkan
 
-bitbake xen-image -k
+bitbake xen-image
