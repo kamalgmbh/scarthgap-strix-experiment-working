@@ -156,6 +156,8 @@ SRC_URI += " \
 	file://0042-x86-pvh-Add-64bit-relocation-page-tables.patch \
 	file://0043-fixup-xen-init-and-update-dynamically-hva-to-guest-p.patch \
 	file://0044-drm-amdgpu-fix-visible-VRAM-handling-during-faults.patch \
+        file://0045-drm-amdgpu-fix-off-by-one-in-amdgpu_res_cpu_visible.patch \
+	file://0046-drm-amdgpu-fix-doorbell-regression.patch \
 	file://0047-fixup-xen-init-and-update-dynamically-hva-to-guest-p.patch \
 	file://0048-xen-hostmem-premap-regions-to-avoid-first-access-lat.patch \
 	file://0049-fixup-fixup-xen-init-and-update-dynamically-hva-to-g.patch \

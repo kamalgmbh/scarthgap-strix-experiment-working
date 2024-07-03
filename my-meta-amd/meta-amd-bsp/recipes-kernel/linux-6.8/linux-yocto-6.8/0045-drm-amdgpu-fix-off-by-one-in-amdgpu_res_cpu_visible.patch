@@ -1,19 +1,3 @@
-From e66b45b75732104bd67b668bab9b181a4bb90cea Mon Sep 17 00:00:00 2001
-From: =?UTF-8?q?Christian=20K=C3=B6nig?= <christian.koenig@amd.com>
-Date: Wed, 8 May 2024 13:09:27 +0200
-Subject: [PATCH 45/49] drm/amdgpu: fix off by one in amdgpu_res_cpu_visible
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
-
-Otherwise applications might run into a SIGBUS.
-
-Signed-off-by: Christian König <christian.koenig@amd.com>
-Suggest-by: Michel Dänzer <michel.daenzer@mailbox.org>
----
- drivers/gpu/drm/amd/amdgpu/amdgpu_ttm.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
 diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_ttm.c b/drivers/gpu/drm/amd/amdgpu/amdgpu_ttm.c
 index e82a380a86c4..daf5ccb17aac 100644
 --- a/drivers/gpu/drm/amd/amdgpu/amdgpu_ttm.c
@@ -27,6 +11,3 @@ index e82a380a86c4..daf5ccb17aac 100644
  			return false;
  		amdgpu_res_next(&cursor, cursor.size);
  	}
--- 
-2.17.1
-
